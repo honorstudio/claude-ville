@@ -1,3 +1,4 @@
+import { resolveObservation } from './ObservationCertainty.js';
 import { eventBus } from '../../domain/events/DomainEvent.js';
 import { TILE_HEIGHT, TILE_WIDTH } from '../../config/constants.js';
 
@@ -392,6 +393,7 @@ export class RitualConductor {
         if (hasSprites && !sprite) return false;
         if (typeof isAgentVisible === 'function' && !isAgentVisible(event.agentId)) return false;
         if (sprite?.isArrivalPending?.()) return false;
+        if (resolveObservation(agent || sprite?.agent, Date.now()).state === 'stale') return false;
 
         if (event.commandLifecycle?.kind) return true;
 
@@ -461,7 +463,8 @@ export class RitualConductor {
     update(dt = 16) {
         const delta = Math.max(0, Number(dt) || 0);
         for (const ritual of this.rituals) {
-            ritual.motionEnabled = this.motionScale > 0;
+            const agent = this.context.world?.agents?.get?.(ritual.agentId) || this.context.agentSprites?.get?.(ritual.agentId)?.agent;
+            ritual.motionEnabled = this.motionScale > 0 && resolveObservation(agent, Date.now()).state !== 'stale';
             ritual.elapsedMs += delta;
             ritual.remainingMs -= delta;
             if (ritual.elapsedMs >= 180 && ritual.phase === 'pending') ritual.phase = 'playing';

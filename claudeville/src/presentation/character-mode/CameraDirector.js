@@ -1,5 +1,6 @@
 import { eventBus } from '../../domain/events/DomainEvent.js';
 import { AgentStatus } from '../../domain/value-objects/AgentStatus.js';
+import { fitAttentionFrame } from './AttentionFraming.js';
 
 const SCORE_INTERVAL_MS = 3000;
 const ORDINARY_IDLE_MS = 30000;
@@ -103,10 +104,10 @@ function valuesOfAgentSprites(agentSprites) {
     return [];
 }
 
-export function collectLiveAgents(agentSprites) {
+export function collectLiveAgents(agentSprites, { includePending = false } = {}) {
     const agents = [];
     for (const sprite of valuesOfAgentSprites(agentSprites)) {
-        if (!sprite || sprite._archiveAnim || sprite.isArrivalPending?.()) continue;
+        if (!sprite || sprite._archiveAnim || sprite.agent?.isDeparted || (!includePending && sprite.isArrivalPending?.())) continue;
         const source = sprite.agent;
         const id = String(source?.id || '');
         const x = finiteNumber(sprite.x);
@@ -117,6 +118,7 @@ export function collectLiveAgents(agentSprites) {
             x,
             y,
             status: source?.status || '',
+            awaitingSince: source?.awaitingSince ?? null,
             currentTool: source?.currentTool || null,
             moving: Boolean(sprite.moving),
         });
@@ -258,17 +260,52 @@ export class CameraDirector {
         if (!this.autoMode) this._focus = null;
     }
 
+    frameAttention(agentSprites) {
+        const camera = this.camera;
+        if (!camera) return null;
+        const candidates = collectLiveAgents(agentSprites, { includePending: true }).filter(agent =>
+            agent.status === AgentStatus.WAITING_ON_USER
+            || agent.status === AgentStatus.ERRORED
+            || agent.status === AgentStatus.RATE_LIMITED);
+        if (!candidates.length) {
+            this.attentionFrame = null;
+            return null;
+        }
+        // Chrome panels are flex siblings: the canvas is already the usable viewport.
+        const pixelScale = camera.zoomSteps?.[0] || 1;
+        const viewport = {
+            width: camera._viewportWidth() / pixelScale,
+            height: camera._viewportHeight() / pixelScale,
+        };
+        const frame = fitAttentionFrame(candidates, viewport);
+        camera.noteUserInput();
+        camera.glideToWorld({
+            minX: frame.center.x, maxX: frame.center.x,
+            minY: frame.center.y, maxY: frame.center.y,
+        }, { maxZoom: frame.zoom, paddingPx: 0, duration: 700, owner: 'user', userAdjustedOnComplete: true });
+        this.attentionFrame = {
+            ...frame,
+            focusedAgentId: frame.included[0] || frame.excluded[0],
+            inputAt: camera._lastUserInputAt,
+        };
+        return this.attentionFrame;
+    }
+
     dispose() {
         for (const unsubscribe of this._unsubscribers.splice(0)) {
             unsubscribe?.();
         }
         this._focus = null;
+        this.attentionFrame = null;
         this._latestSnapshot = null;
         this._lastEventKindAt.clear();
     }
 
     update({ now = nowMs(), agentSprites = null, snapshot = null } = {}) {
         this._latestSnapshot = snapshot || null;
+        if (this.attentionFrame && this.attentionFrame.inputAt !== this.camera?._lastUserInputAt) {
+            this.attentionFrame = null;
+        }
         if (!this.autoMode || this.motionScale <= 0 || !this.camera) return;
         if (now - this._lastScoreAt < SCORE_INTERVAL_MS) return;
         if (!this._canCameraMove(now, { snapshot, ordinary: true })) return;
@@ -311,6 +348,8 @@ export class CameraDirector {
         if (!this.autoMode || this.motionScale <= 0 || !this.camera || !cue || !validBox(cue.box)) return;
         const now = nowMs();
         const kind = String(cue.kind || 'default');
+        // Attention cohorts inform edge cues; only the explicit A command frames them.
+        if (kind === 'incident') return;
         if (!this._canCameraMove(now, { snapshot: this._latestSnapshot, event: true })) return;
         if (now - this._lastEventMoveAt < GLOBAL_EVENT_COOLDOWN_MS) return;
 
@@ -335,6 +374,7 @@ export class CameraDirector {
     _canCameraMove(now, { snapshot = null, ordinary = false, event = false } = {}) {
         const camera = this.camera;
         if (!camera) return false;
+        if (this.attentionFrame?.inputAt === camera._lastUserInputAt) return false;
         if (
             camera.followTarget
             || camera.dragging

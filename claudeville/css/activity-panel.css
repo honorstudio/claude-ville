@@ -527,165 +527,115 @@ body[data-cv-selected] .activity-panel__header::before {
     margin-bottom: 2px;
 }
 
-.activity-panel__occupant {
+/* Building instrument: static count ticks in every motion mode. */
+.activity-panel__instrument-metric {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--cv-divider);
+}
+
+.activity-panel__instrument-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+    color: var(--cv-gold-bright);
+    font-family: var(--font-body);
+    font-size: var(--fs-data);
+}
+
+.activity-panel__instrument-ticks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.activity-panel__instrument-ticks > span {
+    width: 12px;
+    height: 9px;
+    border: 1px solid var(--cv-text-muted);
+    background: var(--cv-surface-3);
+}
+
+.activity-panel__instrument-ticks--seats > span {
+    border-top: 0;
+    border-bottom-width: 3px;
+}
+
+.activity-panel__instrument-ticks--work > span {
+    width: 22px;
+}
+
+.activity-panel__instrument-ticks > .is-filled {
+    background: var(--cv-green-soft);
+    border-color: var(--cv-green-soft);
+}
+
+/* Beyond the declared capacity: still counted, marked as over. */
+.activity-panel__instrument-ticks > .is-over {
+    border-color: var(--cv-status-waiting);
+}
+
+.activity-panel__instrument-ticks > .is-filled.is-over {
+    background: var(--cv-status-waiting);
+}
+
+.activity-panel__instrument-note {
+    color: var(--cv-text-muted);
+    font-size: var(--fs-data);
+    line-height: 1.5;
+}
+
+.activity-panel__instrument-queue {
+    padding: 12px 0;
+}
+
+.activity-panel__instrument-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 0;
+    border: 0;
+    border-bottom: 1px solid var(--cv-divider);
+    background: transparent;
+    color: var(--cv-gold-bright);
+    font: inherit;
+    font-size: var(--fs-data);
+    text-align: left;
     cursor: pointer;
 }
 
-.activity-panel__occupant-main {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
+.activity-panel__instrument-name > span:first-child {
+    overflow-wrap: anywhere;
     min-width: 0;
 }
 
-.activity-panel__occupant-name,
-.activity-panel__occupant-tool {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.activity-panel__occupant-name {
-    color: var(--cv-gold-bright);
-}
-
-.activity-panel__occupant-tool {
-    color: var(--cv-text-muted);
-    font-size: var(--fs-label);
+.activity-panel__instrument-name > span:last-child {
     flex-shrink: 0;
 }
 
-.activity-panel__occupant-body {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
+.activity-panel__instrument-name:focus-visible,
+.activity-panel__instrument-overflow > summary:focus-visible {
+    outline: 2px solid var(--cv-focus);
+    outline-offset: 2px;
 }
 
-.activity-panel__occupant-detail,
-.activity-panel__occupant-hint {
-    color: var(--cv-text-muted);
-    font-size: var(--fs-label);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.activity-panel__occupant-hint {
-    color: #c9ad79;
-}
-
-/* ─── Building signal ─────────────────────────── */
-
-.activity-panel__building-signal {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    padding: 7px 8px;
-    background: linear-gradient(180deg, rgba(73, 50, 30, 0.78), rgba(31, 22, 18, 0.72));
-    border: 1px solid rgba(214, 169, 81, 0.28);
-    border-left: 3px solid var(--cv-gold);
-    border-radius: 2px;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
-}
-
-.activity-panel__signal-headline {
-    color: var(--cv-gold-bright);
-    font-family: var(--font-display);
-    font-size: 10px;
-    line-height: 1.35;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.activity-panel__signal-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    min-width: 0;
-}
-
-.activity-panel__signal-rows {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-}
-
-.activity-panel__signal-row {
-    display: grid;
-    grid-template-columns: 54px minmax(0, 1fr);
-    align-items: baseline;
-    gap: 7px;
-    min-width: 0;
-    padding-top: 3px;
-    border-top: 1px solid rgba(214, 169, 81, 0.1);
-}
-
-.activity-panel__signal-row:first-child {
-    padding-top: 0;
-    border-top: 0;
-}
-
-.activity-panel__signal-row-label {
-    color: var(--cv-text-muted);
-    font-size: var(--fs-label);
-    white-space: nowrap;
-}
-
-.activity-panel__signal-row-value {
-    min-width: 0;
+.activity-panel__instrument-overflow > summary {
+    padding: 7px 0;
     color: var(--cv-gold);
-    font-size: var(--fs-label);
-    overflow: hidden;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: var(--fs-data);
+    cursor: pointer;
 }
 
-.activity-panel__signal-row--active .activity-panel__signal-row-value {
-    color: var(--cv-green-soft);
-}
-
-.activity-panel__signal-row--warning .activity-panel__signal-row-value {
-    color: var(--cv-status-waiting);
-}
-
-.activity-panel__signal-row--muted .activity-panel__signal-row-value {
-    color: var(--cv-text-muted);
-}
-
-.activity-panel__signal-chip {
-    max-width: 100%;
-    min-width: 0;
-    color: var(--cv-gold);
-    background: rgba(25, 17, 15, 0.72);
-    border: 1px solid rgba(214, 169, 81, 0.22);
-    border-radius: 2px;
-    padding: 2px 5px;
-    font-size: var(--fs-label);
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.activity-panel__signal-chip--active {
-    color: var(--cv-green-soft);
-    border-color: rgba(114, 208, 113, 0.32);
-}
-
-.activity-panel__signal-chip--warning {
-    color: var(--cv-status-waiting);
-    border-color: rgba(249, 115, 22, 0.38);
-}
-
-.activity-panel__signal-chip--muted {
-    color: var(--cv-text-muted);
+.activity-panel__instrument-purpose {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cv-divider);
+    color: var(--cv-text-soft);
+    font-size: var(--fs-data);
+    line-height: 1.5;
 }
 
 /* ─── Token usage ─────────────────────────────── */

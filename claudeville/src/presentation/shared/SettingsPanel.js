@@ -438,8 +438,12 @@ export class SettingsPanel {
         const metrics = getClientPerfMetrics()?.getSnapshot?.() || null;
         const p50 = oneDecimal(metrics?.frames?.p50Ms);
         const p95 = oneDecimal(metrics?.frames?.p95Ms ?? frameHealth?.p95FrameGapMs);
-        const fps = Number(this.getCurrentFps?.());
-        const fpsText = Number.isFinite(fps) ? `${Math.round(fps)} FPS` : 'render loop idle';
+        // A suspended render loop reports null; Number(null) is 0, which would
+        // read as a genuine 0 FPS stall, so only real numbers count as samples.
+        const fps = this.getCurrentFps?.();
+        const fpsText = typeof fps === 'number' && Number.isFinite(fps)
+            ? `${Math.round(fps)} FPS`
+            : 'render loop idle';
         if (this.healthFrames) {
             this.healthFrames.textContent = `${fpsText} · frame p50 ${p50 ?? 'collecting'} ms · p95 ${p95 ?? 'collecting'} ms`;
         }

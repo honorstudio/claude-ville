@@ -205,6 +205,39 @@ function modelProvider(model) {
   return slash > 0 ? value.slice(0, slash) : null;
 }
 
+// Match Claude's bounded, newest-per-path transcript projection. Edit paths
+// come from structured per-file results, never from patch or result prose.
+function workingSetPath(value, project, readSelector = false) {
+  if (typeof value !== 'string' || !value.trim() || value.includes('\0')) return null;
+  let filePath = value.trim().slice(0, 4096);
+  if (readSelector) filePath = filePath.replace(/:(?:raw|img|conflicts|\d+(?:[-+]\d*)?|-\d+)(?:,\d+(?:-\d+)?)?(?=:|$)/g, '');
+  if (!filePath || /[:?*]/.test(filePath) || filePath.includes(';')) return null;
+  if (filePath.startsWith('~/')) filePath = path.join(os.homedir(), filePath.slice(2));
+  let canonical = path.resolve(project || process.cwd(), filePath);
+  try { if (fs.statSync(canonical).isDirectory()) return null; } catch { /* missing files are valid writes */ }
+  let cursor = canonical;
+  const suffix = [];
+  while (cursor !== path.dirname(cursor)) {
+    try {
+      canonical = path.join(fs.realpathSync(cursor), ...suffix.reverse());
+      break;
+    } catch {
+      suffix.push(path.basename(cursor));
+      cursor = path.dirname(cursor);
+    }
+  }
+  for (const [base, prefix] of [[project, ''], [os.homedir(), '~/']]) {
+    if (!base) continue;
+    let root = path.resolve(base);
+    try { root = fs.realpathSync(root); } catch { /* keep resolved path */ }
+    const relative = path.relative(root, canonical);
+    if (relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)) {
+      return prefix + relative.split(path.sep).join('/');
+    }
+  }
+  return canonical.split(path.sep).join('/');
+}
+
 function parseOmpTranscript(records, {
   filePath = '',
   parentSessionId = null,
@@ -233,6 +266,12 @@ function parseOmpTranscript(records, {
   const todos = [];
   const toolHistory = [];
   const messages = [];
+  const workingSet = [];
+  const rememberPath = (value, op, at, readSelector = false) => {
+    if (typeof value !== 'string' || !value.trim()) return;
+    workingSet.push({ path: value.trim().slice(0, 4096), op, at, readSelector });
+    if (workingSet.length > 64) workingSet.shift();
+  };
   const usage = {
     input: 0,
     output: 0,
@@ -332,6 +371,9 @@ function parseOmpTranscript(records, {
         const toolCallId = String(part.id || `${tool}:${messageTs}:${toolHistory.length}`);
         const args = part.arguments ?? null;
         if (tool === 'todo') applyTodoOperation(todos, args);
+        if (tool === 'read' || tool === 'write') {
+          rememberPath(args?.path, tool === 'read' ? 'read' : 'write', messageTs, tool === 'read');
+        }
         if (args && typeof args === 'object') {
           rememberDialogue({
             text: args.i,
@@ -377,6 +419,9 @@ function parseOmpTranscript(records, {
     }
     if (role === 'toolResult' || role === 'tool') {
       if (message.toolCallId) pendingTools.delete(String(message.toolCallId));
+      if (message.toolName === 'edit' && !message.isError && Array.isArray(message.details?.perFileResults)) {
+        for (const result of message.details.perFileResults) rememberPath(result?.path, 'write', messageTs);
+      }
     }
   }
 
@@ -428,6 +473,15 @@ function parseOmpTranscript(records, {
   }, now);
   const resolvedModel = model || 'omp';
   const resolvedProvider = underlyingProvider || modelProvider(resolvedModel);
+  const newestPaths = [];
+  const seenPaths = new Set();
+  for (let i = workingSet.length - 1; i >= 0 && newestPaths.length < 16; i--) {
+    const item = workingSet[i];
+    const canonical = workingSetPath(item.path, project, item.readSelector);
+    if (!canonical || seenPaths.has(canonical)) continue;
+    seenPaths.add(canonical);
+    newestPaths.push({ path: canonical, op: item.op, at: item.at, source: 'transcript' });
+  }
 
   return {
     session: {
@@ -454,6 +508,7 @@ function parseOmpTranscript(records, {
       ...turn,
       signalSource: 'transcript',
       turnStartedAt,
+      workingSet: newestPaths,
     },
     detail: createDetailResponse({
       provider: 'omp',

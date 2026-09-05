@@ -1,3 +1,4 @@
+import { drawEventShape, EVENT_SHAPES } from '../shared/EventShapes.js';
 import {
     getActiveMarkGovernor,
     MarkTier,
@@ -129,6 +130,13 @@ class Particle {
         const baseAlpha = (this.life / this.maxLife) * this.alpha;
         const age = this.maxLife - this.life;
 
+        if (EVENT_SHAPES[this.shape]) {
+            ctx.globalAlpha = baseAlpha;
+            drawEventShape(ctx, this.shape, this.x - 8, this.y - 8, 1, this.color);
+            ctx.globalAlpha = 1;
+            return;
+        }
+
         // C6 — butterfly: two mirrored wing rects flapping about a 1px darker
         // body. Wing x-scale rides |sin| for a 2-frame flutter feel; a fixed
         // mid-flap pose stands in when motion is disabled.
@@ -215,6 +223,7 @@ const PARTICLE_PRESETS = {
         direction: 'up',
     },
     mining: {
+        shape: 'district-mine',
         colors: ['#ffd700', '#ff922b', '#ffec99'],
         size: [2, 4],
         life: [20, 40],
@@ -310,6 +319,7 @@ const PARTICLE_PRESETS = {
         direction: 'down',
     },
     portalRune: {
+        shape: 'child-return',
         colors: ['#8feaff', '#76d8ff', '#d7b8ff'],
         size: [1.5, 3],
         life: [22, 44],
@@ -326,6 +336,7 @@ const PARTICLE_PRESETS = {
         direction: 'up',
     },
     forgeSpark: {
+        shape: 'edit-strike',
         colors: ['#fff3a3', '#ffd43b', '#ff7a2f'],
         size: [1, 2.2],
         life: [10, 22],
@@ -334,6 +345,7 @@ const PARTICLE_PRESETS = {
         direction: 'random',
     },
     mineDust: {
+        shape: 'district-mine',
         colors: ['#8a7356', '#b79b70', '#d0b07d'],
         size: [1.6, 3.8],
         life: [28, 60],
@@ -342,6 +354,7 @@ const PARTICLE_PRESETS = {
         direction: 'up',
     },
     archiveMote: {
+        shape: 'read-page',
         colors: ['#e9d89a', '#b7d890', '#fff1bd'],
         size: [1, 2.2],
         life: [34, 74],
@@ -350,6 +363,7 @@ const PARTICLE_PRESETS = {
         direction: 'random',
     },
     beaconMote: {
+        shape: 'incident-bracket',
         colors: ['#fff2a3', '#ffd66f', '#ffffff'],
         size: [1.2, 2.8],
         life: [24, 52],
@@ -358,6 +372,7 @@ const PARTICLE_PRESETS = {
         direction: 'random',
     },
     questPing: {
+        shape: 'message-scroll',
         colors: ['#8bd7ff', '#f2d36b', '#ffffff'],
         size: [1.2, 2.6],
         life: [18, 34],
@@ -377,6 +392,7 @@ const PARTICLE_PRESETS = {
     // (mood accent `distressed` #ff8a7a). Sinks rather than rises so the cue
     // reads as a sagging fret, not a celebratory spark.
     fretMote: {
+        shape: 'incident-bracket',
         colors: ['#ff8a7a', '#e57a6c', '#d9a08f'],
         size: [1, 2],
         life: [22, 40],
@@ -423,6 +439,7 @@ const PARTICLE_PRESETS = {
     // reads as a release of tension, not lingering worry. Reduced motion never
     // spawns it — the agent's static upright posture is the recovery cue.
     distressRelief: {
+        shape: 'incident-bracket',
         colors: ['#b8f58a', '#fff1a8', '#86efac', '#fffbe6'],
         size: [1.4, 3],
         life: [16, 34],
@@ -517,7 +534,7 @@ export class ParticleSystem {
             motionEnabled: this.motionEnabled,
         })) return;
 
-        const semanticTier = options.semanticTier || MarkTier.AMBIENT;
+        const semanticTier = options.semanticTier || (particleRole(type) === 'semantic' ? MarkTier.SECONDARY : MarkTier.AMBIENT);
         const gate = getActiveMarkGovernor()?.admit(semanticTier, x, y);
         if (gate && !gate.draw) return;
         if (gate && semanticTier === MarkTier.AMBIENT) count = Math.ceil(count * gate.alpha);
@@ -542,7 +559,7 @@ export class ParticleSystem {
         // C6 — shaped-insect draw hints carried from the preset. When set, each
         // particle gets a deterministic flap/pulse phase seeded from its rng
         // below so animation never calls Math.random in draw.
-        const shape = preset.shape || null;
+        const shape = options.shape || preset.shape || null;
         const glow = !!preset.glow;
         const seed = options.seed;
         // #33 — signed horizontal drift (world units / 16ms) added to every

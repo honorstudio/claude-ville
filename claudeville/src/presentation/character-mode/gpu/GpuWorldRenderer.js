@@ -2,6 +2,8 @@ import {
     buildStableGpuBatches,
     clampGpuLights,
     createGpuTimingMetricsScratch,
+    effectBudgetMode,
+    shedEffectsForLevel,
     emissivePhaseForAmbientLight,
     estimateGpuWorldTextureBytes,
     gpuLightColorForShader,
@@ -26,6 +28,8 @@ const MAX_CACHED_TEXTURE_BYTES = 48 * 1024 * 1024;
 const MAX_CACHED_TEXTURES = 512;
 const LOCAL_LIGHT_VISIBILITY_FLOOR = 0.04;
 const DEFAULT_LIGHT_COLOR = Object.freeze([1, 0.78, 0.42]);
+const GPU_PASS_NAMES = ['upload', 'occlusion', 'scene', 'bloom', 'present'];
+const PASS_RING_CAPACITY = 32;
 
 function writeGpuVertex(vertices, offset, x, y, u, v, record) {
     vertices[offset++] = x;
@@ -123,6 +127,7 @@ uniform vec4 u_sun;
 uniform vec4 u_cloudShadow[3];
 uniform float u_time;
 uniform float u_motionScale;
+uniform bool u_useOcclusion;
 uniform int u_lightCount;
 uniform vec4 u_lights[32];
 uniform vec4 u_lightColors[32];
@@ -275,7 +280,7 @@ void main() {
         float distanceToLight = distance(glPx, light.xy);
         if (distanceToLight >= radius) continue;
         float falloff = 1.0 - smoothstep(0.0, radius, distanceToLight);
-        float blocked = occlusionBetween(glPx, light.xy, elevation);
+        float blocked = u_useOcclusion ? occlusionBetween(glPx, light.xy, elevation) : 0.0;
         float amount = falloff * light.w * (1.0 - blocked * 0.88);
         color += u_lightColors[i].rgb * amount * u_lightColors[i].a * 0.34;
         float waterReceiver = materialNear(material, 8.0);
@@ -498,6 +503,17 @@ export class GpuWorldRenderer {
         this.gpuMs = null;
         this.timerExtension = null;
         this.pendingGpuQueries = [];
+        this.passSamplingEnabled = false;
+        this._passCursor = 0;
+        this._sampledPass = null;
+        this._activePassQuery = null;
+        this.gpuDisjointDiscards = 0;
+        this._passStarted = 0;
+        this._passUploadBytes = 0;
+        this._passResults = Object.fromEntries(GPU_PASS_NAMES.map(name => [name, {
+            samples: new Array(PASS_RING_CAPACITY).fill(null),
+            count: 0, next: 0, gpuSum: 0, gpuCount: 0, cpuSum: 0, latest: null,
+        }]));
         this.qualityTimingSource = 'cpu-fallback';
         this._qualityTimingScratch = createGpuTimingMetricsScratch();
         this._qualityTimingInput = {
@@ -617,6 +633,7 @@ export class GpuWorldRenderer {
             'u_edgeAlpha', 'u_fogColor', 'u_weather', 'u_time', 'u_motionScale',
             'u_sun', 'u_cloudShadow[0]',
             'u_lightCount', 'u_lights[0]', 'u_lightColors[0]',
+            'u_useOcclusion',
         ]);
         this.occlusionUniforms = uniformLocations(gl, this.occlusionProgram, [
             'u_camera', 'u_resolution', 'u_albedo', 'u_materialMap',
@@ -700,7 +717,7 @@ export class GpuWorldRenderer {
             this._abandonGpuResources();
             return;
         }
-        for (const query of this.pendingGpuQueries) gl.deleteQuery?.(query);
+        for (const sample of this.pendingGpuQueries) gl.deleteQuery?.(sample.query);
         this.pendingGpuQueries.length = 0;
         this.timerExtension = null;
         this._releaseTarget(this.sceneTarget);
@@ -949,6 +966,50 @@ export class GpuWorldRenderer {
         this._updateTextureBytes();
     }
 
+    setPassSamplingEnabled(enabled) {
+        this.passSamplingEnabled = Boolean(enabled);
+    }
+
+    _beginPass(name) {
+        if (this._sampledPass !== name) return;
+        this._passStarted = performance.now();
+        this._passUploadBytes = this.uploadBytes;
+        this._activePassQuery = this._beginGpuTimer();
+    }
+
+    _endPass(name, draws, bytes) {
+        if (this._sampledPass !== name) return;
+        const cpuMs = performance.now() - this._passStarted;
+        const sample = { pass: name, draws, bytes: bytes + this.uploadBytes - this._passUploadBytes, cpuMs };
+        if (this._activePassQuery) this._endGpuTimer(this._activePassQuery, sample);
+        else this._recordPass({ ...sample, gpuMs: null });
+        this._activePassQuery = null;
+    }
+
+    // The ring is fixed capacity and its aggregates are maintained on write:
+    // getDiagnostics() runs every frame from the render-stats builder and must
+    // never walk the samples.
+    _recordPass(sample) {
+        const ring = this._passResults[sample.pass];
+        const evicted = ring.samples[ring.next];
+        if (evicted) {
+            ring.cpuSum -= evicted.cpuMs;
+            if (evicted.gpuMs != null) {
+                ring.gpuSum -= evicted.gpuMs;
+                ring.gpuCount -= 1;
+            }
+        }
+        ring.samples[ring.next] = sample;
+        ring.next = (ring.next + 1) % PASS_RING_CAPACITY;
+        ring.count = Math.min(PASS_RING_CAPACITY, ring.count + 1);
+        ring.cpuSum += sample.cpuMs;
+        if (sample.gpuMs != null) {
+            ring.gpuSum += sample.gpuMs;
+            ring.gpuCount += 1;
+        }
+        ring.latest = sample;
+    }
+
     _beginGpuTimer() {
         if (!this.timerExtension || !this.gl?.createQuery) return null;
         let query = null;
@@ -964,19 +1025,18 @@ export class GpuWorldRenderer {
         }
     }
 
-    _endGpuTimer(query) {
+    _endGpuTimer(query, metadata = null) {
         if (!query || !this.timerExtension) return;
         try {
             const gl = this.gl;
             gl.endQuery(this.timerExtension.TIME_ELAPSED_EXT);
-            this.pendingGpuQueries.push(query);
-            if (this.pendingGpuQueries.length > 4) {
-                const stale = this.pendingGpuQueries.shift();
-                gl.deleteQuery?.(stale);
+            this.pendingGpuQueries.push({ query, ...metadata });
+            if (this.pendingGpuQueries.length > 8) {
+                gl.deleteQuery?.(this.pendingGpuQueries.shift().query);
             }
         } catch {
             this.gpuTimerErrors++;
-            this.gpuMs = null;
+            if (!metadata) this.gpuMs = null;
             this.gl.deleteQuery?.(query);
         }
     }
@@ -984,44 +1044,32 @@ export class GpuWorldRenderer {
     _pollGpuQueries() {
         if (!this.timerExtension || !this.pendingGpuQueries.length) return;
         const gl = this.gl;
-        let disjoint = false;
-        try {
-            disjoint = Boolean(gl.getParameter(this.timerExtension.GPU_DISJOINT_EXT));
-        } catch {
+        if (gl.getParameter(this.timerExtension.GPU_DISJOINT_EXT)) {
+            // Even not-yet-available queries intersect this invalid interval.
+            this.gpuDisjointDiscards += this.pendingGpuQueries.length;
+            for (const sample of this.pendingGpuQueries) gl.deleteQuery?.(sample.query);
+            this.pendingGpuQueries.length = 0;
+            this.gpuMs = null;
             return;
         }
-        for (let index = this.pendingGpuQueries.length - 1; index >= 0; index--) {
-            const query = this.pendingGpuQueries[index];
-            let available = false;
+        for (let index = 0; index < this.pendingGpuQueries.length;) {
+            const sample = this.pendingGpuQueries[index];
             try {
-                available = Boolean(gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE));
-            } catch {
-                this.pendingGpuQueries.splice(index, 1);
-                gl.deleteQuery?.(query);
-                this.gpuTimerErrors++;
-                continue;
-            }
-            if (!available) continue;
-            this.pendingGpuQueries.splice(index, 1);
-            try {
-                if (disjoint) {
-                    // A disjoint interval invalidates every result from it;
-                    // use the CPU path until a clean query arrives.
-                    this.gpuMs = null;
-                } else {
-                    const nanoseconds = Number(gl.getQueryParameter(query, gl.QUERY_RESULT));
-                    if (Number.isFinite(nanoseconds) && nanoseconds >= 0) {
-                        this.gpuMs = ema(this.gpuMs, nanoseconds / 1e6);
-                    } else {
-                        this.gpuMs = null;
-                    }
+                if (!gl.getQueryParameter(sample.query, gl.QUERY_RESULT_AVAILABLE)) {
+                    index++;
+                    continue;
+                }
+                const gpuMs = Number(gl.getQueryParameter(sample.query, gl.QUERY_RESULT)) / 1e6;
+                if (Number.isFinite(gpuMs) && gpuMs >= 0) {
+                    if (sample.pass) this._recordPass({ ...sample, query: undefined, gpuMs });
+                    else this.gpuMs = ema(this.gpuMs, gpuMs);
                 }
             } catch {
-                this.gpuMs = null;
                 this.gpuTimerErrors++;
-            } finally {
-                gl.deleteQuery?.(query);
+                if (!sample.pass) this.gpuMs = null;
             }
+            this.pendingGpuQueries.splice(index, 1);
+            gl.deleteQuery?.(sample.query);
         }
     }
 
@@ -1086,54 +1134,60 @@ export class GpuWorldRenderer {
         );
     }
 
+    // Resolve (and, when a revision moved, upload) every channel texture for
+    // the frame once. Both draw passes then only bind: the sidecar key strings
+    // are built once per frame instead of once per batch per pass, and every
+    // texSubImage/texImage cost is attributed to the upload phase rather than
+    // appearing inside whichever pass happened to bind the batch first.
+    _uploadBatchTextures(batches) {
+        for (let index = 0; index < batches.length; index++) {
+            const batch = batches[index];
+            const first = batch.records[0];
+            const sidecar = batch.sidecarKey || batch.textureKey;
+            batch.albedoTexture = this._textureFor(
+                batch.textureKey,
+                batch.source,
+                first?.textureRevision,
+                first?.textureUpdates,
+            );
+            batch.materialTexture = batch.materialSource
+                ? this._textureFor(`material:${sidecar}`, batch.materialSource,
+                    first?.sidecarRevision, first?.materialTextureUpdates)
+                : null;
+            batch.emissiveTexture = batch.emissiveSource
+                ? this._textureFor(`emissive:${sidecar}`, batch.emissiveSource,
+                    first?.sidecarRevision, first?.emissiveTextureUpdates)
+                : null;
+            batch.occluderTexture = batch.occluderSource
+                ? this._textureFor(`occluder:${sidecar}`, batch.occluderSource,
+                    first?.sidecarRevision, first?.occluderTextureUpdates)
+                : null;
+        }
+    }
+
     _bindBatch(program, uniforms, batch, { occlusion = false } = {}) {
         const gl = this.gl;
-        const first = batch.records[0];
-        const albedo = this._textureFor(
-            batch.textureKey,
-            batch.source,
-            first?.textureRevision,
-            first?.textureUpdates,
-        );
+        const albedo = batch.albedoTexture;
         if (!albedo) return 0;
-        const material = batch.materialSource
-            ? this._textureFor(
-                `material:${batch.sidecarKey || batch.textureKey}`,
-                batch.materialSource,
-                first?.sidecarRevision,
-                first?.materialTextureUpdates,
-            )
-            : this.emptyMaterialTexture;
+        const material = batch.materialTexture;
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, albedo);
         gl.uniform1i(uniforms.u_albedo, 0);
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, material || this.emptyMaterialTexture);
         gl.uniform1i(uniforms.u_materialMap, 1);
-        gl.uniform1i(uniforms.u_hasMaterialMap, batch.materialSource ? 1 : 0);
+        gl.uniform1i(uniforms.u_hasMaterialMap, material ? 1 : 0);
         if (uniforms.u_emissiveMap) {
-            const emissive = batch.emissiveSource
-                ? this._textureFor(
-                    `emissive:${batch.sidecarKey || batch.textureKey}`,
-                    batch.emissiveSource,
-                    first?.sidecarRevision,
-                    first?.emissiveTextureUpdates,
-                )
-                : this.emptyMaterialTexture;
             gl.activeTexture(gl.TEXTURE3);
-            gl.bindTexture(gl.TEXTURE_2D, emissive || this.emptyMaterialTexture);
+            gl.bindTexture(gl.TEXTURE_2D, batch.emissiveTexture || this.emptyMaterialTexture);
             gl.uniform1i(uniforms.u_emissiveMap, 3);
-            gl.uniform1i(uniforms.u_hasEmissiveMap, batch.emissiveSource ? 1 : 0);
+            gl.uniform1i(uniforms.u_hasEmissiveMap, batch.emissiveTexture ? 1 : 0);
         }
         if (uniforms.u_occluderMap) {
-            const geometry = batch.occluderSource
-                ? this._textureFor(`occluder:${batch.sidecarKey || batch.textureKey}`, batch.occluderSource,
-                    first?.sidecarRevision, first?.occluderTextureUpdates)
-                : this.emptyMaterialTexture;
             gl.activeTexture(gl.TEXTURE4);
-            gl.bindTexture(gl.TEXTURE_2D, geometry || this.emptyMaterialTexture);
+            gl.bindTexture(gl.TEXTURE_2D, batch.occluderTexture || this.emptyMaterialTexture);
             gl.uniform1i(uniforms.u_occluderMap, 4);
-            gl.uniform1i(uniforms.u_hasOccluderMap, batch.occluderSource ? 1 : 0);
+            gl.uniform1i(uniforms.u_hasOccluderMap, batch.occluderTexture ? 1 : 0);
         }
         gl.drawArrays(
             gl.TRIANGLES,
@@ -1165,15 +1219,16 @@ export class GpuWorldRenderer {
         const uniforms = this.sceneUniforms;
         const grade = phaseGrade(feed);
         const weather = weatherUniform(feed);
-        if (qualityLevel >= POST_FX_LEVELS.REDUCED) {
+        const weatherMode = effectBudgetMode('weather-amplitude', qualityLevel);
+        if (weatherMode === 'reduced') {
             weather[0] *= 0.72;
             weather[3] *= 0.72;
-        }
-        if (qualityLevel >= POST_FX_LEVELS.MINIMAL) {
+        } else if (weatherMode === 'off') {
             weather[0] = 0;
             weather[2] = 0;
             weather[3] = 0;
         }
+        gl.uniform1i(uniforms.u_useOcclusion, effectBudgetMode('occlusion', qualityLevel) !== 'off');
         this._setCameraUniforms(uniforms, camera, 1);
         gl.uniform2f(uniforms.u_resolution, this.width, this.height);
         gl.uniform2f(uniforms.u_occlusionResolution, this.occlusionTarget.width, this.occlusionTarget.height);
@@ -1192,13 +1247,15 @@ export class GpuWorldRenderer {
         );
         gl.uniform4fv(
             uniforms['u_cloudShadow[0]'],
-            writeCloudShadowUniforms(
-                this._cloudShadowScratch,
-                this._cloudShadowLayers,
-                feed,
-                this.width,
-                this.height,
-            ),
+            effectBudgetMode('cloud-courses', qualityLevel) === 'off'
+                ? this._cloudShadowScratch.fill(0)
+                : writeCloudShadowUniforms(
+                    this._cloudShadowScratch,
+                    this._cloudShadowLayers,
+                    feed,
+                    this.width,
+                    this.height,
+                ),
         );
         this.emissivePhase = emissivePhaseForAmbientLight(feed.lighting?.ambientLight);
         // Keep the existing time channel inside float32's precise range. The
@@ -1254,7 +1311,7 @@ export class GpuWorldRenderer {
     _renderScene(batches, camera, feed, qualityLevel = POST_FX_LEVELS.FULL) {
         const gl = this.gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.sceneTarget.framebuffer);
-        const bloomEnabled = qualityLevel < POST_FX_LEVELS.MINIMAL
+        const bloomEnabled = effectBudgetMode('bloom', qualityLevel) !== 'off'
             && localLightPhaseForLighting(feed.lighting) > LOCAL_LIGHT_VISIBILITY_FLOOR;
         gl.drawBuffers(bloomEnabled
             ? [gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]
@@ -1303,11 +1360,8 @@ export class GpuWorldRenderer {
         gl.useProgram(this.compositeProgram);
         gl.uniform1i(this.compositeUniforms.u_scene, 0);
         gl.uniform1i(this.compositeUniforms.u_bloom, 1);
-        const bloomStrength = qualityLevel >= POST_FX_LEVELS.MINIMAL
-            ? 0
-            : qualityLevel >= POST_FX_LEVELS.REDUCED
-                ? 0.42
-                : 0.72;
+        const bloomMode = effectBudgetMode('bloom', qualityLevel);
+        const bloomStrength = bloomMode === 'off' ? 0 : bloomMode === 'reduced' ? 0.42 : 0.72;
         gl.uniform1f(
             this.compositeUniforms.u_bloomStrength,
             this.lightCount > 0 ? bloomStrength * this.emissivePhase : 0,
@@ -1346,7 +1400,14 @@ export class GpuWorldRenderer {
             this._ensureTargets();
             const batches = buildStableGpuBatches(records, this._batchScratch, this._normalizedRecordScratch);
             if (!batches.length) return false;
+            // One pass replaces (never nests inside) the whole-frame query on
+            // one frame in twelve. Only whole-frame results feed the ladder.
+            this._sampledPass = this.passSamplingEnabled && this.frames % 12 === 0
+                ? GPU_PASS_NAMES[this._passCursor++ % GPU_PASS_NAMES.length] : null;
+            this._beginPass('upload');
             this._stageFrameVertices(batches);
+            this._uploadBatchTextures(batches);
+            this._endPass('upload', 0, this._vertexScratchUsed * 4);
             let atlasRecords = 0;
             let individualRecords = 0;
             for (let index = 0; index < records.length; index++) {
@@ -1363,10 +1424,11 @@ export class GpuWorldRenderer {
             gl.enable(gl.BLEND);
             gl.disable(gl.DEPTH_TEST);
             gl.disable(gl.CULL_FACE);
-            gpuTimer = this._beginGpuTimer();
+            gpuTimer = this._sampledPass ? null : this._beginGpuTimer();
             const localLightsVisible = localLightPhaseForLighting(feed.lighting)
                 > LOCAL_LIGHT_VISIBILITY_FLOOR;
-            if (qualityLevel < POST_FX_LEVELS.MINIMAL && localLightsVisible) {
+            this._beginPass('occlusion');
+            if (effectBudgetMode('occlusion', qualityLevel) !== 'off' && localLightsVisible) {
                 this._renderOcclusion(batches, camera);
             } else {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, this.occlusionTarget.framebuffer);
@@ -1375,11 +1437,22 @@ export class GpuWorldRenderer {
                 gl.clearColor(0, 0, 0, 0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
             }
+            this._endPass('occlusion', this._sampledPass === 'occlusion'
+                && effectBudgetMode('occlusion', qualityLevel) !== 'off' && localLightsVisible
+                ? batches.reduce((count, batch) => count + Boolean(batch.occlusionCount), 0) : 0,
+                this.occlusionTarget.width * this.occlusionTarget.height * 4);
+            this._beginPass('scene');
             const bloomEnabled = this._renderScene(batches, camera, feed, qualityLevel);
+            this._endPass('scene', batches.length, this.width * this.height * 4 * (bloomEnabled ? 2 : 1));
             gl.disable(gl.BLEND);
+            this._beginPass('bloom');
             if (bloomEnabled && this.lightCount > 0) this._renderBloom();
+            this._endPass('bloom', bloomEnabled && this.lightCount > 0 ? 2 : 0,
+                bloomEnabled && this.lightCount > 0 ? this.bloomA.width * this.bloomA.height * 8 : 0);
             gl.enable(gl.BLEND);
+            this._beginPass('present');
             this._present(qualityLevel);
+            this._endPass('present', 1, this.width * this.height * 4);
             this._endGpuTimer(gpuTimer);
             gpuTimer = null;
             this._trimTextureCache();
@@ -1410,6 +1483,8 @@ export class GpuWorldRenderer {
             this.qualityLadder.update(timing.metrics, started);
             return true;
         } catch (error) {
+            gpuTimer ||= this._activePassQuery;
+            this._activePassQuery = null;
             if (gpuTimer) {
                 try {
                     gl.endQuery(this.timerExtension?.TIME_ELAPSED_EXT);
@@ -1451,6 +1526,18 @@ export class GpuWorldRenderer {
             gpuTimerExtension: this.timerExtension ? 'EXT_disjoint_timer_query_webgl2' : null,
             gpuTimerPendingQueries: this.pendingGpuQueries.length,
             gpuTimerErrors: this.gpuTimerErrors,
+            gpuDisjointDiscards: this.gpuDisjointDiscards,
+            passSamplingEnabled: this.passSamplingEnabled,
+            passes: Object.fromEntries(GPU_PASS_NAMES.map(name => {
+                const ring = this._passResults[name];
+                return [name, {
+                    gpuMs: ring.gpuCount ? ring.gpuSum / ring.gpuCount : null,
+                    cpuMs: ring.count ? ring.cpuSum / ring.count : null,
+                    draws: ring.latest?.draws ?? null,
+                    bytes: ring.latest?.bytes ?? null,
+                    samples: ring.count,
+                }];
+            })),
             qualityTimingSource: this.qualityTimingSource,
             frameGapMs: this.frameGapMs ?? 0,
             textureBytes: this.textureBytes,
@@ -1467,6 +1554,8 @@ export class GpuWorldRenderer {
             bloomScale: BLOOM_SCALE,
             qualityLevel: quality.effectiveLevel,
             qualityReason: quality.lastDecisionReason.replace(/^disabled(?=:|$)/, 'minimal-resident'),
+            shedEffects: shedEffectsForLevel(quality.effectiveLevel),
+            shedReason: quality.lastDecisionReason,
             qualityDegradationReason: quality.lastDegradationReason,
             qualityTransitionAtMs: quality.lastTransitionAtMs,
             qualityTransitionMetrics: quality.lastTransitionMetrics,
@@ -1482,11 +1571,30 @@ export class GpuWorldRenderer {
         if (this.suspended || !this.contextHealthy) {
             return { textures: {}, attachments: {}, buffers: {} };
         }
-        const cachedTextures = [...this._textureEntries.values()]
-            .reduce((sum, entry) => sum + entry.width * entry.height * 4, 0);
+        let pinnedSourceBytes = 0;
+        let evictableSourceBytes = 0;
+        const atlasPages = [];
+        for (const [name, entry] of this._textureEntries) {
+            const bytes = entry.width * entry.height * 4;
+            const pinned = entry.lastUsedFrame === this.frames;
+            if (pinned) pinnedSourceBytes += bytes;
+            else evictableSourceBytes += bytes;
+            if (name.includes('world-pilot') || name.includes('agent-frame-atlas')) {
+                atlasPages.push({ name, width: entry.width, height: entry.height, bytes, pinned });
+            }
+        }
         const targetBytes = target => target ? target.width * target.height * 4 : 0;
+        const attachmentBytes = targetBytes(this.sceneTarget) * 2
+            + targetBytes(this.bloomA) + targetBytes(this.bloomB) + targetBytes(this.occlusionTarget);
+        const pinnedBytes = pinnedSourceBytes + attachmentBytes + (this.vertexBufferBytes || 0);
         return {
-            textures: { cachedSources: cachedTextures },
+            textures: { pinnedSources: pinnedSourceBytes, evictableSources: evictableSourceBytes },
+            pinnedBytes,
+            evictableBytes: evictableSourceBytes,
+            totalBytes: pinnedBytes + evictableSourceBytes,
+            atlasPages,
+            liveBodyAtlas: atlasPages.find(page => page.name === 'agent-frame-atlas') || null,
+            cachedSourceOverageBytes: Math.max(0, pinnedSourceBytes + evictableSourceBytes - MAX_CACHED_TEXTURE_BYTES),
             attachments: {
                 sceneColor: targetBytes(this.sceneTarget),
                 sceneEmission: targetBytes(this.sceneTarget),

@@ -7,6 +7,7 @@ import { summarizeDay } from '../../claudeville/src/application/ChronicleLog.js'
 import { eventBus } from '../../claudeville/src/domain/events/DomainEvent.js';
 import { AssetManager } from '../../claudeville/src/presentation/character-mode/AssetManager.js';
 import { ActivityPanel } from '../../claudeville/src/presentation/shared/ActivityPanel.js';
+import { buildBuildingInstrumentModel } from '../../claudeville/src/presentation/shared/BuildingInstrumentModel.js';
 import { Modal } from '../../claudeville/src/presentation/shared/Modal.js';
 import { ChroniclePanel } from '../../claudeville/src/presentation/shared/ChroniclePanel.js';
 
@@ -319,7 +320,6 @@ test('ActivityPanel rejects unknown building payload keys', () => {
     const panel = Object.assign(Object.create(ActivityPanel.prototype), {
         _dependencies: { world: () => world },
         _selectedBuilding: null,
-        _buildingPresenceByType: new Map(),
         _buildingSignalByType: new Map(),
     });
     const unknown = Object.fromEntries(
@@ -332,9 +332,7 @@ test('ActivityPanel rejects unknown building payload keys', () => {
         },
     };
 
-    panel._cacheBuildingPresence(payload);
     panel._cacheBuildingPayload(payload, panel._buildingSignalByType);
-    assert.deepEqual([...panel._buildingPresenceByType.keys()], ['forge']);
     assert.deepEqual([...panel._buildingSignalByType.keys()], ['forge']);
 
     panel._cacheBuildingPayload({ building: 'not-configured', count: 5 }, panel._buildingSignalByType);
@@ -400,6 +398,27 @@ test('ActivityPanel rejects unknown building payload keys', () => {
         buildings: { forge: { count: 3 } },
     }, panel._buildingSignalByType);
     assert.deepEqual(panel._buildingSignalByType.get('forge'), { count: 3 });
+
+    // The instrument model is the only consumer of a cached payload, so an
+    // unknown key must not become a count, a denominator or a queue row there
+    // either — and a payload whose collections never arrived must still model.
+    const cached = { count: 3, load: { capacity: 9 }, occupancy: 7, queue: ['ghost'] };
+    assert.deepEqual(
+        buildBuildingInstrumentModel({
+            building: { capacity: { work: 2 } },
+            occupants: null,
+            assignedAgents: undefined,
+            routeAgents: null,
+            reservations: null,
+            external: cached,
+        }),
+        {
+            presence: { count: 0, capacity: 2 },
+            signal: { count: 0, capacity: 2 },
+            queue: [],
+            purpose: 'Purpose unavailable',
+        },
+    );
 });
 
 test('ActivityPanel stops periodic work while hidden and resumes once visible', () => {
@@ -409,20 +428,23 @@ test('ActivityPanel stops periodic work while hidden and resumes once visible', 
     let hidden = true;
     let nextTimer = 1;
     const activeTimers = new Set();
+    const timerCallbacks = new Map();
     const calls = {
         detail: 0,
         pinned: 0,
         signal: 0,
-        occupants: 0,
-        state: 0,
     };
     globalThis.document = { get hidden() { return hidden; } };
-    globalThis.setInterval = () => {
+    globalThis.setInterval = (callback) => {
         const id = nextTimer++;
         activeTimers.add(id);
+        timerCallbacks.set(id, callback);
         return id;
     };
-    globalThis.clearInterval = id => activeTimers.delete(id);
+    globalThis.clearInterval = (id) => {
+        timerCallbacks.delete(id);
+        return activeTimers.delete(id);
+    };
     const panel = Object.assign(Object.create(ActivityPanel.prototype), {
         _mode: 'agent',
         _pollTimer: null,
@@ -430,8 +452,6 @@ test('ActivityPanel stops periodic work while hidden and resumes once visible', 
         _fetchDetail() { calls.detail++; },
         _fetchPinnedDetails() { calls.pinned++; },
         _renderBuildingSignal() { calls.signal++; },
-        _renderBuildingOccupants() { calls.occupants++; },
-        _renderBuildingState() { calls.state++; },
     });
 
     try {
@@ -452,10 +472,9 @@ test('ActivityPanel stops periodic work while hidden and resumes once visible', 
         hidden = false;
         panel._syncPollingForVisibility();
         assert.equal(activeTimers.size, 1);
-        assert.deepEqual(
-            { signal: calls.signal, occupants: calls.occupants, state: calls.state },
-            { signal: 1, occupants: 1, state: 1 },
-        );
+        assert.deepEqual({ signal: calls.signal, pinned: calls.pinned }, { signal: 1, pinned: 2 });
+        for (const callback of timerCallbacks.values()) callback();
+        assert.deepEqual({ signal: calls.signal, pinned: calls.pinned }, { signal: 2, pinned: 3 });
 
         hidden = true;
         panel._syncPollingForVisibility();

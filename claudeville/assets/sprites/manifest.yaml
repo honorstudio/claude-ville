@@ -65,6 +65,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): crimson gown + gold filigree; the
     # declared claude sources match nothing on this sheet.
@@ -89,6 +90,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): midnight-blue robe, ivory hem, dusty
     # rose trim; the declared claude sources are inert here.
@@ -111,6 +113,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): dark violet robe + cobalt cloak; the
     # declared claude sources are inert here.
@@ -135,6 +138,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): mint scarf (robe role) + bronze clasp;
     # declared pants source already matches the moss-green lower robe.
@@ -156,6 +160,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy armor + steel-blue limbs + teal
     # core glow; the declared codex sources are inert here.
@@ -180,6 +185,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): indigo plate + steel-blue pauldrons +
     # pale teal visor; the declared codex sources are inert here.
@@ -204,6 +210,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): near-black navy plate + violet cape;
     # the declared trim source already matches the teal reactor glow.
@@ -228,6 +235,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     anchor: [46, 80]
     materialClass: metal
@@ -246,6 +254,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy plate only — the signature gold
     # armor stays untouched so Sol keeps his radiant identity on every variant.
@@ -268,6 +277,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy plate + moss-green sash; the
     # declared codex sources are inert here.
@@ -292,6 +302,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): silver-blue light armor + navy
     # under-suit + steel accent; the declared codex sources are inert here.
@@ -313,6 +324,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): deep teal half-plate; declared pants
     # source already matches, and the cyan visor is too small to key trim on.
@@ -334,6 +346,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): light teal armor, darker teal limbs,
     # muted cyan lens; the declared codex sources are inert here.
@@ -355,6 +368,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: claude
     anchor: [46, 80]
     materialClass: fabric
@@ -373,6 +387,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): brown leather boots/belt + circuit-teal
     # glow; the declared robe source already matches the deep teal coat.
@@ -397,6 +412,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: gemini
     # Sampled from sheet.png (plan 0.5): violet robe + steel-indigo starlight
     # trim; the declared pants source already matches the deep indigo folds.
@@ -421,6 +437,7 @@ characters:
     generationSize: 92 # generation size unverified — inherited default
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: kimi
     # Sampled from sheet.png (plan 0.5): dusty-rose sash/filigree accent; the
     # declared robe and pants sources already match the ivory robe and wrap.
@@ -444,6 +461,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): dark forest-green leathers + teal rune
     # edging; the declared pants source already matches the leggings.
@@ -468,6 +486,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): near-black hood/wrap + muted teal trim;
     # the declared pants source already matches the dark leggings.
@@ -492,6 +511,7 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): dark green vest/leggings; the declared
     # pants source already matches and no confident trim cluster exists.
@@ -522,6 +542,8 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    provenance: { characterId: 831e8a22-50bc-4e45-985d-8c32b8e81f6b, generationSize: 76, generationMode: pro }
     palette_layer: grok
     # Sampled from sheet.png (plan 0.5): electric cyan constellation embroidery;
     # declared robe/pants sources already match the void-black coat.
@@ -546,6 +568,8 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, generationSize: 76, generationMode: pro }
     palette_layer: grok
     # Sampled from sheet.png (plan 0.5): bright cyan trim/headband glow;
     # declared robe/pants sources already match the void-charcoal jacket.
@@ -576,6 +600,8 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, generationSize: 76, generationMode: pro }
     palette_layer: zai
     # Sampled from sheet.png: vermilion robe + shade; the peach sash shares the
     # skin ramp so only the jade prayer beads form a confident trim cluster.
@@ -600,6 +626,8 @@ characters:
     generationSize: 76
     generationMode: pro
     animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, generationSize: 76, generationMode: pro }
     palette_layer: zai
     # Sampled from sheet.png: vermilion tunic + shade; the peach headband and
     # sash share the skin ramp, so no confident trim cluster exists.

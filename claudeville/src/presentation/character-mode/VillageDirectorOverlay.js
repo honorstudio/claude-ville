@@ -1,7 +1,9 @@
+import { drawEventShape } from '../shared/EventShapes.js';
 import { BUILDING_ACCENTS_RGB, INCIDENT_COLORS_RGB, WORLD_BODY_FONT } from '../../config/theme.js';
 import { getActiveMarkGovernor, MarkTier } from './MarkGovernor.js';
 import { pulseBand01 } from './PulsePolicy.js';
 import { strokeAgedTrailSegments } from './TrailRenderer.js';
+import { attentionCandidateBounds } from './AttentionFraming.js';
 import { eventBus } from '../../domain/events/DomainEvent.js';
 
 const TAU = Math.PI * 2;
@@ -302,54 +304,18 @@ function drawIncidents(ctx, incidents, now, motionScale, grade = null) {
     ctx.restore();
 }
 
-// #28 — a glowing scroll baton drawn at (x, y): a warm halo, a small scroll
-// body, and two end-roll ticks so the travelling mote reads as a passed scroll
-// rather than a bare dot. Static-safe (no time term).
+// Handoff retains its message identity at both travel and landing.
 function drawScrollMote(ctx, x, y, rgb, alpha, scale = 1) {
-    ctx.fillStyle = rgba(rgb, 0.22 * alpha);
-    ctx.beginPath();
-    ctx.ellipse(x, y, 9 * scale, 6 * scale, 0, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = rgba('255, 243, 191', 0.85 * alpha);
-    ctx.beginPath();
-    ctx.ellipse(x, y, 4.5 * scale, 2.6 * scale, -0.2, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = rgba(rgb, 0.7 * alpha);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - 4.5 * scale, y - 2.4 * scale);
-    ctx.lineTo(x - 4.5 * scale, y + 2.4 * scale);
-    ctx.moveTo(x + 4.5 * scale, y - 2.4 * scale);
-    ctx.lineTo(x + 4.5 * scale, y + 2.4 * scale);
-    ctx.stroke();
+    const step = Math.max(1, Math.round(scale));
+    drawEventShape(ctx, 'message-scroll', x - 8 * step, y - 8 * step, step, rgba(rgb, alpha));
 }
 
-// #28 — terminal landing spark fired as the baton reaches the child (progress
-// ~1). A four-point gilt diamond over a radial glow, mirroring ArrivalDeparture's
-// subagent-completion cue so handoff and subagent payoffs share one vocabulary.
-// Reduced motion shows a single static spark frame (size held, no decay).
 function drawHandoffSpark(ctx, x, y, rgb, alpha) {
     if (alpha <= 0) return;
-    ctx.fillStyle = rgba(rgb, 0.28 * alpha);
-    ctx.beginPath();
-    ctx.arc(x, y, 11, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = rgba('255, 243, 191', 0.85 * alpha);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y - 9);
-    ctx.lineTo(x + 7, y);
-    ctx.lineTo(x, y + 9);
-    ctx.lineTo(x - 7, y);
-    ctx.closePath();
-    ctx.stroke();
+    drawScrollMote(ctx, x, y, rgb, alpha);
 }
 
-// #40 — error-recovery relief beat. As an agent leaves ERRORED/RATE_LIMITED it
-// gives one green straighten-and-spark over RECOVERY_TTL_MS: a rising gilt-green
-// diamond (the relief vocabulary mirrors the handoff spark) over a soft halo
-// that fades as the tension releases. Reduced motion shows a single static
-// frame held at the recovery point — the spark vocabulary, no decay term.
+// Recovery is an incident closure, never a successful tool outcome.
 function drawRecoveries(ctx, recoveries, motionScale, grade = null) {
     if (!recoveries?.length) return;
     const rgb = gradeRgb('134, 239, 172', grade);
@@ -375,7 +341,7 @@ function drawRecoveries(ctx, recoveries, motionScale, grade = null) {
         ctx.beginPath();
         ctx.ellipse(center.x, y, 13, 8, 0, 0, TAU);
         ctx.fill();
-        drawHandoffSpark(ctx, center.x, y, rgb, fade);
+        drawEventShape(ctx, 'incident-bracket', center.x - 8, y - 8, 1, rgba(rgb, fade));
     }
     ctx.restore();
 }
@@ -719,6 +685,42 @@ export function drawOffscreenCueEdges(ctx, renderer, viewport, now = Date.now())
     const state = wireEdgeCues(renderer);
     if (!state) return;
     state.hitRects.length = 0;
+    const attention = renderer.cameraDirector?.attentionFrame;
+    if (attention && attention.inputAt === renderer.camera?._lastUserInputAt) {
+        let count = 0;
+        let waiting = 0;
+        let point = null;
+        for (const sprite of renderer.agentSprites.values()) {
+            const status = sprite.agent?.status;
+            if (sprite.agent?.isDeparted || sprite._archiveAnim
+                || (status !== 'waiting_on_user' && status !== 'errored' && status !== 'rate_limited')) continue;
+            const box = attentionCandidateBounds(sprite);
+            const top = renderer.camera.worldToScreen(box.minX, box.minY);
+            const bottom = renderer.camera.worldToScreen(box.maxX, box.maxY);
+            if (top.x < 16 || top.y < 16 || bottom.x > viewport.width - 16 || bottom.y > viewport.height - 16) {
+                count++;
+                if (status === 'waiting_on_user') waiting++;
+                if (!point) point = { x: (top.x + bottom.x) / 2, y: (top.y + bottom.y) / 2 };
+            }
+        }
+        if (count) {
+            const dx = point.x - viewport.width / 2;
+            const dy = point.y - viewport.height / 2;
+            const arrow = Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? '←' : '→') : (dy < 0 ? '↑' : '↓');
+            const noun = waiting === count ? 'waiting' : 'need attention';
+            const text = `${count} ${noun} outside view ${arrow}`;
+            ctx.save();
+            ctx.font = '12px monospace';
+            const width = ctx.measureText(text).width + 20;
+            const x = Math.max(16, Math.min(viewport.width - width - 16, point.x - width / 2));
+            const y = Math.max(24, Math.min(viewport.height - 40, point.y));
+            ctx.fillStyle = '#201e24';
+            ctx.fillRect(x, y - 16, width, 26);
+            ctx.fillStyle = '#f2d36b';
+            ctx.fillText(text, x + 10, y + 1);
+            ctx.restore();
+        }
+    }
     if (!state.cues.length) return;
     const camera = renderer.camera;
     if (typeof camera?.worldToScreen !== 'function') return;

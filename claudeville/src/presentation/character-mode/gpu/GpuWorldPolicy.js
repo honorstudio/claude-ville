@@ -8,6 +8,81 @@ export const GPU_WORLD_RENDERER_MODES = Object.freeze({
     CANVAS: 'canvas',
 });
 
+// C3 effect receipts for the optional work the resident renderer ships today.
+// Measured with the 0.1 per-pass sampler on `ANGLE Metal Renderer: Apple M5 Pro`,
+// 1680x1026, fixed 22:00 clear, FULL, 13-24 rotating samples per pass, 2026-09-05;
+// bands span the dense-24 and dense-100 observations. Bands are observed pass
+// means on a shared host, not portable entitlements. `shared-scene-envelope`
+// effects are branches inside the scene pass: their band is the whole pass, so
+// shedding one does not free its band. Attachment bytes stay allocated across
+// levels (`GpuWorldRenderer._ensureTargets`); `bytes` prices what an effect
+// keeps resident, not what it returns when shed.
+//
+// Key order is the shedding order: embellishment first, depth cues last. Every
+// level entry states what ships at that ladder level, so the table is the only
+// authority the renderer reads — there is no second ladder.
+export const EFFECT_BUDGET = Object.freeze({
+    bloom: Object.freeze({
+        id: 'bloom',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'reduced', MINIMAL: 'off' }),
+        cost: Object.freeze({ gpuMsBand: [1.131, 2.232], cpuMsBand: [0.003, 0.085], bytes: 8830080 }),
+        staticFallback: 'authored-emission',
+        canvas: 'authored-emission',
+    }),
+    'weather-amplitude': Object.freeze({
+        id: 'weather-amplitude',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'reduced', MINIMAL: 'off' }),
+        cost: Object.freeze({ gpuMsBand: [1.392, 2.155], cpuMsBand: [0.100, 0.150], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'phase-grade',
+        canvas: 'canvas-weather',
+    }),
+    occlusion: Object.freeze({
+        id: 'occlusion',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'off' }),
+        cost: Object.freeze({ gpuMsBand: [0.134, 0.608], cpuMsBand: [0.059, 0.128], bytes: 967680 }),
+        staticFallback: 'direct-light',
+        canvas: 'authored-shading',
+    }),
+    'cloud-courses': Object.freeze({
+        id: 'cloud-courses',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'on' }),
+        cost: Object.freeze({ gpuMsBand: [1.392, 2.155], cpuMsBand: [0.100, 0.150], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'phase-grade',
+        canvas: 'retained-cloud-shadow',
+    }),
+    'water-reflection': Object.freeze({
+        id: 'water-reflection',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'on' }),
+        cost: Object.freeze({ gpuMsBand: [1.392, 2.155], cpuMsBand: [0.100, 0.150], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'authored-water',
+        canvas: 'authored-water',
+    }),
+});
+
+const EFFECT_LEVEL_NAMES = ['FULL', 'REDUCED', 'MINIMAL'];
+
+/**
+ * What the named effect does at a resident quality level: `on`, a named
+ * degraded mode, or `off`. Levels beyond MINIMAL (the minimal-resident probe)
+ * keep MINIMAL's row; the renderer never renders below it.
+ */
+export function effectBudgetMode(id, level) {
+    const effect = EFFECT_BUDGET[id];
+    if (!effect) throw new Error(`unknown effect budget: ${id}`);
+    const index = Math.min(EFFECT_LEVEL_NAMES.length - 1, Math.max(0, Math.round(Number(level) || 0)));
+    return effect.levels[EFFECT_LEVEL_NAMES[index]];
+}
+
+/** Effects not at their FULL mode, in declared shedding order. */
+export function shedEffectsForLevel(level) {
+    const shed = [];
+    for (const effect of Object.values(EFFECT_BUDGET)) {
+        const mode = effectBudgetMode(effect.id, level);
+        if (mode !== effect.levels.FULL) shed.push({ id: effect.id, mode });
+    }
+    return shed;
+}
+
 // One authored grade contract for the direct GPU world, hybrid PostFx, and
 // Canvas fallback. Normalized channels can be uploaded as uniforms directly;
 // the Canvas path converts the same values to byte-space CSS colors.

@@ -212,6 +212,9 @@ export function gpuResourceAccounting({ textures = {}, attachments = {}, buffers
         attachments: normalizedResourceGroup(attachments),
         buffers: normalizedResourceGroup(buffers),
     };
+    const evictableBytes = Object.entries(groups.textures)
+        .filter(([name]) => name.endsWith('evictableSources'))
+        .reduce((sum, [, bytes]) => sum + bytes, 0);
     const groupTotals = Object.fromEntries(Object.entries(groups).map(([name, values]) => [
         name,
         Object.values(values).reduce((sum, bytes) => sum + bytes, 0),
@@ -220,6 +223,11 @@ export function gpuResourceAccounting({ textures = {}, attachments = {}, buffers
         ...groups,
         groupTotals,
         totalBytes: Object.values(groupTotals).reduce((sum, bytes) => sum + bytes, 0),
+        // Every `evictableSources` leaf (renderers namespace their own) is the
+        // idle cache; the rest of the ledger is in use this frame. Attachments
+        // and buffers stay allocated across quality levels, so they are pinned.
+        pinnedBytes: groupTotals.textures - evictableBytes + groupTotals.attachments + groupTotals.buffers,
+        evictableBytes,
     };
 }
 

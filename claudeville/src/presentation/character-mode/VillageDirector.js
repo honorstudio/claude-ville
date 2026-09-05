@@ -22,7 +22,6 @@ const RECOVERY_TTL_MS = 2_400;
 const MAX_REPLAY_AGENTS = 72;
 const MAX_SELECTED_ROUTES = 9;
 const MAX_HOVER_ROUTES = 3;
-const RELEASE_PARADE_VERSION_KEY = 'claudeville.releaseParade.seenVersion';
 
 function clamp(value, min = 0, max = 1) {
     const n = Number(value);
@@ -218,23 +217,6 @@ export class VillageDirector {
         return this.setReplayActive(!this.replayActive);
     }
 
-    triggerReleaseParadeOnceForVersion(versionText = '') {
-        const version = String(versionText || '').trim();
-        if (!version) return false;
-        let seen = '';
-        try {
-            seen = window.localStorage?.getItem(RELEASE_PARADE_VERSION_KEY) || '';
-        } catch {
-            seen = '';
-        }
-        if (seen === version) return false;
-        try {
-            window.localStorage?.setItem(RELEASE_PARADE_VERSION_KEY, version);
-        } catch { /* best effort; the parade still fires for this session */ }
-        this.triggerReleaseParade({ label: version, version, weight: version.endsWith('.0') ? 'major' : 'minor' });
-        return true;
-    }
-
     triggerReleaseParade(payload = {}) {
         const label = payload?.label || payload?.release || payload?.targetRef || payload?.ref || payload?.version || 'Release';
         this._addScene({
@@ -332,6 +314,7 @@ export class VillageDirector {
             replaySamples,
             replayAgentCount: this._replayAgentCount(replaySamples),
             selectedAgentId: renderer?.selectedAgent?.id || null,
+            attentionAgents: agents.filter(agent => isIncidentStatus(agent.status)),
             teams,
             handoffs,
             incidents,
@@ -371,21 +354,21 @@ export class VillageDirector {
         if (!snapshot) return;
         if (!this._lastCueSignatures) this._lastCueSignatures = new Map();
 
-        // Incident cluster: frame the spread of all live incident points. The
-        // most urgent, and the only cue that bundles a crowd into one shot.
-        const incidentPoints = [];
-        for (const incident of snapshot.incidents || []) {
-            const point = incident.agent || incident.center;
-            if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) {
-                incidentPoints.push({ x: point.x, y: point.y });
-            }
-        }
-        if (incidentPoints.length) {
-            const sig = `incident:${incidentPoints.length}`;
+        // Cohort identity, not incident count: the scene list is capped at six
+        // for drawing, so a seventh waiting agent — or a swap that leaves the
+        // count unchanged — must still reach the camera and the edge cues.
+        const cohort = (snapshot.attentionAgents || []).filter(agent => Number.isFinite(agent.x) && Number.isFinite(agent.y));
+        if (cohort.length) {
+            const sig = cohort
+                .map(agent => `${agent.id}:${agent.status}`)
+                .sort()
+                .join('|');
             this._fireCue('incident', sig, now, {
-                box: this._boxForPoints(incidentPoints, 90),
+                box: this._boxForPoints(cohort, 90),
                 grade: { vignette: 0.42, worldTint: '#c0392b' },
             });
+        } else {
+            this._lastCueSignatures.delete('incident');
         }
 
         // Release parade: frame the harbor as a ship sets sail.

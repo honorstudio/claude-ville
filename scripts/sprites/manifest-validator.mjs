@@ -223,6 +223,7 @@ function validateManifestEntry(entry) {
             console.error(`INVALID MANIFEST: ${entry.id} has unsupported generationMode "${entry.generationMode}"`);
             errors++;
         }
+        errors += validateCharacterLedger(entry);
     }
 
     if (REQUIRED_PRO_CHARACTER_IDS.has(entry.id) && entry.generationMode !== 'pro') {
@@ -234,6 +235,51 @@ function validateManifestEntry(entry) {
         errors += validateBuildingManifestEntry(entry);
     }
 
+    return errors;
+}
+
+function validateCharacterLedger(entry) {
+    let errors = 0;
+    const invalid = (message) => {
+        console.error(`INVALID MANIFEST: ${entry.id} ${message}`);
+        errors++;
+    };
+    const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+    if (entry.animationGroups !== undefined) {
+        if (!record(entry.animationGroups)) invalid('animationGroups must be a named mapping');
+        else {
+            const occupied = new Set();
+            for (const [name, group] of Object.entries(entry.animationGroups)) {
+                const rows = group?.rows;
+                if (!name.trim() || !record(group) || !Array.isArray(rows) || rows.length !== 2
+                    || !rows.every(Number.isInteger) || rows[0] < 0 || rows[1] < rows[0] || rows[1] >= CHARACTER_ROWS) {
+                    invalid(`animationGroups.${name} rows must be an inclusive range inside 0–${CHARACTER_ROWS - 1}`);
+                    continue;
+                }
+                for (let row = rows[0]; row <= rows[1]; row++) {
+                    if (occupied.has(row)) invalid(`animationGroups.${name} overlaps row ${row}`);
+                    occupied.add(row);
+                }
+            }
+        }
+    }
+    if (entry.provenance !== undefined) {
+        if (!record(entry.provenance)) invalid('provenance must be a mapping');
+        else {
+            for (const key of ['characterId', 'animationGroupId']) {
+                if (entry.provenance[key] !== undefined
+                    && (typeof entry.provenance[key] !== 'string' || !entry.provenance[key].trim())) {
+                    invalid(`provenance.${key} must be a non-empty string`);
+                }
+            }
+            const size = entry.provenance.generationSize;
+            if (size !== undefined && (!Number.isInteger(size) || size < 32 || size > 128)) {
+                invalid('provenance.generationSize must be an integer from 32 through 128 (including 76 and 92)');
+            }
+            const mode = entry.provenance.generationMode;
+            if (mode !== undefined && !CHARACTER_GENERATION_MODES.has(mode)) invalid('provenance.generationMode must be standard or pro');
+        }
+    }
     return errors;
 }
 

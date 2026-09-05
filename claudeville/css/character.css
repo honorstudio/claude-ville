@@ -192,6 +192,9 @@ body.cv-panel-open .world-grammar {
 .world-grammar__close:hover { color: #ffe58d; border-color: rgba(242,211,107,.72); }
 .world-grammar__body { padding: 9px; color: #a89476; }
 .world-grammar__body b { color: #ffe58d; }
+.world-read { touch-action: none; user-select: none; white-space: nowrap; }
+.world-read kbd { font: var(--fs-data)/1 var(--font-body); color: #bda472; }
+.world-read[aria-pressed="true"] { color: #ffe58d; background: #543c22; border-color: #f2d36b; }
 .world-semantic-summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .boot-status {

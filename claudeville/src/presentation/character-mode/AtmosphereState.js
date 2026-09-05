@@ -1316,6 +1316,11 @@ export class AtmosphereState {
             eventInfluence,
             districtBuffer: this._districtAtmosphereBuffer,
         });
+        this._lastSnapshot.timeline = {
+            mode: this._timelineMode,
+            hourOverride: this._hourOverride,
+            frozen: this._frozenDate !== null,
+        };
         return this._lastSnapshot;
     }
 

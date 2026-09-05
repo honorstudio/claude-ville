@@ -7,12 +7,13 @@
 //   rotations/<dir>.png                                          (S × S, S = source canvas)
 //   animations/animating-<uuid>/<dir>/frame_NNN.png              (S × S each)
 //
-// We map the two animations by FRAME COUNT:
-//   6 frames per direction → walk
-//   4 frames per direction → breathing-idle
+// Select animations by explicit group ID, never by frame count.
+// Full assembly: --walk=<animation-id> --breathingIdle=<animation-id>
+// One base-sheet group: --group=walk --animation-group-id=<animation-id>
+// New action groups belong in the separate actionStrip contract, not this sheet.
 //
 // Usage:
-//   node scripts/sprites/generate-character-mcp.mjs --id=<sprite-id> --zip=<path-to-zip>
+//   node scripts/sprites/generate-character-mcp.mjs --id=<sprite-id> --zip=<path-to-zip> --walk=<animation-id> --breathingIdle=<animation-id>
 //   (or omit --zip and the script looks for output/character-mcp-cache/<id>.zip)
 
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -45,6 +46,8 @@ function arg(name, fallback) {
 const id = arg('id', null);
 if (!id) { console.error('Missing --id=<sprite-id>'); process.exit(1); }
 const zipPath = arg('zip', join(cacheRoot, `${id}.zip`));
+const groupName = arg('group', null);
+const animationGroupId = arg('animation-group-id', null);
 
 main().catch((err) => { console.error(err.stack || err.message); process.exit(1); });
 
@@ -73,50 +76,54 @@ async function main() {
     // centred in the 92px cell.
     const SOURCE = meta.character.size.width;
 
-    // Merge all animations by frame count: a single template (walk/idle) may be
-    // split across multiple animation IDs if some directions failed and were
-    // re-queued separately. Build per-direction frame lists by union.
-    const walkByDir = {};
-    const idleByDir = {};
-    for (const [, dirs] of Object.entries(meta.frames.animations)) {
-        for (const [dir, frames] of Object.entries(dirs)) {
-            if (frames.length === WALK_FRAMES && !walkByDir[dir]) walkByDir[dir] = frames;
-            else if (frames.length === IDLE_FRAMES && !idleByDir[dir]) idleByDir[dir] = frames;
-        }
+    const groups = entry.animationGroups || { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } };
+    if (groupName && !Object.hasOwn(groups, groupName)) {
+        throw new Error(`Unknown base-sheet group ${groupName}; new action groups require a separate actionStrip`);
     }
-
-    const sheet = new PNG({ width: CELL * COLS, height: CELL * ROWS });
-    sheet.data.fill(0);
-
-    for (let col = 0; col < COLS; col++) {
-        const dir = DIRECTIONS[col];
-
-        // Walk rows 0..5
-        const walkFrames = walkByDir[dir];
-        if (!walkFrames || walkFrames.length !== WALK_FRAMES) {
-            throw new Error(`walk animation missing direction ${dir} or wrong frame count`);
-        }
-        for (let f = 0; f < WALK_FRAMES; f++) {
-            const frame = readPng(join(extractDir, walkFrames[f]));
-            const cropped = fitCenter(frame, SOURCE);
-            blit(cropped, sheet, col * CELL, f * CELL);
-        }
-
-        // Idle rows 6..9
-        const idleFrames = idleByDir[dir];
-        if (!idleFrames || idleFrames.length !== IDLE_FRAMES) {
-            throw new Error(`idle animation missing direction ${dir} or wrong frame count`);
-        }
-        for (let f = 0; f < IDLE_FRAMES; f++) {
-            const frame = readPng(join(extractDir, idleFrames[f]));
-            const cropped = fitCenter(frame, SOURCE);
-            blit(cropped, sheet, col * CELL, (WALK_FRAMES + f) * CELL);
-        }
+    const selected = groupName ? [groupName] : ['walk', 'breathingIdle'];
+    const characterId = arg('character-id', entry.provenance?.characterId || meta.character.id);
+    const generationSize = Number(arg('generation-size', entry.provenance?.generationSize || entry.generationSize));
+    if (!arg('generation-size', null) && !entry.provenance?.generationSize) {
+        const source = readFileSync(manifestPath, 'utf8');
+        const block = source.split(`  - id: ${id}\n`)[1]?.split(/\n  - id:|\n[^\s#]/)[0] || '';
+        if (/generationSize:.*unverified/.test(block)) throw new Error('Unverified inherited size: supply --generation-size after checking the source character record');
     }
+    if (typeof characterId !== 'string' || !characterId.trim()) throw new Error('Provide --character-id=<PixelLab character id>');
+    if (!Number.isInteger(generationSize) || generationSize < 32 || generationSize > 128) throw new Error('Invalid generation size');
+    const selections = selected.map((name) => {
+        const animationId = groupName ? animationGroupId : arg(name, null);
+        if (!animationId || !Object.hasOwn(meta.frames.animations, animationId)) throw new Error(`Provide an exported animation ID for ${name}`);
+        return { name, animationId, rows: groups[name].rows, dirs: meta.frames.animations[animationId] };
+    });
 
     const outPath = join(spritesRoot, id, 'sheet.png');
+    const sheet = groupName ? readPng(outPath) : new PNG({ width: CELL * COLS, height: CELL * ROWS });
+    if (sheet.width !== CELL * COLS || sheet.height !== CELL * ROWS) throw new Error('Existing sheet dimensions do not match base-sheet contract');
+    for (const selection of selections) {
+        const [start, end] = selection.rows;
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end >= ROWS) throw new Error('Invalid group row range');
+        for (let col = 0; col < COLS; col++) {
+            const dir = DIRECTIONS[col];
+            const frames = selection.dirs[dir];
+            if (!frames || frames.length !== end - start + 1) throw new Error(`${selection.name} missing direction ${dir} or wrong frame count`);
+            for (let f = 0; f < frames.length; f++) {
+                const frame = fitCenter(readPng(join(extractDir, frames[f])), SOURCE);
+                blit(frame, sheet, col * CELL, (start + f) * CELL);
+            }
+        }
+    }
+    const provenance = {
+        characterId,
+        ...(groupName ? { animationGroupId: selections[0].animationId } : {}),
+        generationSize,
+        generationMode: entry.generationMode || 'standard',
+    };
+    const updatedManifest = manifestLedgerUpdate(id, groups, provenance);
+
+    // Commit ledger only after all direction frames have assembled successfully.
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, PNG.sync.write(sheet));
+    if (updatedManifest !== null) writeFileSync(manifestPath, updatedManifest);
     console.log(`wrote ${outPath} (${CELL * COLS}×${CELL * ROWS}, generation=${entry.generationSize}px/${entry.generationMode || 'standard'}, source=${SOURCE})`);
 }
 
@@ -141,6 +148,28 @@ function characterManifestEntry(spriteId) {
     }
     console.warn(`[character-mcp] WARNING: ${message}`);
     return { generationSize: '(unmanifested)', generationMode: null };
+}
+
+function manifestLedgerUpdate(spriteId, animationGroups, provenance) {
+    const source = readFileSync(manifestPath, 'utf8');
+    const lines = source.split('\n');
+    const start = lines.findIndex((line) => line === `  - id: ${spriteId}`);
+    if (start < 0) return null; // Explicit scratch-only --allow-unmanifested path.
+    let end = start + 1;
+    while (end < lines.length && !/^  - id:|^[^\s#]/.test(lines[end])) end++;
+    const block = lines.slice(start, end);
+    for (const key of ['animationGroups', 'provenance']) {
+        const index = block.findIndex((line) => line.startsWith(`    ${key}:`));
+        if (index < 0) continue;
+        let stop = index + 1;
+        while (stop < block.length && /^      \S|^        /.test(block[stop])) stop++;
+        block.splice(index, stop - index);
+    }
+    const metadata = yaml.dump({ animationGroups, provenance }, { lineWidth: -1, noRefs: true })
+        .trimEnd().split('\n').map((line) => `    ${line}`);
+    block.splice(1, 0, ...metadata);
+    lines.splice(start, end - start, ...block);
+    return lines.join('\n');
 }
 
 // Centre a SOURCE×SOURCE frame in a CELL×CELL window: crop when the source is
@@ -173,7 +202,6 @@ function blit(src, dst, dx, dy) {
     for (let y = 0; y < src.height; y++) {
         for (let x = 0; x < src.width; x++) {
             const si = (src.width * y + x) << 2;
-            if (src.data[si + 3] === 0) continue;
             const dxx = dx + x;
             const dyy = dy + y;
             if (dxx < 0 || dyy < 0 || dxx >= dst.width || dyy >= dst.height) continue;

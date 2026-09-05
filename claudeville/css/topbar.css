@@ -127,6 +127,14 @@
     -webkit-font-smoothing: auto;
 }
 
+.topbar__clock { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: #f2d36b; }
+.topbar__clock[hidden] { display: none; }
+.topbar__clock svg { width: 16px; height: 16px; shape-rendering: crispEdges; }
+.topbar__clock-time { font: var(--fs-data)/1 var(--font-body); }
+.topbar__clock-phase { font: var(--fs-label)/1 var(--font-display); }
+.topbar__clock-override { font: var(--fs-data)/1 var(--font-body); color: #bda472; }
+.topbar__meta > [hidden] { display: none; }
+
 .topbar__meta > * + *::before {
     content: "\00B7";
     margin: 0 7px;
@@ -168,16 +176,6 @@
     color: var(--cv-gold-bright);
     text-decoration: underline solid var(--cv-gold-bright);
     text-underline-offset: 2px;
-}
-
-/* Always visible beside LIVE and the version (v0.39.0.1); healthy reads as
-   quiet meta text and only the danger band goes red. */
-.topbar__fps {
-    color: var(--cv-text-muted);
-}
-
-.topbar__fps--danger {
-    color: var(--cv-status-errored);
 }
 
 /* ── Connection (meta sub-line) with a soft live heartbeat dot ── */
@@ -503,6 +501,12 @@
     font-size: 10px;
     padding: 4px 6px;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+}
+
+@media (max-width: 1400px) {
+    .topbar__seg { font: var(--fs-data)/1.2 var(--font-body); padding: 4px; }
+    .topbar__center { gap: 6px; }
+    .topbar__stat-label { font: var(--fs-data)/1.2 var(--font-body); }
 }
 
 .topbar__seg + .topbar__seg {

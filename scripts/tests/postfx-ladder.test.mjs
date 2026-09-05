@@ -6,6 +6,56 @@ import {
     assessPostFxTimings,
     createPostFxLadder,
 } from '../../claudeville/src/presentation/character-mode/postfx/PostFxLadder.js';
+import {
+    EFFECT_BUDGET,
+    effectBudgetMode,
+    shedEffectsForLevel,
+} from '../../claudeville/src/presentation/character-mode/gpu/GpuWorldPolicy.js';
+
+test('resident effects shed in declared order as the ladder steps down', () => {
+    const ladder = createPostFxLadder();
+
+    ladder.setOverride(POST_FX_LEVELS.FULL);
+    assert.deepEqual(shedEffectsForLevel(ladder.getLevel()), []);
+
+    ladder.setOverride(POST_FX_LEVELS.REDUCED);
+    assert.deepEqual(shedEffectsForLevel(ladder.getLevel()), [
+        { id: 'bloom', mode: 'reduced' },
+        { id: 'weather-amplitude', mode: 'reduced' },
+    ]);
+
+    ladder.setOverride(POST_FX_LEVELS.MINIMAL);
+    assert.deepEqual(shedEffectsForLevel(ladder.getLevel()), [
+        { id: 'bloom', mode: 'off' },
+        { id: 'weather-amplitude', mode: 'off' },
+        { id: 'occlusion', mode: 'off' },
+    ]);
+
+    // The minimal-resident probe level renders MINIMAL's composition.
+    ladder.setOverride(POST_FX_LEVELS.DISABLED);
+    assert.deepEqual(
+        shedEffectsForLevel(ladder.getLevel()),
+        shedEffectsForLevel(POST_FX_LEVELS.MINIMAL),
+    );
+});
+
+test('MINIMAL admits no optional GPU pass and no optional resident bytes', () => {
+    const passes = Object.values(EFFECT_BUDGET).filter((effect) => effect.cost.bytes > 0);
+    assert.deepEqual(passes.map((effect) => effect.id), ['bloom', 'occlusion']);
+    for (const effect of passes) {
+        assert.equal(effectBudgetMode(effect.id, POST_FX_LEVELS.MINIMAL), 'off');
+        assert.equal(effectBudgetMode(effect.id, POST_FX_LEVELS.FULL), 'on');
+    }
+    for (const effect of Object.values(EFFECT_BUDGET)) {
+        const [low, high] = effect.cost.gpuMsBand;
+        assert.ok(low > 0 && high >= low, `${effect.id} needs a measured band`);
+        assert.ok(effect.staticFallback && effect.canvas, `${effect.id} needs both fallbacks`);
+    }
+});
+
+test('an unknown effect is a programming error, never a silent pass-through', () => {
+    assert.throws(() => effectBudgetMode('window-spill', POST_FX_LEVELS.FULL), /unknown effect budget/);
+});
 
 function run(ladder, metrics, durationMs, startMs = 0, stepMs = 16, onFrame = null) {
     let now = startMs;

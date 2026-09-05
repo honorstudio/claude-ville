@@ -5,6 +5,7 @@ import { formatModelLabel, getModelVisualIdentity } from './ModelVisualIdentity.
 import { repoProfile } from './RepoColor.js';
 import { el } from './DomSafe.js';
 import { formatToolDetail, hashRows, formatRelative, formatElapsed, normalizeStatus } from './Formatters.js';
+import { EVENT_SHAPES, eventShapeSvgPath, eventShapeSvgViewBox } from './EventShapes.js';
 
 export const UNKNOWN_PROJECT_KEY = '_unknown';
 
@@ -217,27 +218,22 @@ export function toolHistorySignature(tools, { limit, detailLength }) {
     ])}`;
 }
 
-const PIXEL_ICON_PATHS = Object.freeze({
-    read: 'M2 2h5l1 1 1-1h5v11H9l-1 1-1-1H2V2Zm2 2v7h3V4H4Zm5 0v7h3V4H9Z',
-    search: 'M3 1h6v1h2v2h1v5h-2v2H5v-1H3V8H2V3h1V1Zm2 2v1H4v4h1v1h4V8h1V4H9V3H5Zm5 8h2v1h1v1h2v2h-3v-1h-1v-1h-1v-2Z',
-    write: 'M11 1h2v1h1v2h-1v1h-2V4h-1V2h1V1ZM9 4h1v1h1v1l-7 7H2v-2l7-7ZM2 14h12v1H2v-1Z',
-    exec: 'M9 1H7L3 9h4l-1 6 7-9H9l2-5H9Z',
-    task: 'M3 2h3V1h4v1h3v13H3V2Zm3 1v2h4V3H6ZM5 7v2h2V7H5Zm3 0v1h3V7H8Zm-3 4v2h2v-2H5Zm3 0v1h3v-1H8Z',
-    other: 'M2 3h12v9H9l-3 3v-3H2V3Zm2 2v1h8V5H4Zm0 3v1h6V8H4Z',
-    harbor: 'M7 1h2v2h1v3H9v5h3V9h2v4h-2v1H9v1H7v-1H4v-1H2V9h2v2h3V6H6V3h1V1Z',
+const PIXEL_ICON_SHAPES = Object.freeze({
+    read: 'read-page', search: 'search-lens', write: 'edit-strike',
+    exec: 'shell-slate', task: 'task-slip', other: 'tool-unknown',
 });
 
 export function pixelIcon(kind = 'other') {
-    const aliases = { archive: 'read', observatory: 'search', forge: 'write', mine: 'exec', command: 'task', taskboard: 'task', watchtower: 'search', portal: 'other' };
+    const shape = PIXEL_ICON_SHAPES[kind] || (EVENT_SHAPES[`district-${kind}`] ? `district-${kind}` : 'tool-unknown');
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('viewBox', eventShapeSvgViewBox(shape));
     svg.setAttribute('class', 'cv-pixel-icon');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('fill', 'currentColor');
     path.setAttribute('fill-rule', 'evenodd');
-    path.setAttribute('d', PIXEL_ICON_PATHS[aliases[kind] || kind] || PIXEL_ICON_PATHS.other);
+    path.setAttribute('d', eventShapeSvgPath(shape) || eventShapeSvgPath('tool-unknown'));
     svg.appendChild(path);
     return svg;
 }

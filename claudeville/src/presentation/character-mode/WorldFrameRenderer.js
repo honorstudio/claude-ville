@@ -674,6 +674,7 @@ export function renderWorldFrame(renderer, dt = 16) {
     });
     drawCrowdClusterBadges(overlayCtx, {
         crowdStats: renderer._crowdStats,
+        agentSprites: renderer.agentSprites,
         zoom,
     });
     renderer.arrivalDeparture?.draw?.(overlayCtx, {
@@ -707,12 +708,15 @@ export function renderWorldFrame(renderer, dt = 16) {
     drawSelectedAgentXray(renderer, overlayCtx, buildingDrawables);
     markFrameTiming(frameTimer, 'post-atmosphere-effects');
 
-    renderer.buildingRenderer?.drawBubbles(overlayCtx, renderer.world);
+    if (!renderer.selectedAgent && !renderer.cameraDirector?.attentionFrame) {
+        renderer.buildingRenderer?.drawBubbles(overlayCtx, renderer.world);
+    }
     renderer.buildingRenderer?.drawLabels(overlayCtx, {
         zoom,
         scaleMode: 'screen-fixed',
         occupiedBoxes: renderer._collectAgentLabelHitRects(sortedSprites),
         harborPendingRepos,
+        readMode: renderer.getReadMode(),
     });
     if (collectStructuralDiagnostics) {
         renderer._lastRenderStats = buildRenderStats(renderer, {
@@ -1427,6 +1431,14 @@ function drawSelectedAgentXray(renderer, ctx, buildingDrawables) {
 
 function drawDebugOverlay(renderer, ctx, atmosphere, viewport) {
     const overlay = renderer.debugOverlay;
+    // Shift-D owns pass sampling, but only at its edges: a per-frame write
+    // would stomp a deliberate setPassSamplingEnabled() measurement made with
+    // the overlay hidden (the overlay's own draw cost would then be inside
+    // every comparison).
+    if (renderer._debugPassSampling !== Boolean(overlay?.enabled)) {
+        renderer._debugPassSampling = Boolean(overlay?.enabled);
+        renderer.gpuWorld?.setPassSamplingEnabled?.(renderer._debugPassSampling);
+    }
     if (!overlay?.enabled && !overlay?.pathDebugEnabled) return;
     const visitIntentDebug = overlay.enabled ? (renderer.visitIntentManager?.debugSnapshot?.() || null) : null;
     const visitReservationDebug = overlay.enabled ? (renderer.visitTileAllocator?.debug?.() || null) : null;

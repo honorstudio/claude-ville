@@ -57,6 +57,17 @@
     border-radius: 2px;
 }
 
+.attention-shelf { flex: 0 0 auto; padding: 8px 10px; border-bottom: 2px solid #9a7139; background: #302318; color: #e4bd73; font: var(--fs-data)/var(--lh-body) var(--font-body); }
+.attention-shelf[hidden], .sidebar--collapsed .attention-shelf { display: none; }
+.attention-shelf__heading { color: #f2d36b; }
+.attention-shelf__list { max-height: 220px; overflow-y: auto; }
+.attention-shelf__agent { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 3px 0; text-align: left; color: #e4bd73; background: none; border: 0; font: inherit; cursor: pointer; }
+.attention-shelf__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attention-shelf__age { flex: 0 0 auto; color: #bda472; }
+.attention-shelf__expand { margin-top: 3px; padding: 2px 4px; background: #201810; color: #e4bd73; border: 1px solid #9a7139; font: inherit; cursor: pointer; }
+.attention-shelf button:focus-visible { outline: 2px solid #f2d36b; outline-offset: 1px; }
+.attention-shelf [hidden] { display: none; }
+
 .sidebar__toggle {
     width: 24px;
     height: 24px;

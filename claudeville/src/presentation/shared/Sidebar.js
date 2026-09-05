@@ -5,7 +5,9 @@ import { repoBranchProfile } from './RepoColor.js';
 import { AgentSearchIndex } from './SearchIndex.js';
 import { sessionDetailsService } from './SessionDetailsService.js';
 import { el, replaceChildren } from './DomSafe.js';
+import { bucketAgents, waitAnchor } from '../../domain/services/SignalLedger.js';
 import {
+    formatElapsed,
     formatRelative,
     formatStatusElapsed,
     hashRows,
@@ -89,6 +91,9 @@ export class Sidebar {
         this.sidebarEl = document.getElementById('sidebar');
         this.listEl = document.getElementById('agentList');
         this.countEl = document.getElementById('agentCount');
+        this.shelfEl = document.getElementById('attentionShelf');
+        this._shelfRows = new Map();
+        this._shelfExpanded = false;
         this.harborListEl = document.getElementById('harborList');
         this.harborCountEl = document.getElementById('harborCount');
         this.toggleEl = document.getElementById('sidebarToggle');
@@ -496,9 +501,69 @@ export class Sidebar {
         }
     }
 
+    _renderAttentionShelf(agents) {
+        if (!this.shelfEl) return;
+        const buckets = bucketAgents(agents);
+        const exceptions = [...buckets.needsYou, ...buckets.errors, ...buckets.quota];
+        this.shelfEl.hidden = exceptions.length === 0;
+        if (!this._shelfList) {
+            this._shelfHeading = el('div', { className: 'attention-shelf__heading' });
+            this._shelfList = el('div', { className: 'attention-shelf__list' });
+            this._shelfExpand = el('button', { className: 'attention-shelf__expand', type: 'button' });
+            this._shelfExpand.onclick = () => {
+                this._shelfExpanded = !this._shelfExpanded;
+                this._renderAttentionShelf(Array.from(this.world.agents.values()));
+            };
+            this.shelfEl.append(this._shelfHeading, this._shelfList, this._shelfExpand);
+        }
+        this._setText(this._shelfHeading, `${buckets.needsYou.length} NEED YOU · ${buckets.errors.length} ERROR${buckets.quota.length ? ` · ${buckets.quota.length} QUOTA` : ''}`);
+        const liveIds = new Set(exceptions.map(agent => agent.id));
+        for (const [id, row] of this._shelfRows) {
+            if (liveIds.has(id)) continue;
+            row.unsubscribe?.();
+            row.button.remove();
+            this._shelfRows.delete(id);
+        }
+        // A focused row keeps its place across polls; other updates use the same
+        // oldest-first ordering as the Dashboard's shared SignalLedger buckets.
+        const focused = this._shelfList.contains(document.activeElement);
+        exceptions.forEach((agent, index) => {
+            let row = this._shelfRows.get(agent.id);
+            if (!row) {
+                const name = el('span', { className: 'attention-shelf__name' });
+                const age = el('span', { className: 'attention-shelf__age' });
+                const button = el('button', { className: 'attention-shelf__agent', type: 'button' }, [name, age]);
+                row = { button, name, age, agent };
+                button.onclick = () => {
+                    const scroller = this.listEl?.parentElement;
+                    const top = scroller?.scrollTop;
+                    emitAgentSelected(row.agent);
+                    if (scroller) scroller.scrollTop = top;
+                };
+                row.unsubscribe = subscribeElapsedText(age, now => waitAnchor(row.agent) ? formatElapsed(now - waitAnchor(row.agent)) : '');
+                this._shelfRows.set(agent.id, row);
+                this._shelfList.append(button);
+            }
+            row.agent = agent;
+            this._setText(row.name, agent.name || agent.id);
+            this._setText(row.age, waitAnchor(agent) ? formatElapsed(Date.now() - waitAnchor(agent)) : '');
+            row.button.title = `${agent.name || agent.id} · ${agent.status}`;
+            if (!focused) {
+                row.button.hidden = !this._shelfExpanded && index >= 2;
+                this._shelfList.append(row.button);
+            }
+        });
+        this._shelfExpand.hidden = exceptions.length <= 2;
+        this._shelfExpand.textContent = this._shelfExpanded ? 'Show oldest two' : `Show all · +${Math.max(0, exceptions.length - 2)}`;
+        this._shelfExpand.setAttribute('aria-expanded', String(this._shelfExpanded));
+    }
+
     render() {
         if (this._destroyed) return;
         const agents = Array.from(this.world.agents.values());
+        // The shelf runs before the suspended-render bail-out so the exception
+        // list stays honest while row rendering is paused.
+        this._renderAttentionShelf?.(agents);
         for (const agent of agents) {
             if (!this.searchIndex.has(agent.id)) this._indexAgent(agent);
         }
@@ -1172,6 +1237,10 @@ export class Sidebar {
     destroy() {
         if (this._destroyed) return;
         this._destroyed = true;
+        for (const row of this._shelfRows?.values() || []) row.unsubscribe?.();
+        this._shelfRows?.clear();
+        this.shelfEl?.replaceChildren();
+        if (this.shelfEl) this.shelfEl.hidden = true;
         this._cancelReactiveFrame();
         this._pendingAgentChanges.clear();
         this._reactiveRenderPending = false;

@@ -156,7 +156,41 @@ export function drawCrowdClusterAuras(ctx, { crowdStats, zoom = 1, lighting = nu
 // overflow agents are summarized by colour rather than silently dropped. Scaled
 // by 1/zoom so the standard keeps a constant on-screen size. Static — no motion,
 // so the prefers-reduced-motion rendering is identical.
-export function drawCrowdClusterBadges(ctx, { crowdStats, zoom = 1 } = {}) {
+export function drawCrowdClusterBadges(ctx, { crowdStats, zoom = 1, agentSprites } = {}) {
+    // At dense load remembered residents share one exact building count.
+    const staleGroups = new Map();
+    for (const sprite of agentSprites?.values?.() || []) {
+        sprite.staleGrouped = false;
+        if (agentSprites.size < 24 || !sprite.agent?.resident || sprite.observation?.state !== 'stale'
+            || sprite.selected || sprite.hovered || ['waiting_on_user', 'errored', 'rate_limited'].includes(sprite.agent.status)) continue;
+        const building = sprite._lastBuildingType || sprite.agent.lastKnownBuildingType;
+        if (!building) continue;
+        let group = staleGroups.get(building);
+        if (!group) { group = { count: 0, x: 0, y: 0 }; staleGroups.set(building, group); }
+        group.count++;
+        group.x += sprite.x;
+        group.y += sprite.y;
+        sprite.staleGrouped = true;
+    }
+    if (ctx && staleGroups.size) {
+        ctx.save();
+        ctx.font = BADGE_FONT;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const group of staleGroups.values()) {
+            const text = `${group.count} stale`;
+            const width = BADGE_PADDING_X + text.length * BADGE_CHAR_WIDTH;
+            ctx.save();
+            ctx.translate(group.x / group.count, group.y / group.count - 56);
+            ctx.scale(1 / (zoom || 1), 1 / (zoom || 1));
+            ctx.fillStyle = BADGE_PANEL;
+            ctx.fillRect(-width / 2, -BADGE_HEIGHT / 2, width, BADGE_HEIGHT);
+            ctx.fillStyle = BADGE_TEXT;
+            ctx.fillText(text, 0, 0);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
     const clusters = crowdStats?.clusters;
     if (!ctx || !clusters || clusters.length === 0) return;
 

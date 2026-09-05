@@ -1,3 +1,5 @@
+import { resolveObservation } from './ObservationCertainty.js';
+import { drawEventShape } from '../shared/EventShapes.js';
 import { AgentStatus } from '../../domain/value-objects/AgentStatus.js';
 import { modelBehaviorProfile, moodBehaviorMultiplier } from '../../domain/value-objects/AgentMood.js';
 import { bucketForStatus } from '../../domain/services/SignalLedger.js';
@@ -67,10 +69,10 @@ const RITUAL_GESTURE_PARTICLE = Object.freeze({
     page: { preset: 'archiveMote', dx: 0, dy: -16, count: 2 },
     pick: { preset: 'mineDust', dx: 0, dy: -14, count: 3 },
     scroll: { preset: 'questPing', dx: 0, dy: -18, count: 2 },
-    gaze: { preset: 'sparkle', dx: 0, dy: -22, count: 1 },
+    gaze: { preset: 'archiveMote', dx: 0, dy: -22, count: 1 },
     conjure: { preset: 'portalRune', dx: 0, dy: -20, count: 2 },
     signal: { preset: 'beaconMote', dx: 0, dy: -24, count: 1 },
-    haul: { preset: 'footstep', dx: 0, dy: -14, count: 3 },
+    haul: { preset: 'questPing', dx: 0, dy: -14, count: 1 },
     scan: { preset: 'beaconMote', dx: 0, dy: -24, count: 1 },
 });
 // 3.13 — congestion treatment: gait slowdown when the destination/current
@@ -770,6 +772,7 @@ export class AgentSprite {
         getTileType = null,
     } = {}) {
         this.agent = agent;
+        this.observation = resolveObservation(agent, Date.now());
         this.x = 0;
         this.y = 0;
         this.targetX = 0;
@@ -2079,6 +2082,16 @@ export class AgentSprite {
         this._pruneActivityTrail(now);
         const previous = this._activitySnapshot || this._captureActivitySnapshot(this.agent, now);
         this.agent = agent;
+        this.observation = resolveObservation(agent, now);
+        if (this.observation.state === 'stale' && this._turnFrozenAt == null) this._turnFrozenAt = this.observation.observedAt ?? now;
+        if (this.observation.state !== 'stale') this._turnFrozenAt = null;
+        // Each newly started turn re-arms the completed-turn disclosure; a
+        // repeated identical duration is a new fact, not a stale one.
+        if (agent.turnStartedAt !== this._observedTurnStartedAt) {
+            this._observedTurnStartedAt = agent.turnStartedAt;
+            this._lastTurnShownAt = null;
+        }
+        this._turnSandSecond = null;
         this._modelBehavior = modelBehaviorProfile(agent.model, agent.effort);
         const current = this._captureActivitySnapshot(agent, now);
         if (previous?.key && current?.key && previous.key !== current.key) {
@@ -5066,6 +5079,7 @@ export class AgentSprite {
     // --- Status / UI overlay drawing ---
 
     _drawStatus(ctx, contentTopY = null) {
+        if (this.decisionFocusMuted) return;
         const visual = this._statusVisual();
         const thread = this._activityThread();
         // The long-wait clock is a glyph, not speech: it reports how long this
@@ -5345,15 +5359,13 @@ export class AgentSprite {
     }
 
     _drawChatEffect(ctx) {
+        if (this.decisionFocusMuted) return;
         ctx.save();
         const s = 1 / (this._zoom || 1);
         ctx.translate(this.x, this.y);
         ctx.scale(s, s);
 
-        // #27 — the bare ellipsis is replaced by a small parchment speech-scroll
-        // showing what the conversation is actually about: the live tool-category
-        // glyph (#9's ToolIdentity classification), tinted by status color. When
-        // no tool is active it degrades to the classic animated dots.
+        // A conversation is always a message, not a tool invocation.
         const visual = this._statusVisual();
         const accent = visual?.color || '#72d071';
         const bubbleY = -50;
@@ -5382,38 +5394,13 @@ export class AgentSprite {
         ctx.lineTo(3, bubbleY + h / 2 - 1);
         ctx.fill();
 
-        const tool = String(this.agent?.currentTool || '').trim();
-        if (tool) {
-            // Live tool glyph: the conversation reads as topically meaningful.
-            const building = memoizedToolClassification(tool, this.agent?.currentToolInput)?.building || null;
-            const glyph = toolGlyphKey(tool, building);
-            ctx.save();
-            ctx.translate(0, bubbleY);
-            drawToolGlyphBadge(ctx, {
-                glyph,
-                color: accent,
-                panel: 'rgba(0, 0, 0, 0)',
-                border: 'rgba(0, 0, 0, 0)',
-                size: 11,
-                frame: this.frame,
-                motionScale: this.motionScale,
-            });
-            ctx.restore();
-        } else {
-            // No active tool — fall back to the animated ellipsis (static under
-            // reduced motion: holds the full ellipsis instead of cycling).
-            const phase = this.motionScale === 0 ? 2 : Math.floor(this.chatBubbleAnim * 1.5) % 3;
-            ctx.fillStyle = accent;
-            ctx.font = 'bold 12px "Press Start 2P", monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(['.', '..', '...'][phase], 0, bubbleY - 1);
-        }
+        drawEventShape(ctx, 'message-scroll', -8, bubbleY - 8, 1, accent);
 
         ctx.restore();
     }
 
     _drawNameTag(ctx) {
+        if (this.decisionFocusRoutine) return;
         // 3.7 — hover affordance: a hovered (unselected) agent shows the full
         // pill, same as selection, so the click target identifies itself.
         const emphasized = this.selected || this.hovered;
@@ -5436,7 +5423,7 @@ export class AgentSprite {
         const baseName = String(this.agent.name || this.agent.displayName || '').trim() || this.agent.displayName;
         // 4.8 — earned nickname renders as a title suffix on the full tag
         // (compact labels stay nickname-free to avoid clutter).
-        const rawName = this.nickname ? `${baseName} ${this.nickname}` : baseName;
+        const rawName = this.readVerb || (this.nickname ? `${baseName} ${this.nickname}` : baseName);
         ctx.font = `${NAME_TAG_FONT_PX}px ${WORLD_BODY_FONT}`;
         const layout = this._nameTagLayout(ctx, rawName);
         const lines = layout.lines;
@@ -5517,8 +5504,9 @@ export class AgentSprite {
     }
 
     _drawCompactNameStatus(ctx) {
+        if (this.decisionFocusRoutine) return;
         const repo = this._repoNameTagProfile();
-        const rawName = String(this.agent?.name || this.agent?.displayName || '').trim() || 'Agent';
+        const rawName = this.readVerb || String(this.agent?.name || this.agent?.displayName || '').trim() || 'Agent';
         const s = 1 / (this._zoom || 1);
         const slot = this.overlaySlot ?? this.nameTagSlot ?? 0;
         const providerKey = this._providerKey();
@@ -6341,7 +6329,7 @@ export class AgentSprite {
     // static posed frame instead.
     _advanceToolRitualGesture(particleSystem) {
         const ritual = this._toolRitual;
-        if (!ritual?.pose || !particleSystem || this.chatting || this.moving) return;
+        if (this.observation?.state === 'stale' || !ritual?.pose || !particleSystem || this.chatting || this.moving) return;
         if (this.motionScale <= 0 || ritual.motionEnabled === false || ritual.phase === 'fading') return;
         const period = RITUAL_GESTURE_PERIOD_MS[ritual.pose];
         if (!period) return;
@@ -6361,7 +6349,7 @@ export class AgentSprite {
     // gesture as a single static frame (no swing offset, no particle).
     _drawToolRitualOverlay(ctx, frameGeometry) {
         const ritual = this._toolRitual;
-        if (!ritual?.pose || this.chatting || this.moving) return;
+        if (this.observation?.state === 'stale' || !ritual?.pose || this.chatting || this.moving) return;
         const { dx, dy, bounds, drawScale } = frameGeometry || {};
         if (!bounds || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
         const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
@@ -6416,10 +6404,78 @@ export class AgentSprite {
         ctx.restore();
     }
 
+    // Static secondary evidence; execution status and primary marks are untouched.
+    _drawObservationSeal(ctx) {
+        if (this.observation?.state !== 'stale' || this.staleGrouped) return;
+        const emphasized = this.selected || this.hovered;
+        const gate = getActiveMarkGovernor()?.admit(emphasized ? MarkTier.PRIMARY : MarkTier.SECONDARY, this.x, this.y);
+        if (gate && !gate.draw) return;
+        ctx.save();
+        ctx.translate(Math.round(this.x + 20), Math.round(this._visualAnchorY() - 28));
+        ctx.scale(1 / (this._zoom || 1), 1 / (this._zoom || 1));
+        ctx.globalAlpha *= gate?.alpha ?? 1;
+        drawEventShape(ctx, 'stale-seal', -8, -8, 1, '#d4c9ae');
+        if (emphasized) {
+            const second = Math.floor(Date.now() / 1000);
+            if (this._observationSecond !== second) {
+                this._observationSecond = second;
+                const at = this.observation.observedAt;
+                this._observationLabel = at === null ? 'Last observed time unknown' : `Last observed ${Math.max(0, second - Math.floor(at / 1000))}s ago`;
+            }
+            ctx.font = `12px ${WORLD_BODY_FONT}`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this._observationLabel, 12, 0);
+        }
+        ctx.restore();
+    }
+
+    // Static elapsed evidence on the common Canvas/GPU overlay; epoch-second
+    // bucketing shares the UI cadence without allocating a per-agent timer.
+    _drawTurnSand(ctx) {
+        const now = Date.now();
+        const second = Math.floor(now / 1000);
+        if (this._turnSandSecond !== second) {
+            this._turnSandSecond = second;
+            const start = this.agent?.turnStartedAt;
+            const stale = this.observation?.state === 'stale';
+            if (stale && this._turnFrozenAt == null) this._turnFrozenAt = this.observation.observedAt ?? now;
+            const observedNow = stale ? this._turnFrozenAt : now;
+            const completed = this.agent?.turnState === 'completed' || this.agent?.status === AgentStatus.COMPLETED;
+            this._turnSandAge = Number.isFinite(start) && !completed ? Math.max(0, observedNow - start) : null;
+            const duration = this.agent?.lastTurnDurationMs;
+            if (completed && Number.isFinite(duration) && duration >= 0 && this._lastTurnShownAt == null) this._lastTurnShownAt = now;
+            const last = completed && Number.isFinite(duration) && duration >= 0 && now - this._lastTurnShownAt < 10000;
+            const elapsed = last ? duration : this._turnSandAge;
+            const seconds = Math.floor((elapsed ?? 0) / 1000);
+            this._turnSandText = elapsed === null ? null : `${last ? 'Last turn ' : ''}${seconds >= 60 ? `${Math.floor(seconds / 60)}m ` : ''}${seconds % 60}s`;
+        }
+        if (!this._turnSandText) return;
+        const emphasized = this.selected || this.hovered;
+        const LONG_TURN_MS = 5 * 60 * 1000;
+        if (!emphasized && !(this._turnSandAge >= LONG_TURN_MS)) return;
+        const gate = getActiveMarkGovernor()?.admit(emphasized ? MarkTier.PRIMARY : MarkTier.SECONDARY, this.x, this.y);
+        if (gate && !gate.draw) return;
+        ctx.save();
+        ctx.translate(Math.round(this.x + 26), Math.round(this._visualAnchorY() - 12));
+        ctx.scale(1 / (this._zoom || 1), 1 / (this._zoom || 1));
+        ctx.fillStyle = '#e7d3a0';
+        if (emphasized) {
+            drawEventShape(ctx, 'turn-sand', -8, -8, 1, '#e7d3a0');
+            ctx.font = `12px ${WORLD_BODY_FONT}`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this._turnSandText, 10, 0);
+        } else ctx.fillRect(-2, -3, 2, 6);
+        ctx.restore();
+    }
+
     // Shared medium-distance action vocabulary for the Claude and Codex hero
     // families. Static geometry carries the meaning; the optional two-frame
     // lift uses the medium pulse band and freezes under reduced motion.
     _drawActionPoseOverlay(ctx, frameGeometry) {
+        this._drawObservationSeal(ctx);
+        this._drawTurnSand(ctx);
         const provider = this._providerKey();
         if (!['claude', 'codex'].includes(provider) || this.moving) return;
         const action = resolveAgentAction(this.agent, { chatting: this.chatting });
@@ -6431,7 +6487,7 @@ export class AgentSprite {
         const x = dx + (bounds.minX + width * .72) * drawScale;
         const y = dy + (bounds.minY + height * .42) * drawScale;
         const scale = Math.max(1, Number(drawScale) || 1);
-        const animated = this.motionScale > 0;
+        const animated = this.motionScale > 0 && this.observation?.state !== 'stale';
         const beat = animated ? Math.floor(Date.now() / 320) % 2 : 0;
         const trim = this._providerTrimColor();
         ctx.save();
@@ -6448,10 +6504,9 @@ export class AgentSprite {
         } else if (action === AgentAction.THINK) {
             ctx.fillRect(-3, 2, 2, 2); ctx.fillRect(0, -1, 3, 3); ctx.fillRect(3, -5, 4, 4);
         } else if (action === AgentAction.TALK) {
-            ctx.fillRect(-5, -4, 10, 6); ctx.clearRect(-3, -2, 1, 1); ctx.clearRect(0, -2, 1, 1); ctx.clearRect(3, -2, 1, 1); ctx.fillRect(-3, 2, 2, 2);
+            drawEventShape(ctx, 'message-scroll', -8, -8, 1, trim);
         } else if (action === AgentAction.CELEBRATE) {
-            ctx.fillRect(-6, -5, 2, 6); ctx.fillRect(4, -5, 2, 6);
-            ctx.fillStyle = THEME.text; ctx.fillRect(-7, -7, 2, 2); ctx.fillRect(6, -6, 2, 2); ctx.fillRect(0, -8, 2, 2);
+            drawEventShape(ctx, 'release-crown', -8, -8, 1, THEME.text);
         }
         ctx.restore();
     }

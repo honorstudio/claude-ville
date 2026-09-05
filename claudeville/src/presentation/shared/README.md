@@ -15,6 +15,7 @@ Desktop-only constraint: shared UI only needs to support browser widths of 1280p
 | `ActivityPanel.js` | Right-side 320px detail panel with selected-agent and selected-building modes. |
 | `AgentSelection.js` | Shared selection event helpers and local selected-agent mirrors for presentation components. |
 | `AgentPresentation.js` | Shared identity/status presentation, pixel SVG emblems, freshness/provenance labels, and reusable native text disclosures. |
+| `EventShapes.js` | Authored 16×16 event/district silhouettes shared by Canvas stamps (`drawEventShape`) and DOM icons (`eventShapeSvgPath`). One silhouette per event family; no family shares a shape. |
 | `DomSafe.js` | DOM construction/replacement helpers used by App, Dashboard, Sidebar, Activity Panel, and presentation helpers. |
 | `Formatters.js` | Status, path, number, cost, hash, and truncation formatting helpers. |
 | `GitEventIdentity.js` | Shared git event labeling and identity helpers for harbor/git flows. |

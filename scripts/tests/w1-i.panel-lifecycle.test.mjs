@@ -133,3 +133,72 @@ test('collapsed sidebar count tracks population while row rendering is suspended
     Sidebar.prototype.render.call(sidebar);
     assert.equal(countEl.textContent, '1');
 });
+
+test('the attention shelf renders exceptions while rows are suspended and hides at zero', async () => {
+    const { Sidebar } = await import('../../claudeville/src/presentation/shared/Sidebar.js');
+    class FakeNode {
+        constructor() {
+            this.children = [];
+            this.classList = { add() {}, remove() {}, toggle() {} };
+            this.dataset = {};
+            this.style = {};
+            this.hidden = false;
+            this.textContent = '';
+            this.parent = null;
+        }
+        append(...kids) {
+            for (const kid of kids) {
+                const at = this.children.indexOf(kid);
+                if (at >= 0) this.children.splice(at, 1);
+                this.children.push(kid);
+                kid.parent = this;
+            }
+        }
+        remove() {
+            this.parent?.children.splice(this.parent.children.indexOf(this), 1);
+            this.parent = null;
+        }
+        replaceChildren() { this.children = []; }
+        setAttribute() {}
+        contains() { return false; }
+    }
+    const makeNode = () => new FakeNode();
+    const previousDocument = globalThis.document;
+    const previousNode = globalThis.Node;
+    globalThis.Node = FakeNode;
+    globalThis.document = { createElement: makeNode, createTextNode: value => value, activeElement: null };
+    try {
+        const shelfEl = makeNode();
+        const agents = new Map([
+            ['one', { id: 'one', name: 'One', status: 'waiting_on_user', awaitingSince: 1 }],
+            ['two', { id: 'two', name: 'Two', status: 'errored', awaitingSince: 2 }],
+        ]);
+        const sidebar = Object.assign(Object.create(Sidebar.prototype), {
+            world: { agents },
+            shelfEl,
+            _shelfRows: new Map(),
+            _shelfExpanded: false,
+            searchIndex: { has: () => true, search: () => [] },
+            _publishSharedFilter() {},
+            // Rows are suspended; the shelf must still speak.
+            _isRenderHidden: () => true,
+            countEl: { textContent: '0' },
+        });
+
+        Sidebar.prototype.render.call(sidebar);
+        assert.equal(shelfEl.hidden, false);
+        const [heading, list] = shelfEl.children;
+        assert.equal(heading.textContent, '1 NEED YOU · 1 ERROR');
+        assert.deepEqual(list.children.map(row => row.children[0].textContent), ['One', 'Two']);
+
+        agents.clear();
+        Sidebar.prototype.render.call(sidebar);
+        assert.equal(shelfEl.hidden, true);
+        assert.equal(list.children.length, 0);
+    } finally {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        if (previousNode === undefined) delete globalThis.Node;
+        else globalThis.Node = previousNode;
+    }
+});

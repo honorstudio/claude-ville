@@ -16,7 +16,7 @@ Adapters never write. Provider session files are inputs; do not mutate them.
 - `grok.js`: `~/.grok/sessions/<url-encoded-cwd>/<session-id>/` summaries, updates, and chat history; `active_sessions.json` is optional.
 - `kimi.js`: legacy `~/.kimi/` wire/state data and Kimi Code indexes, transcripts, state, and config under `~/.kimi-code/`.
 - `opencode.js`: read-only `~/.local/share/opencode/opencode.db`, including parent links and shell-derived git events.
-- `omp.js`: `~/.omp/agent/sessions/` parent and nested-agent JSONL transcripts.
+- `omp.js`: `~/.omp/agent/sessions/` parent and nested-agent JSONL transcripts. `workingSet` uses observed `read`/`write` tool-call `arguments.path` and successful `edit` tool-result `details.perFileResults[].path` (not patch or result prose). Read selectors are removed; URI/device/archive targets and directories are excluded. Like Claude, it retains the latest 64 path observations and returns at most 16 distinct canonical paths, newest first, with `{ path, op, at, source: 'transcript' }`; the latest observation wins for repeated paths. Relative paths resolve against the recorded session cwd; paths inside the project are project-relative and other home paths use `~/`. Calls describe observed access intent, not proof of successful file I/O. The redacted local-store shape fixture is `scripts/adapters/fixtures/omp/working-set.jsonl`.
 - `turnState.js`: provider-neutral `working`, `tool_pending`, `awaiting_input`, and `unknown` derivation plus pending-tool classification.
 - `gitEvents.js`: best-effort commit/push extraction and repository-only `provider: 'git'` synthesis.
 

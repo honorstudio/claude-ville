@@ -48,6 +48,18 @@ import {
     LIGHT_SOURCE_REGISTRY,
 } from './BuildingVisualRegistry.js';
 
+// READ translates canonical classifier reasons, never tool names or input text.
+const READ_VERBS = Object.freeze({
+    'edit-file': 'WRITING', 'write-file': 'WRITING', 'patch-file': 'WRITING',
+    'edit-notebook': 'WRITING', 'generate-asset': 'WRITING', 'edit-docs': 'WRITING',
+    'modify-files': 'WRITING',
+    'read-local': 'READING', 'search-local': 'READING', 'find-local': 'READING',
+    'list-local': 'READING', 'read-docs': 'READING', 'inspect-code': 'READING',
+    'inspect-validation': 'READING', 'web-search': 'READING', 'web-fetch': 'READING',
+    'web-tool': 'READING', 'external-research': 'READING',
+    'plan-task': 'PLANNING', 'update-task': 'PLANNING', 'review-tasks': 'PLANNING',
+    'plan-work': 'PLANNING', 'plan-mode-enter': 'PLANNING', 'plan-mode-exit': 'PLANNING',
+});
 const LANDMARK_LABEL_TYPES = new Set(
     BUILDING_DEFS
         .filter((b) => b.labelPriority === 'landmark')
@@ -428,6 +440,51 @@ export class BuildingSprite {
     setAgentSprites(sprites) {
         this.agentSprites = sprites;
         this._taskboardBoardModel.updateAgentSprites(sprites);
+        const cache = this._readAgentCache || (this._readAgentCache = new Map());
+        let changed = cache.size !== sprites.length;
+        const generation = this._readGeneration = (this._readGeneration || 0) + 1;
+        for (const sprite of sprites) {
+            const agent = sprite.agent;
+            if (!agent) continue;
+            const tool = agent.currentTool;
+            const input = agent.currentToolInput;
+            const prior = cache.get(agent.id);
+            if (prior && prior.tool === tool && prior.input === input
+                && prior.status === agent.status && prior.departed === agent.isDeparted) {
+                sprite.readToolVerb = prior.verb;
+                prior.generation = generation;
+                continue;
+            }
+            const classified = classifyTool(tool, input);
+            const entry = {
+                generation,
+                tool, input, status: agent.status, departed: agent.isDeparted,
+                building: classified?.building || 'command',
+                verb: READ_VERBS[classified?.reason] || 'OTHER',
+            };
+            sprite.readToolVerb = entry.verb;
+            cache.set(agent.id, entry);
+            changed = true;
+        }
+        for (const [id, entry] of cache) {
+            if (entry.generation !== generation) {
+                cache.delete(id);
+                changed = true;
+            }
+        }
+        if (changed) {
+            const counts = this._readCounts || (this._readCounts = new Map());
+            counts.clear();
+            for (const entry of cache.values()) {
+                if (entry.status !== AgentStatus.WORKING || entry.departed) continue;
+                let verbs = counts.get(entry.building);
+                if (!verbs) counts.set(entry.building, verbs = new Map());
+                verbs.set(entry.verb, (verbs.get(entry.verb) || 0) + 1);
+            }
+            this._readPlaques = new Map(Array.from(counts, ([type, verbs]) => [
+                type, Array.from(verbs, ([verb, count]) => `${verb} · ${count}`),
+            ]));
+        }
     }
 
     setTaskboardCandidates(ids) {
@@ -835,6 +892,7 @@ export class BuildingSprite {
         occupiedBoxes = [],
         harborPendingRepos = [],
         scaleMode = 'screen-fixed',
+        readMode = false,
     } = {}) {
         const labelScale = 1 / Math.max(0.01, zoom);
         const occupied = [];
@@ -880,6 +938,7 @@ export class BuildingSprite {
                 zoom,
                 localLabelDensity,
                 harborLedgerRows,
+                readRows: readMode ? this._readPlaques?.get(b.type) : null,
             });
             let chosen = null;
 
@@ -1241,7 +1300,19 @@ export class BuildingSprite {
         ];
     }
 
-    _labelRenderAttempts(building, { isHovered, isLandmark, zoom, localLabelDensity = 0, harborLedgerRows = [] }) {
+    _labelRenderAttempts(building, { isHovered, isLandmark, zoom, localLabelDensity = 0, harborLedgerRows = [], readRows = null }) {
+        if (readRows?.length) {
+            return [{
+                text: readRows[0],
+                subRows: readRows.slice(1).map(label => ({ label })),
+                labelFont: `bold 11px ${WORLD_BODY_FONT}`,
+                subFont: `11px ${WORLD_BODY_FONT}`,
+                maxTextWidth: 180, subMaxTextWidth: 180,
+                iconSize: 16, iconGap: 7, padX: 10,
+                tagH: 24 + (readRows.length - 1) * 16,
+                overlapTolerance: 1, blockAgents: false, degraded: false,
+            }];
+        }
         const baseText = this._labelTextFor(building, zoom, isHovered);
         const compactText = this._labelTextFor(building, LABEL_VISIBLE_ZOOM, false);
         const tinyText = this._labelTinyTextFor(building, compactText);

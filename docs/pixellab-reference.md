@@ -9,9 +9,11 @@
 
 For the complete character workflow and tactical validation commands, use [`scripts/sprites/generate.md`](../scripts/sprites/generate.md). This document is only the PixelLab API, lifecycle, and pitfalls reference.
 
-## Tier-3 budget
+## Subscription budget
 
-As of 2026-04-27, ClaudeVille was believed to be on **Tier 3 (Pixel Architect)**: 10,000 generations per month, resets near the 25th. Recent utilization was around 3%, so headroom was generous at the time this was written. Before a broad asset bake, verify the current plan and remaining generations with `GET https://api.pixellab.ai/v2/balance` or the PixelLab account page. Spend deliberately on quality, not volume — do not over-engineer caching to save twenty generations.
+Verified 2026-09-05: **Tier 1 (Pixel Apprentice)**, **2,000 generations per month**, **1,403 remaining**, resetting September 9. This is a dated observation, not a standing allowance. Before **any** bake, check `GET https://api.pixellab.ai/v2/balance` (the sprite planner does this read-only) and price the intended direction jobs. Never assume credit fallback or a higher subscription tier.
+
+Character production identity is recorded in optional manifest `provenance` (`characterId`, `animationGroupId`, `generationSize`, `generationMode`), never credentials. Named `animationGroups` map inclusive base-sheet row ranges (`walk` 0–5, `breathingIdle` 6–9); explicit exported animation IDs select assembly inputs, not their frame counts. Unknown historical provenance stays absent. New action strips remain separate assets with their own named groups and provenance; see the character runbook.
 
 Approximate cost per asset family (so an agent can sanity-check before kicking off a bulk bake):
 
@@ -19,8 +21,8 @@ Approximate cost per asset family (so an agent can sanity-check before kicking o
 | --- | --- |
 | `create_character` standard mode (8 directions) | ~1 generation + ~8 for the rotation rig |
 | `create_character` pro mode | 20–40 generations |
-| `animate_character` template mode (per animation, full 8-direction rig) | 8 generations × frames per direction (e.g. walking-6-frames = 8 gens) |
-| `animate_character` v3 mode | depends on `frame_count` (4–16) |
+| `animate_character` template mode (per animation, full 8-direction rig) | 1 generation per direction, 8 total |
+| `animate_character` v3 mode | `ceil(width * height * frames / 65536)` per direction, at verified source dimensions |
 | `animate_character` pro mode | 20–40 generations per direction |
 | `create_isometric_tile` | 1–2 generations |
 | `create_tiles_pro` | 20 (small/medium) or 25 (larger sizes) |
@@ -151,7 +153,7 @@ Status codes:
 - **202** — accepted, processing; poll the returned ID/job
 - **423** — locked, still processing → poll again
 - **429** — too many concurrent jobs → back off and retry
-- **402** — insufficient credits (rare on Tier 3 but possible)
+- **402** — insufficient subscription generations or credits for this operation; check `/v2/balance` and the operation's mode/cost before retrying. Do not assume credit fallback is funded.
 - **422** — validation error (parameter shape wrong)
 - **529** — rate limit exceeded (long-window cap, back off longer)
 
@@ -320,4 +322,4 @@ For the full revamp script that handles edge-color cleanup and grid composition,
 - **Dual-grid 15-tileset** — alternative tileset packing exposed by `create-tileset`.
 - **Oblique projection** — non-isometric angled projection (Tibia-style); not used in ClaudeVille.
 - **Isometric (PixelLab semantics)** — true isometric (120° axes); set `view: 'low top-down', isometric: true` for the ClaudeVille look.
-- **Tier-3 / Pixel Architect** — subscription tier believed current as of 2026-04-27. Verify with `/v2/balance` or the PixelLab account page before large batches.
+- **Tier 1 / Pixel Apprentice** — verified 2026-09-05: 2,000 monthly generations, 1,403 remaining, resets September 9. Check `/v2/balance` before any bake.

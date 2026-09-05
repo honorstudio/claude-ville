@@ -14,6 +14,7 @@ import {
     snapshotAgeMs,
 } from '../../application/VillageState.js';
 import { TokenUsage } from '../../domain/value-objects/TokenUsage.js';
+import { eventShapeSvgPath } from './EventShapes.js';
 
 const SETTINGS_MODAL_OWNER = 'topbar-settings';
 const UNKNOWN_MODEL_DATE_KEY = 'claudeville.pricing.unknownModelDate';
@@ -125,18 +126,19 @@ export function usageCoverage(agents = []) {
 }
 
 export class TopBar {
-    constructor(world, { modal, attention, chronicle, spendLedger } = {}) {
+    constructor(world, { modal, attention, chronicle, spendLedger, frameAttention } = {}) {
         this._motionOverride = installReducedMotionOverride();
         this.world = world;
         this.modal = modal || null;
         this.attention = attention || null;
+        this.frameAttention = frameAttention;
         this.chronicle = chronicle || null;
         this.spendLedger = spendLedger || null;
         this.els = {
             root: document.getElementById('topbar'),
             tokens: document.getElementById('statTokens'),
             time: document.getElementById('statTime'),
-            fps: document.getElementById('statFps'),
+            clock: document.getElementById('villageClock'),
             working: document.getElementById('badgeWorking'),
             idle: document.getElementById('badgeIdle'),
             waiting: document.getElementById('badgeWaiting'),
@@ -206,6 +208,8 @@ export class TopBar {
 
         this._onFps = (fps) => this.renderFps(fps);
         eventBus.on('fps:updated', this._onFps);
+        this._onAtmosphere = snapshot => this._renderWitnessClock(snapshot);
+        eventBus.on('atmosphere:updated', this._onAtmosphere);
 
         this._onUsage = (usage) => { this._usage = usage; this._renderQuota(); };
         eventBus.on('usage:updated', this._onUsage);
@@ -239,10 +243,32 @@ export class TopBar {
             this.els.version.addEventListener('keydown', this._onVersionKeydown);
         }
 
-        if (this.els.fps) this.els.fps.hidden = true;
-
         this._startTimer();
         this.render();
+    }
+
+    _renderWitnessClock(snapshot) {
+        const clock = snapshot?.clock;
+        const node = this.els.clock;
+        if (!node || !clock?.label) return;
+        const weather = snapshot.weather?.type || 'clear';
+        const timeline = snapshot.timeline;
+        const override = timeline?.hourOverride != null || timeline?.frozen || timeline?.mode === 'fixed'
+            ? 'FIXED' : this._villageState.source === 'simulator' ? 'SIM' : '';
+        const phase = String(snapshot.phase || '').toUpperCase();
+        const signature = `${clock.label}|${phase}|${weather}|${override}`;
+        if (signature === this._clockSignature) return;
+        this._clockSignature = signature;
+        node.hidden = false;
+        node.querySelector('.topbar__clock-time').textContent = clock.label;
+        node.querySelector('.topbar__clock-phase').textContent = phase;
+        const tag = node.querySelector('.topbar__clock-override');
+        tag.textContent = override;
+        tag.hidden = !override;
+        const glyph = /rain|storm|snow/.test(weather) ? 'weather-rain'
+            : /cloud|fog|overcast/.test(weather) ? 'weather-cloud' : 'weather-clear';
+        node.querySelector('path').setAttribute('d', eventShapeSvgPath(glyph));
+        node.title = `Modeled village weather: ${weather}${override ? ` · ${override.toLowerCase()} timeline` : ''}`;
     }
 
     // #attract — topbar toggle for the idle action camera (on by default,
@@ -300,6 +326,10 @@ export class TopBar {
             const target = event.target;
             const tag = target?.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+            if (this.frameAttention?.()) {
+                event.preventDefault();
+                return;
+            }
             const agent = this.attention.focusNext();
             if (agent) event.preventDefault();
         };
@@ -1221,25 +1251,11 @@ export class TopBar {
         }, 1100);
     }
 
-    // fps is a number while the World render loop runs, null when it stops.
-    // The live value stays visible on the brand meta line (maintainer request,
-    // v0.39.0.1); the danger band below 25 FPS adds the warning styling, and
-    // Settings -> Health keeps the honest p50/p95 detail.
+    // The top bar no longer carries an FPS read-out (the witness clock owns that
+    // slot); this only keeps the last honest sample for Settings > Health, which
+    // must be able to tell a suspended render loop (null) from a genuine 0 FPS.
     renderFps(fps) {
-        if (!this.els.fps) return;
-        const value = typeof fps === 'number' ? fps : NaN;
-        if (!Number.isFinite(value)) {
-            this._lastFps = null;
-            this.els.fps.hidden = true;
-            this.els.fps.classList.remove('topbar__fps--danger');
-            return;
-        }
-        this._lastFps = value;
-        const danger = value < 25;
-        this.els.fps.textContent = `${Math.round(value)} FPS`;
-        this.els.fps.hidden = false;
-        this.els.fps.classList.toggle('topbar__fps--danger', danger);
-        this.els.fps.title = danger ? 'Render health is struggling; open Settings for details' : '';
+        this._lastFps = typeof fps === 'number' && Number.isFinite(fps) ? fps : null;
     }
 
     _startTimer() {
@@ -1336,6 +1352,7 @@ export class TopBar {
     destroy() {
         if (this._destroyed) return this._destroyPromise;
         this._destroyed = true;
+        eventBus.off('atmosphere:updated', this._onAtmosphere);
         this.els.needsYou?.remove();
         if (this.timeInterval) {
             clearInterval(this.timeInterval);

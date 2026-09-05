@@ -1839,13 +1839,29 @@ export class IsometricRenderer {
             this._handleWorldKeyboardCommand(e);
         };
         window.addEventListener('keydown', this._onKeyDown);
+        this._onReadKeyUp = (event) => {
+            if (event.code === 'KeyB') this.setReadMode(false);
+        };
+        this._onReadBlur = () => this.setReadMode(false);
+        window.addEventListener('keyup', this._onReadKeyUp);
+        window.addEventListener('blur', this._onReadBlur);
         this._onModeChanged = (mode) => this.setWorldModeActive(mode !== 'dashboard');
         this._unsubscribers.push(eventBus.on('mode:changed', this._onModeChanged));
-        this._triggerReleaseParadeForVersion();
 
         this.running = true;
         this._startLoop();
         return true;
+    }
+
+    setReadMode(on) {
+        const next = Boolean(on);
+        if (this._readMode === next) return;
+        this._readMode = next;
+        this._invalidateIdleFrame();
+    }
+
+    getReadMode() {
+        return Boolean(this._readMode);
     }
 
     _toggleDebugOverlay(method) {
@@ -1909,6 +1925,9 @@ export class IsometricRenderer {
         this._setHoveredAgentSprite(null);
         if (this._onKeyDown) window.removeEventListener('keydown', this._onKeyDown);
         this._onKeyDown = null;
+        window.removeEventListener('keyup', this._onReadKeyUp);
+        window.removeEventListener('blur', this._onReadBlur);
+        this.setReadMode(false);
         if (this._chronicleChannelListener && this.chronicleStore?.channel?.removeEventListener) {
             this.chronicleStore.channel.removeEventListener('message', this._chronicleChannelListener);
         }
@@ -2674,11 +2693,6 @@ export class IsometricRenderer {
         };
     }
 
-    _triggerReleaseParadeForVersion() {
-        if (typeof document === 'undefined') return false;
-        const version = document.querySelector('.topbar__version')?.textContent || '';
-        return this.villageDirector?.triggerReleaseParadeOnceForVersion?.(version) || false;
-    }
 
     applyScenarioMetadata(metadata = {}) {
         if (!metadata || typeof metadata !== 'object') return false;
@@ -2948,6 +2962,11 @@ export class IsometricRenderer {
         const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
         if (this._isKeyboardEditTarget(activeElement)) return;
         if (this._isModalOpen()) return;
+        if (event.code === 'KeyB') {
+            this.setReadMode(true);
+            event.preventDefault();
+            return;
+        }
 
         if (event.code === 'Tab') {
             if (this._cycleAgentSelection(event.shiftKey ? -1 : 1)) event.preventDefault();
@@ -5173,6 +5192,12 @@ export class IsometricRenderer {
 
         for (const sprite of prioritized) {
             if (!sprite.agent) continue;
+            const focusId = this.selectedAgent?.id || this.cameraDirector?.attentionFrame?.focusedAgentId;
+            const primary = sprite.selected || sprite.agent.id === focusId
+                || [AgentStatus.WAITING_ON_USER, AgentStatus.ERRORED, AgentStatus.RATE_LIMITED].includes(sprite.agent.status);
+            sprite.decisionFocusMuted = Boolean(focusId && sprite.agent.id !== focusId);
+            sprite.decisionFocusRoutine = sprite.decisionFocusMuted && !primary;
+            sprite.readVerb = this.getReadMode() && !primary ? sprite.readToolVerb || 'OTHER' : null;
 
             sprite.overlaySlot = null;
             sprite.nameTagSlot = null;
@@ -5180,7 +5205,7 @@ export class IsometricRenderer {
             sprite.labelAlpha = this._agentLabelAlpha(sprite, zoom);
             sprite.foldedIntoBuilding = false;
 
-            if (sprite.selected) {
+            if (sprite.selected || sprite.agent.id === focusId) {
                 const compactRect = this._agentCompactSlotRect(sprite, 0);
                 const nameRect = this._agentNameSlotRect(sprite, 0);
                 if (useSpatialGrid) {
@@ -5199,6 +5224,10 @@ export class IsometricRenderer {
                 continue;
             }
 
+            if (sprite.decisionFocusRoutine) {
+                sprite.labelAlpha = 0;
+                continue;
+            }
             if (denseCrowdCells.size && this._isRoutineFoldCandidate(sprite)) {
                 const tile = worldToTile(sprite.x, sprite.y);
                 const cell = `${Math.floor(tile.tileX / CROWD_CLUSTER_TILE_SIZE)},${Math.floor(tile.tileY / CROWD_CLUSTER_TILE_SIZE)}`;
@@ -5265,6 +5294,7 @@ export class IsometricRenderer {
         const bubbleSprites = this._overlayBubbleSprites;
         bubbleSprites.length = 0;
         for (const sprite of prioritized) {
+            if (sprite.decisionFocusMuted) continue;
             if (agentRenderMode === 'full') {
                 bubbleSprites.push(sprite);
             } else {

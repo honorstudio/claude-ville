@@ -1,3 +1,4 @@
+import { resolveObservation } from '../character-mode/ObservationCertainty.js';
 import { eventBus, BUILDING_EVENTS } from '../../domain/events/DomainEvent.js';
 import { TokenUsage } from '../../domain/value-objects/TokenUsage.js';
 import { AgentBiography } from '../../domain/value-objects/AgentBiography.js';
@@ -43,6 +44,7 @@ import { AvatarCanvas } from '../dashboard-mode/AvatarCanvas.js';
 import { buildExecutionTree } from '../dashboard-mode/DashboardRenderer.js';
 import { narrativeFeedEntries } from '../character-mode/VillageDirector.js';
 import { groupTodosByPhase } from '../character-mode/TaskboardBoardModel.js';
+import { buildBuildingInstrumentModel, BUILDING_INSTRUMENT_NAME_LIMIT } from './BuildingInstrumentModel.js';
 
 const PANEL_TOOL_LIMIT = 30;
 const PANEL_MESSAGE_LIMIT = 12;
@@ -50,9 +52,8 @@ const PANEL_INTER_AGENT_MESSAGE_LIMIT = 5;
 const PANEL_GIT_EVENT_LIMIT = 6;
 const PANEL_RELATIONSHIP_LIMIT = 4;
 const DIRECTOR_FEED_LIMIT = 12;
-const BUILDING_OCCUPANT_REFRESH_INTERVAL = 5000;
+const BUILDING_SIGNAL_REFRESH_INTERVAL = 5000;
 const JOURNEY_BREADCRUMB_LIMIT = 5;
-const BUILDING_ROUTE_HINT_LIMIT = 3;
 const BUILDING_RECENT_WORK_LIMIT = 3;
 const PIN_COMPARE_LIMIT = 2;
 const NARRATION_ENTRY_LIMIT = 20;
@@ -813,7 +814,6 @@ export class ActivityPanel {
         this._latestUsage = null;
         this.toast = toast || new Toast();
         this._ownsToast = !toast;
-        this._buildingPresenceByType = new Map();
         this._buildingSignalByType = new Map();
         this._villageDirectorByType = new Map();
         this._pollTimer = null;
@@ -874,7 +874,7 @@ export class ActivityPanel {
         }, [this._blockedPromptEl, this._blockedProvenanceEl]);
         this._elapsedUnsubscribe = subscribeElapsedText(this._statusElapsedEl, () => (
             this._mode === 'agent' && this.currentAgent
-                ? formatStatusElapsed(this.currentAgent)
+                ? resolveObservation(this.currentAgent, Date.now()).state === 'stale' ? '' : formatStatusElapsed(this.currentAgent)
                 : ''
         ));
         this._toolEls = {
@@ -1063,18 +1063,15 @@ export class ActivityPanel {
         this._onBuildingDeselected = () => {
             if (this._mode === 'building') this.hide();
         };
-        this._onBuildingPresence = (payload) => {
-            this._cacheBuildingPresence(payload);
+        this._onBuildingPresence = () => {
             if (this._mode === 'building') {
                 this._renderBuildingSignal();
-                this._renderBuildingState();
             }
         };
         this._onBuildingSignal = (payload) => {
             this._cacheBuildingPayload(payload, this._buildingSignalByType);
             if (this._mode === 'building') {
                 this._renderBuildingSignal();
-                this._renderBuildingState();
             }
         };
         this._onVillageDirector = (payload) => {
@@ -1088,15 +1085,12 @@ export class ActivityPanel {
             }
             if (this._mode === 'building') {
                 this._renderBuildingSignal();
-                this._renderBuildingOccupants();
-                this._renderBuildingState();
             }
         };
         this._onUsageUpdated = (usage) => {
             this._latestUsage = usage || null;
             if (this._mode === 'building') {
                 this._renderBuildingSignal();
-                this._renderBuildingState();
             }
         };
         this._onMoodChanged = ({ agent } = {}) => {
@@ -1222,8 +1216,7 @@ export class ActivityPanel {
             promptPlan: '',
             pins: '',
             buildingSignal: '',
-            buildingOccupants: '',
-            buildingState: '',
+            buildingDetail: '',
         };
     }
 
@@ -1647,8 +1640,7 @@ export class ActivityPanel {
         this._selectedBuilding = building;
         this._updateBlockedBanner(null);
         this._renderSignatures.buildingSignal = '';
-        this._renderSignatures.buildingOccupants = '';
-        this._renderSignatures.buildingState = '';
+        this._renderSignatures.buildingDetail = '';
         this._hideAgentSections();
         this._updatePinToggle(null);
         this._updateWorkingDirectory(null);
@@ -1709,7 +1701,10 @@ export class ActivityPanel {
         const statusEl = this.dom.panelAgentStatus;
         // When the adapter knows why an agent is blocked, that is the headline.
         const reason = waitReasonLabel(agent);
-        statusEl.textContent = (reason || statusInfo.label).toUpperCase();
+        const observation = resolveObservation(agent, Date.now());
+        statusEl.textContent = observation.state === 'stale'
+            ? observation.ageMs === null ? 'Last observed time unknown' : `Last observed ${Math.floor(observation.ageMs / 1000)}s ago`
+            : (reason || statusInfo.label).toUpperCase();
         statusEl.style.color = statusInfo.color;
         statusEl.title = reason ? statusInfo.label : '';
         this._updateBlockedBanner(agent, reason);
@@ -2293,10 +2288,8 @@ export class ActivityPanel {
         this._buildingPollTimer = setInterval(() => {
             if (this._mode !== 'building') return;
             this._renderBuildingSignal();
-            this._renderBuildingOccupants();
-            this._renderBuildingState();
             this._fetchPinnedDetails();
-        }, BUILDING_OCCUPANT_REFRESH_INTERVAL);
+        }, BUILDING_SIGNAL_REFRESH_INTERVAL);
     }
 
     _stopBuildingPolling() {
@@ -2316,8 +2309,6 @@ export class ActivityPanel {
             this._startPolling();
         } else if (this._mode === 'building') {
             this._renderBuildingSignal();
-            this._renderBuildingOccupants();
-            this._renderBuildingState();
             this._fetchPinnedDetails();
             this._startBuildingPolling();
         }
@@ -3632,197 +3623,116 @@ export class ActivityPanel {
 
         this._renderBuildingBody();
         this._renderBuildingSignal();
-        this._renderBuildingOccupants();
-        this._renderBuildingState();
     }
 
     _renderBuildingBody() {
         if (!this._buildingContentEl) return;
-        const building = this._selectedBuilding;
-        const occupants = this._buildingOccupants(building);
-        const description = building?.description || 'No description';
-        const district = this._titleize(building?.district || 'village');
-        const capacity = this._buildingCapacity(building);
         this._renderSignatures.buildingSignal = '';
-        this._renderSignatures.buildingOccupants = '';
-        this._renderSignatures.buildingState = '';
-        const signalSection = el('div', {
-            className: 'activity-panel__section',
-            dataset: { role: 'signal' },
-        }, [
-            el('div', { className: 'activity-panel__section-title', text: 'Signal' }),
-            el('div', { className: 'activity-panel__building-signal', dataset: { role: 'signal-body' } }, [
-                this._emptyState('-'),
-            ]),
+        this._renderSignatures.buildingDetail = '';
+        replaceChildren(this._buildingContentEl, [
+            el('div', { className: 'activity-panel__section', dataset: { role: 'instrument' } }),
+            el('div', { className: 'activity-panel__section', dataset: { role: 'building-detail' } }),
         ]);
-        const occupantsSection = el('div', {
-            className: 'activity-panel__section',
-            dataset: { role: 'occupants' },
-        }, [
-            el('div', { className: 'activity-panel__section-title', text: 'Occupants' }),
-            el('div', { className: 'activity-panel__messages', dataset: { role: 'occupants-list' } }, [
-                this._emptyState('-'),
-            ]),
-        ]);
-        const stateSection = el('div', {
-            className: 'activity-panel__section',
-            dataset: { role: 'state' },
-        }, [
-            el('div', { className: 'activity-panel__section-title', text: 'Status' }),
-            el('div', { className: 'activity-panel__token-usage', dataset: { role: 'state-body' } }, [
-                this._emptyState('-'),
-            ]),
-        ]);
-        const aboutSection = el('div', {
-            className: 'activity-panel__section activity-panel__section--grow',
-        }, [
-            el('div', { className: 'activity-panel__section-title', text: 'Purpose' }),
-            el('div', { className: 'activity-panel__token-usage' }, [
-                this._buildingRow('Purpose', description),
-                this._buildingRow('District', district),
-                this._buildingRow('Capacity', capacity ? `${occupants.length}/${capacity}` : `${occupants.length}`),
-            ]),
-        ]);
-        replaceChildren(this._buildingContentEl, [signalSection, occupantsSection, stateSection, aboutSection]);
     }
 
     _renderBuildingSignal() {
-        if (!this._buildingContentEl) return;
-        const building = this._selectedBuilding;
-        if (!building) return;
-        const body = this._buildingContentEl.querySelector('[data-role="signal-body"]');
-        if (!body) return;
-        const context = this._buildingContext(building);
-        const signal = this._buildingSignalModel(context);
-        const signature = `${context.type}|${signal.headline}|${hashRows(signal.rows, [
-            row => row.label,
-            row => row.value,
-            row => row.tone || '',
-        ])}|${hashRows(signal.alerts, [
-            alert => alert.label,
-            alert => alert.value,
-            alert => alert.tone || '',
-        ])}`;
+        if (!this._buildingContentEl || !this._selectedBuilding) return;
+        const context = this._buildingContext(this._selectedBuilding);
+        const model = buildBuildingInstrumentModel(context);
+        this._renderBuildingInstrument(model);
+        this._renderBuildingDetail(context, model.purpose);
+    }
+
+    // Counts and selectable names. Kept on its own signature so the interactive
+    // name rows survive refreshes that only changed recent-work text.
+    _renderBuildingInstrument(model) {
+        const host = this._buildingContentEl.querySelector('[data-role="instrument"]');
+        if (!host) return;
+        const signature = JSON.stringify([model.presence, model.signal, model.queue]);
         if (signature === this._renderSignatures.buildingSignal) return;
         this._renderSignatures.buildingSignal = signature;
-        const nodes = [
-            el('div', { className: 'activity-panel__signal-headline', text: signal.headline }),
-        ];
-        if (signal.rows.length) {
-            nodes.push(el('div', { className: 'activity-panel__signal-rows' }, signal.rows.map(row => (
-                el('div', {
-                    className: ['activity-panel__signal-row', row.tone ? `activity-panel__signal-row--${row.tone}` : ''],
-                }, [
-                    el('span', { className: 'activity-panel__signal-row-label', text: row.label }),
-                    el('span', {
-                        className: 'activity-panel__signal-row-value',
-                        text: row.value,
-                        title: row.value,
-                    }),
-                ])
-            ))));
-        }
-        if (signal.alerts.length) {
-            nodes.push(el('div', { className: 'activity-panel__signal-chips' }, signal.alerts.map(alert => (
-                el('span', {
-                    className: ['activity-panel__signal-chip', alert.tone ? `activity-panel__signal-chip--${alert.tone}` : ''],
-                    text: alert.value ? `${alert.label} ${alert.value}` : alert.label,
-                    title: alert.value ? `${alert.label} ${alert.value}` : alert.label,
-                })
-            ))));
-        }
-        replaceChildren(body, nodes);
-    }
-
-    _renderBuildingOccupants() {
-        if (!this._buildingContentEl) return;
-        const building = this._selectedBuilding;
-        if (!building) return;
-        const list = this._buildingContentEl.querySelector('[data-role="occupants-list"]');
-        if (!list) return;
-        const occupants = this._buildingOccupants(building);
-        const rowsData = occupants.map(agent => {
-            const tool = currentToolPresentation(agent);
-            const activity = this._buildingOccupantActivity(agent, building);
-            return {
-                id: agent.id,
-                name: agent.name || agent.id,
-                status: agent.status,
-                toolName: tool.name,
-                toolDetail: tool.detail,
-                detail: activity.detail,
-                hint: activity.hint,
-            };
-        });
-        const signature = `${building.type || ''}|${hashRows(rowsData, [
-            row => row.id,
-            row => row.name,
-            row => row.status,
-            row => row.toolName,
-            row => row.toolDetail,
-            row => row.detail,
-            row => row.hint,
-        ])}`;
-        if (signature === this._renderSignatures.buildingOccupants) return;
-        this._renderSignatures.buildingOccupants = signature;
-        if (!occupants.length) {
-            replaceChildren(list, [this._emptyState('No agents currently here')]);
-            return;
-        }
-        const rows = occupants.map((agent) => {
-            const statusInfo = statusPresentation(agent.status);
-            const tool = currentToolPresentation(agent);
-            const activity = this._buildingOccupantActivity(agent, building);
-            const bodyNodes = [
-                el('div', { className: 'activity-panel__occupant-main' }, [
-                    el('span', { className: 'activity-panel__occupant-name', text: agent.name || agent.id }),
-                    el('span', { className: 'activity-panel__occupant-tool', text: tool.name }),
-                ]),
-            ];
-            if (activity.detail) {
-                bodyNodes.push(el('div', { className: 'activity-panel__occupant-detail', text: activity.detail }));
-            }
-            if (activity.hint) {
-                bodyNodes.push(el('div', { className: 'activity-panel__occupant-hint', text: activity.hint }));
-            }
-            const row = el('div', {
-                className: ['activity-panel__msg', 'activity-panel__msg--assistant', 'activity-panel__occupant'],
-                title: 'Switch to agent details',
-            }, [
-                el('div', { className: 'activity-panel__msg-role', text: statusInfo.label }),
-                el('div', { className: 'activity-panel__occupant-body' }, bodyNodes),
+        const wasOpen = host.querySelector('details')?.open || false;
+        const names = model.queue.slice(0, BUILDING_INSTRUMENT_NAME_LIMIT)
+            .map(entry => this._buildingQueueName(entry));
+        const overflow = model.queue.length - names.length;
+        if (overflow > 0) {
+            const disclosure = el('details', { className: 'activity-panel__instrument-overflow' }, [
+                el('summary', { text: `+${overflow} more` }),
+                ...model.queue.slice(BUILDING_INSTRUMENT_NAME_LIMIT)
+                    .map(entry => this._buildingQueueName(entry)),
             ]);
-            row.tabIndex = 0;
-            row.setAttribute('role', 'button');
-            row.setAttribute('aria-label', `Switch to ${agent.name || agent.id}`);
-            row.addEventListener('click', () => emitAgentSelected(agent));
-            row.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                emitAgentSelected(agent);
-            });
-            return row;
-        });
-        replaceChildren(list, rows);
+            disclosure.open = wasOpen;
+            names.push(disclosure);
+        }
+        if (!names.length) names.push(this._emptyState('No inbound or waiting agents'));
+        replaceChildren(host, [
+            this._buildingMetric('VISITING', model.presence, 'seats', 'Physical visits / all configured visit slots'),
+            this._buildingMetric('WORK SIGNAL', model.signal, 'work', 'Working assignments / work capacity'),
+            el('div', { className: 'activity-panel__instrument-queue' }, [
+                el('div', { className: 'activity-panel__section-title', text: 'Queue & assignments' }),
+                ...names,
+            ]),
+        ]);
     }
 
-    _renderBuildingState() {
-        if (!this._buildingContentEl) return;
-        const building = this._selectedBuilding;
-        if (!building) return;
-        const body = this._buildingContentEl.querySelector('[data-role="state-body"]');
-        if (!body) return;
-        const rows = this._buildingStateRows(building);
-        const signature = `${building.type || ''}|${hashRows(rows, [
-            row => row.textContent || '',
-        ])}`;
-        if (signature === this._renderSignatures.buildingState) return;
-        this._renderSignatures.buildingState = signature;
-        if (!rows.length) {
-            replaceChildren(body, [this._emptyState('-')]);
-            return;
+    _buildingMetric(label, value, kind, explanation) {
+        const nodes = [
+            el('div', { className: 'activity-panel__instrument-heading' }, [
+                el('span', { text: label }),
+                el('span', { text: `${value.count} / ${value.capacity ?? 'unavailable'}` }),
+            ]),
+        ];
+        // Static count ticks, never a percentage and never an empty unknown gauge.
+        // Over-capacity counts keep their extra ticks so 6 / 5 cannot read as full.
+        const ticks = value.capacity === null ? 0 : Math.min(64, Math.max(value.count, value.capacity));
+        if (ticks > 0) {
+            const row = el('div', {
+                className: `activity-panel__instrument-ticks activity-panel__instrument-ticks--${kind}`,
+            }, Array.from({ length: ticks }, (_, index) => el('span', {
+                className: [
+                    index < value.count ? 'is-filled' : '',
+                    index >= value.capacity ? 'is-over' : '',
+                ],
+            })));
+            row.setAttribute('aria-hidden', 'true');
+            nodes.push(row);
         }
-        replaceChildren(body, rows);
+        nodes.push(el('div', { className: 'activity-panel__instrument-note', text: explanation }));
+        return el('div', { className: 'activity-panel__instrument-metric' }, nodes);
+    }
+
+    _buildingQueueName(entry) {
+        const button = el('button', {
+            className: 'activity-panel__instrument-name',
+            ariaLabel: `Switch to ${entry.name}`,
+        }, [
+            el('span', { text: entry.name }),
+            el('span', { className: 'activity-panel__instrument-note', text: entry.state }),
+        ]);
+        button.type = 'button';
+        button.addEventListener('click', () => {
+            const agent = this._getWorld()?.agents?.get?.(entry.agentId);
+            if (agent) emitAgentSelected(agent);
+        });
+        return button;
+    }
+
+    _renderBuildingDetail(context, purpose) {
+        const host = this._buildingContentEl.querySelector('[data-role="building-detail"]');
+        if (!host) return;
+        const rows = [];
+        const recent = this._formatBuildingRecentWork(context);
+        if (recent) rows.push(this._buildingRow('Recent work', recent));
+        const exceptions = Number(context.external?.counts?.errored);
+        if (Number.isFinite(exceptions) && exceptions > 0) {
+            rows.push(this._buildingRow('Error / rate limit', String(exceptions)));
+        }
+        rows.push(...this._buildingSpecificStateRows(context.building));
+        rows.push(el('div', { className: 'activity-panel__instrument-purpose', text: purpose }));
+        const signature = hashRows(rows, [row => row.textContent || '']);
+        if (signature === this._renderSignatures.buildingDetail) return;
+        this._renderSignatures.buildingDetail = signature;
+        replaceChildren(host, rows);
     }
 
     _buildingOccupants(building) {
@@ -3835,207 +3745,28 @@ export class ActivityPanel {
         return occupants;
     }
 
-    _buildingCapacity(building) {
-        const capacity = building?.capacity;
-        if (capacity && typeof capacity === 'object') {
-            const total = Object.values(capacity).reduce((sum, value) => {
-                const number = Number(value);
-                return Number.isFinite(number) && number > 0 ? sum + number : sum;
-            }, 0);
-            if (total > 0) return total;
-        }
-        if (Array.isArray(building?.visitTiles)) return building.visitTiles.length;
-        return 0;
-    }
-
     _buildingContext(building) {
         const type = this._buildingKey(building);
         const occupants = this._buildingOccupants(building);
         const allocator = this._buildingAllocatorSnapshot();
-        const loads = allocator?.buildings || {};
-        const load = loads[type] || loads[building?.type] || null;
         const reservations = (Array.isArray(allocator?.reservations) ? allocator.reservations : [])
             .filter(reservation => this._buildingKey(reservation?.buildingType || reservation?.building) === type);
-        const queuedReservations = reservations.filter(reservation => (
-            reservation?.queueOverflow
-            || Number(reservation?.queueIndex) > 0
-            || Number(reservation?.queued) > 0
-        ));
         const routeAgents = this._buildingRouteAgents(building, occupants);
         const recentWork = this._buildingRecentWork(building, occupants, routeAgents);
         const external = this._buildingExternalData(type);
+        const assignedAgents = [...(this._getWorld()?.agents?.values?.() || [])].filter(agent => (
+            this._buildingKey(agent.targetBuildingType || agent.lastKnownBuildingType || agent.buildingType || agent.building) === type
+        ));
         return {
             building,
             type,
-            label: this._buildingDisplayName(building),
             occupants,
-            load,
             reservations,
-            queuedReservations,
             routeAgents,
+            assignedAgents,
             recentWork,
             external,
-            presence: this._buildingPresenceFor(type, { occupants, load }),
         };
-    }
-
-    _buildingSignalModel(context) {
-        const externalHeadline = this._externalText(context.external, [
-            'headline',
-            'title',
-            'label',
-            'message',
-            'summary',
-            'signal',
-            'state',
-            'status',
-            'phase',
-        ]);
-        return {
-            headline: this._buildingSignalHeadline(context, externalHeadline),
-            rows: this._buildingSignalRows(context),
-            alerts: this._buildingSignalAlerts(context),
-        };
-    }
-
-    _buildingSignalHeadline(context, externalHeadline) {
-        const external = externalHeadline ? this._formatExternalSignalText(externalHeadline) : '';
-        const fallback = this._derivedBuildingHeadline(context);
-        const text = external || fallback;
-        const label = context.label || '';
-        const needsLabel = external && label && !text.toLowerCase().includes(label.toLowerCase());
-        return truncateText(needsLabel ? `${label}: ${text}` : text, 64);
-    }
-
-    _derivedBuildingHeadline(context) {
-        const queueCount = this._buildingQueueCount(context);
-        if (queueCount > 0) return `${context.label} has a queue`;
-        const tier = String(context.presence?.tier || '').toLowerCase();
-        if (tier === 'busy') return `${context.label} at capacity`;
-        const activeCount = this._buildingActiveCount(context);
-        if (activeCount > 0) return `${context.label} active`;
-        if (context.recentWork.length) return `${context.label} recently active`;
-        return `${context.label} quiet`;
-    }
-
-    _buildingSignalRows(context) {
-        const tier = String(context.presence?.tier || '').toLowerCase();
-        const load = this._formatBuildingLoad(context) || this._formatBuildingIdleLoad(context);
-        const queueCount = this._buildingQueueCount(context);
-        const queue = this._formatBuildingQueue(context);
-        const routes = this._formatBuildingRoutes(context);
-        const recent = this._formatBuildingRecentWork(context);
-        return [
-            {
-                label: 'Load',
-                value: truncateText(load, 40),
-                tone: tier === 'busy' ? 'warning' : (this._buildingActiveCount(context) > 0 ? 'active' : 'muted'),
-            },
-            {
-                label: 'Queue',
-                value: truncateText(queue || 'clear', 40),
-                tone: queueCount > 0 ? 'warning' : 'muted',
-            },
-            {
-                label: 'Inbound',
-                value: truncateText(routes || 'none', 44),
-                tone: routes ? 'active' : 'muted',
-            },
-            {
-                label: 'Recent',
-                value: truncateText(recent || 'none', 48),
-                tone: recent ? '' : 'muted',
-            },
-        ];
-    }
-
-    _formatBuildingIdleLoad(context) {
-        const capacity = Number(context.load?.capacity) || this._buildingCapacity(context.building);
-        if (capacity > 0) return `0/${capacity} occupied`;
-        return 'idle';
-    }
-
-    _buildingSignalAlerts(context) {
-        const alerts = [];
-        const externalAlert = this._externalFieldText(context.external, [
-            'alert',
-            'alerts',
-            'warning',
-            'warnings',
-            'issue',
-            'issues',
-            'incident',
-            'incidents',
-            'error',
-            'errors',
-            'problem',
-            'problems',
-        ]);
-        if (externalAlert) {
-            alerts.push({ label: 'Alert', value: truncateText(externalAlert, 54), tone: 'warning' });
-        }
-
-        const counts = context.external?.counts || {};
-        const errored = [
-            counts.errored,
-            counts.errors,
-            context.external?.errored,
-            context.external?.errorCount,
-        ].map(value => Number(value)).find(value => Number.isFinite(value) && value > 0);
-        if (Number.isFinite(errored) && errored > 0) {
-            alerts.push({ label: 'Errored', value: String(errored), tone: 'warning' });
-        }
-
-        if (context.type === 'watchtower') {
-            const failed = this._getHarborTraffic()?.getFailedPushState?.();
-            if (failed?.hasFailedPush) {
-                const repoCount = Array.isArray(failed.repos) ? failed.repos.length : 0;
-                const value = repoCount > 0 ? this._formatPushIssueCount(repoCount, 'failed') : 'Push failed';
-                alerts.push({ label: 'Harbor', value: truncateText(value, 44), tone: 'warning' });
-            }
-        }
-
-        if (context.type === 'mine') {
-            const fiveHour = Number(this._latestUsage?.quota?.fiveHour);
-            if (Number.isFinite(fiveHour) && fiveHour >= 0.86) {
-                alerts.push({ label: 'Quota', value: `${Math.round(fiveHour * 100)}% 5h`, tone: 'warning' });
-            }
-        }
-
-        if (!alerts.length) return [{ label: 'Alerts', value: 'clear', tone: 'muted' }];
-        return alerts.slice(0, 3);
-    }
-
-    _buildingOccupantActivity(agent, building) {
-        const tool = currentToolPresentation(agent);
-        const snapshot = this._getAgentBehaviorSnapshot(agent);
-        const reservation = this._getVisitReservation(agent, snapshot);
-        const hints = [];
-        const queue = this._formatReservationQueueHint(reservation);
-        if (queue) hints.push(queue);
-        const route = this._formatAgentRouteHint(snapshot);
-        if (route) hints.push(route);
-        const recent = this._formatAgentRecentBuildingHint(snapshot, building);
-        if (recent) hints.push(recent);
-        return {
-            detail: truncateText(tool.detail || '', 72),
-            hint: truncateText(hints.slice(0, 2).join('; '), 86),
-        };
-    }
-
-    _buildingStateRows(building) {
-        const context = this._buildingContext(building);
-        const rows = [];
-        const load = this._formatBuildingLoad(context);
-        if (load) rows.push(this._buildingRow('Load', load));
-        const queue = this._formatBuildingQueue(context);
-        if (queue) rows.push(this._buildingRow('Queue', queue));
-        const routes = this._formatBuildingRoutes(context);
-        if (routes) rows.push(this._buildingRow('Routes', routes));
-        const recent = this._formatBuildingRecentWork(context);
-        if (recent) rows.push(this._buildingRow('Recent work', recent));
-        rows.push(...this._buildingSpecificStateRows(building));
-        return rows;
     }
 
     _buildingSpecificStateRows(building) {
@@ -4063,48 +3794,6 @@ export class ActivityPanel {
         return [];
     }
 
-    _formatBuildingLoad(context) {
-        const capacity = Number(context.load?.capacity) || this._buildingCapacity(context.building);
-        const occupied = this._buildingActiveCount(context);
-        const reserved = Number(context.load?.reserved);
-        const parts = [];
-        if (capacity > 0) parts.push(`${occupied}/${capacity} occupied`);
-        else if (occupied > 0) parts.push(`${occupied} occupied`);
-        if (Number.isFinite(reserved) && reserved > occupied) parts.push(`${reserved} reserved`);
-        return parts.join(', ');
-    }
-
-    _formatBuildingQueue(context) {
-        const external = this._externalFieldText(context.external, ['queue', 'queues', 'line', 'waiting']);
-        if (external) return truncateText(this._formatExternalSignalText(external), 70);
-        const externalCount = this._externalNumber(context.external?.queue || context.external, [
-            'waiting',
-            'queued',
-            'queueDepth',
-            'queue',
-            'count',
-        ]);
-        const count = Number.isFinite(externalCount) ? externalCount : this._buildingQueueCount(context);
-        if (count <= 0) return '';
-        return `${count} ${count === 1 ? 'agent' : 'agents'} waiting`;
-    }
-
-    _formatBuildingRoutes(context) {
-        const external = this._externalFieldText(context.external, ['route', 'routes', 'inbound', 'path']);
-        if (external) return truncateText(this._formatExternalSignalText(external), 74);
-        if (context.routeAgents.length) {
-            const names = context.routeAgents
-                .slice(0, BUILDING_ROUTE_HINT_LIMIT)
-                .map(agent => agent.displayName || agent.name || agent.id)
-                .filter(Boolean);
-            const suffix = context.routeAgents.length > names.length ? ` +${context.routeAgents.length - names.length}` : '';
-            return `${names.join(', ')}${suffix} inbound`;
-        }
-        const reservedOnly = Math.max(0, context.reservations.length - context.occupants.length);
-        if (reservedOnly > 0) return `${reservedOnly} reserved ${reservedOnly === 1 ? 'path' : 'paths'}`;
-        return '';
-    }
-
     _formatBuildingRecentWork(context) {
         const external = this._externalFieldText(context.external, [
             'recent',
@@ -4116,55 +3805,6 @@ export class ActivityPanel {
         if (external) return truncateText(this._formatExternalSignalText(external), 80);
         if (!context.recentWork.length) return '';
         return truncateText(context.recentWork.slice(0, BUILDING_RECENT_WORK_LIMIT).join('; '), 86);
-    }
-
-    _buildingQueueCount(context) {
-        const loadQueued = Number(context.load?.queued ?? context.load?.overflowReserved);
-        if (Number.isFinite(loadQueued) && loadQueued > 0) return loadQueued;
-        return context.queuedReservations.length;
-    }
-
-    _buildingActiveCount(context) {
-        const presenceCount = Number(context.presence?.count);
-        if (Number.isFinite(presenceCount)) return Math.max(0, presenceCount);
-        const occupied = Number(context.load?.occupied);
-        if (Number.isFinite(occupied)) return Math.max(0, occupied);
-        return context.occupants.length;
-    }
-
-    _formatReservationQueueHint(reservation) {
-        if (!reservation) return '';
-        const index = Number(reservation.queueIndex);
-        const depth = Number(reservation.queueDepth);
-        if (Number.isFinite(index) && index > 0) {
-            const position = index + 1;
-            const total = Number.isFinite(depth) && depth >= 0 ? Math.max(position, depth + 1) : null;
-            return total ? `Queue ${position}/${total}` : `Queue ${position}`;
-        }
-        if (reservation.queueOverflow || reservation.overflow) return 'Overflow slot';
-        return '';
-    }
-
-    _formatAgentRouteHint(snapshot) {
-        if (!snapshot) return '';
-        const state = String(snapshot.behaviorState || snapshot.behavior?.state || '').toLowerCase();
-        const moving = snapshot.moving || state === 'traveling';
-        const waypoints = Number(snapshot.waypointCount);
-        if (!moving && !Number.isFinite(waypoints)) return '';
-        const parts = [];
-        if (moving) parts.push('On route');
-        if (Number.isFinite(waypoints) && waypoints > 0) {
-            parts.push(`${waypoints} waypoint${waypoints === 1 ? '' : 's'}`);
-        }
-        return parts.join(', ');
-    }
-
-    _formatAgentRecentBuildingHint(snapshot, building) {
-        const breadcrumb = this._formatBreadcrumb(snapshot?.recentBuildings);
-        if (!breadcrumb || !breadcrumb.includes('>')) return '';
-        const label = this._buildingDisplayName(building);
-        if (breadcrumb.endsWith(label)) return '';
-        return `Recent ${breadcrumb}`;
     }
 
     _buildingRouteAgents(building, occupants = []) {
@@ -4236,18 +3876,6 @@ export class ActivityPanel {
         );
     }
 
-    _buildingPresenceFor(type, { occupants = [], load = null } = {}) {
-        const cached = this._buildingPresenceByType.get(type) || null;
-        if (cached) return cached;
-        const occupied = Number(load?.occupied);
-        const count = Number.isFinite(occupied) ? occupied : occupants.length;
-        const capacity = Number(load?.capacity);
-        const tier = count > 0
-            ? (Number.isFinite(capacity) && capacity > 0 && count >= capacity ? 'busy' : 'occupied')
-            : 'dormant';
-        return { count, tier, recencyScore: count > 0 ? 1 : 0 };
-    }
-
     _buildingAllocatorSnapshot() {
         const allocator = this._getRenderer()?.visitTileAllocator;
         if (!allocator || typeof allocator.snapshot !== 'function') return null;
@@ -4275,20 +3903,6 @@ export class ActivityPanel {
     _isConfiguredBuildingKey(value) {
         const key = this._buildingKey(value);
         return !!key && (CONFIGURED_BUILDING_TYPES.has(key) || !!this._getBuildingByType(key));
-    }
-
-    _buildingDisplayName(building) {
-        const raw = building?.shortLabel || building?.label || building?.type || 'Building';
-        return this._titleize(String(raw).toLowerCase());
-    }
-
-    _cacheBuildingPresence(payload) {
-        this._buildingPresenceByType.clear();
-        for (const [type, value] of this._buildingPayloadEntries(payload)) {
-            const key = this._buildingKey(type);
-            if (!this._isConfiguredBuildingKey(key)) continue;
-            this._buildingPresenceByType.set(key, this._normalizeBuildingPresence(value));
-        }
     }
 
     _cacheBuildingPayload(payload, targetMap) {
@@ -4453,28 +4067,6 @@ export class ActivityPanel {
         ]);
     }
 
-    _normalizeBuildingPresence(value) {
-        const source = value && typeof value === 'object' ? value : {};
-        const agentCount = Array.isArray(source.agents) ? source.agents.length : NaN;
-        const count = this._firstFiniteNumber([
-            source.count,
-            source.active,
-            source.activeAgents,
-            source.occupied,
-            agentCount,
-        ]);
-        const recencyScore = this._firstFiniteNumber([source.recencyScore, source.recency, source.score]);
-        const tier = String(source.tier || source.state || source.status || '').trim().toLowerCase();
-        return {
-            ...(Number.isFinite(count) ? { count } : {}),
-            ...(Number.isFinite(recencyScore) ? { recencyScore } : {}),
-            tier: truncateText(
-                tier || (Number.isFinite(count) && count > 0 ? 'occupied' : 'dormant'),
-                32,
-            ),
-        };
-    }
-
     _projectBuildingPayload(value, depth = 0, budget = null) {
         const remaining = budget || { nodes: 0, fields: 0, characters: 0 };
         if (
@@ -4546,10 +4138,6 @@ export class ActivityPanel {
         return merged;
     }
 
-    _externalText(source, keys) {
-        return this._externalFieldText(source, keys);
-    }
-
     _externalFieldText(source, keys, depth = 0) {
         if (source === null || source === undefined || depth > 3) return '';
         if (typeof source !== 'object') return this._formatExternalSignalText(source);
@@ -4565,16 +4153,6 @@ export class ActivityPanel {
             if (text) return text;
         }
         return '';
-    }
-
-    _externalNumber(source, keys) {
-        if (Number.isFinite(Number(source))) return Number(source);
-        if (!source || typeof source !== 'object') return NaN;
-        for (const key of keys) {
-            const number = Number(source[key]);
-            if (Number.isFinite(number)) return number;
-        }
-        return NaN;
     }
 
     _formatExternalSignalText(value) {
@@ -4762,7 +4340,6 @@ export class ActivityPanel {
         this._pinnedDetails.clear();
         eventBus.emit('agents:pins-changed', { pinnedAgentIds: [] });
         this._pinned.clear();
-        this._buildingPresenceByType.clear();
         this._buildingSignalByType.clear();
         this._villageDirectorByType.clear();
         this._directorFeed = [];

@@ -750,6 +750,27 @@ export const WAITING_ON_USER_SCENARIO = {
     },
 };
 
+export const MANY_WAITING_SCENARIO = {
+    id: 'many-waiting',
+    label: 'Many waiting',
+    description: 'Nine simultaneous decisions spread across the island, beyond the six-incident visual cap.',
+    timeBase: SCENARIO_TIME_BASE,
+    agents: [[8, 17], [16, 21], [23, 18], [30, 19], [34, 28], [27, 35], [18, 34], [9, 29], [20, 27]].map(([tileX, tileY], index) => agentSpec({
+        id: `sim-wait-${index + 1}`,
+        name: `Wait ${index + 1}`,
+        status: AgentStatus.WAITING_ON_USER,
+        position: { tileX, tileY },
+        targetPosition: { tileX, tileY },
+        awaitingSince: index === 8 ? null : SCENARIO_TIME_BASE - (9 - index) * 60_000,
+        projectPath: '/sim/repos/many-waiting',
+    })),
+    timeline: [],
+    metadata: {
+        qaTags: ['waiting-on-user', 'attention-frame', 'nine-agents'],
+        camera: { centerTile: { tileX: 20, tileY: 24 }, zoom: 2 },
+    },
+};
+
 export const QUOTA_RATE_LIMIT_SCENARIO = {
     id: 'quota-rate-limit',
     label: 'Quota rate limit',
@@ -1330,6 +1351,7 @@ export const WORLD_SCENARIOS = [
     GIT_HARBOR_SCENARIO,
     FAILED_PUSH_SCENARIO,
     WAITING_ON_USER_SCENARIO,
+    MANY_WAITING_SCENARIO,
     QUOTA_RATE_LIMIT_SCENARIO,
     RELEASE_PARADE_SCENARIO,
     BUILDING_INSPECTION_REPLAY_SCENARIO,

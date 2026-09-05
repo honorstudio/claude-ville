@@ -6,6 +6,8 @@ export class DebugOverlay {
     constructor() {
         this.enabled = false;
         this.pathDebugEnabled = false;
+        this._backendRows = null;
+        this._backendRowsAt = 0;
     }
 
     toggle() {
@@ -213,7 +215,7 @@ export class DebugOverlay {
             `intents: ${intents.length}`,
             `reservations: ${reservations.length}`,
             this._cameraStateRow(viewport, cameraState),
-            ...this._postFxRows(renderer),
+            ...this._rendererBackendRows(renderer),
             ...this._trailRows(renderer),
             renderStats?.drawables ? `drawables: ${renderStats.drawables.total} drawn / ${renderStats.drawables.culling?.culled || 0} culled` : null,
             renderStats?.harbor ? `harbor: pending ${renderStats.harbor.pendingRepos || 0} commits ${renderStats.harbor.pendingCommits || 0} lanterns ${renderStats.harbor.bridgeLanterns || 0}` : null,
@@ -244,8 +246,12 @@ export class DebugOverlay {
         const lineHeight = 14;
         ctx.save();
         ctx.font = `11px ${WORLD_BODY_FONT}`;
+        // Per-pass timing rows are wider than the old 420 px cap, and fillText's
+        // maxWidth squeezes rather than wraps: too narrow a panel makes the
+        // numbers unreadable instead of merely cropped. 560 px still leaves the
+        // right two thirds of a 1280 px viewport clear.
         const width = Math.min(
-            420,
+            560,
             Math.max(210, ...rows.map((row) => ctx.measureText(row).width + padding * 2)),
         );
         const height = rows.length * lineHeight + padding * 2;
@@ -308,22 +314,52 @@ export class DebugOverlay {
         return `camera: ${parts.join(' · ')}`;
     }
 
-    _postFxRows(renderer) {
+    // One backend at a time: the resident GPU world and the hybrid PostFx
+    // pipeline have different counters, and printing the inactive one's zeroes
+    // beside the active one's timings is what made earlier readouts misleading.
+    // Refreshed at 1 Hz so the numbers hold still long enough to read.
+    _rendererBackendRows(renderer) {
+        const now = performance.now();
+        if (this._backendRows && now - this._backendRowsAt < 1000) return this._backendRows;
+        this._backendRowsAt = now;
+        const gpu = renderer?.gpuWorld?.getDiagnostics?.();
+        this._backendRows = gpu?.active ? this._residentGpuRows(gpu) : this._hybridPostFxRows(renderer);
+        return this._backendRows;
+    }
+
+    _residentGpuRows(gpu) {
+        const resources = gpu.resources || {};
+        return [
+            `gpu world: level ${gpu.qualityLevel} · ${gpu.qualityReason} · ${gpu.records} records / ${gpu.batches} batches · ${gpu.lights} lights`,
+            `gpu frame: whole ${formatMicroMs(gpu.gpuMs)} · cpu ${formatOptionalMs(gpu.cpuMs)} · gap ${formatOptionalMs(gpu.frameGapMs)} · source ${gpu.qualityTimingSource}`,
+            `shed (${gpu.shedReason}): ${gpu.shedEffects.map((effect) => `${effect.id} ${effect.mode}`).join(', ') || 'none'}`,
+            `pass sampling ${gpu.passSamplingEnabled ? 'on' : 'off'} · disjoint discards ${gpu.gpuDisjointDiscards} · timer errors ${gpu.gpuTimerErrors}`,
+            ...Object.entries(gpu.passes).map(([name, pass]) => `  ${name}: gpu ${formatMicroMs(pass.gpuMs)}`
+                + ` · cpu ${formatMicroMs(pass.cpuMs)} · ${pass.draws ?? 0} draws · ${formatBytes(pass.bytes)} · n=${pass.samples}`),
+            `gpu bytes: pinned ${formatBytes(resources.pinnedBytes)} · evictable ${formatBytes(resources.evictableBytes)} · total ${formatBytes(resources.totalBytes)}`,
+            `source cache: overage ${formatBytes(resources.cachedSourceOverageBytes)} · body atlas ${resources.liveBodyAtlas
+                ? `${resources.liveBodyAtlas.width}x${resources.liveBodyAtlas.height}/channel`
+                : 'absent'}`,
+            ...(resources.atlasPages || []).map((page) => `  ${page.name}: ${page.width}x${page.height} · ${formatBytes(page.bytes)}`),
+        ];
+    }
+
+    _hybridPostFxRows(renderer) {
         const diagnostics = renderer?.postFx?.getDiagnostics?.() || null;
         const feed = renderer?.postFxFeed?.getDiagnostics?.() || null;
-        const levelValue = diagnostics?.level;
-        const level = levelValue !== null && levelValue !== undefined && Number.isFinite(Number(levelValue))
-            ? Number(levelValue)
-            : 'n/a';
+        if (!diagnostics?.active) {
+            return ['gpu world: inactive · GPU unavailable · CPU frame segments below'];
+        }
         return [
-            `postfx: active ${diagnostics?.active ? 'yes' : 'no'} · supported ${diagnostics?.supported ? 'yes' : 'no'} · level ${level}`,
-            `postfx ladder: ${diagnostics?.ladder?.lastDecisionReason || 'n/a'} · last degrade ${diagnostics?.ladder?.lastDegradationReason || 'none'} · score ${formatMs(diagnostics?.ladder?.lastScore)}/${formatMs(diagnostics?.ladder?.budgetMs)}ms`,
-            `postfx upload: source ${formatOptionalMs(diagnostics?.uploadMs)} · mask ${formatOptionalMs(diagnostics?.maskUploadMs)} · setup ${formatOptionalMs(diagnostics?.setupCpuMs)}`,
-            `postfx shader: cpu ${formatOptionalMs(diagnostics?.shaderCpuMs)} · gpu ${formatOptionalMs(diagnostics?.gpuMs)} · total cpu ${formatOptionalMs(diagnostics?.renderTotalCpuMs)} · gap ${formatOptionalMs(diagnostics?.frameGapMs)}`,
-            `postfx resources: textures ${formatBytes(diagnostics?.resources?.groupTotals?.textures)} · attachments ${formatBytes(diagnostics?.resources?.groupTotals?.attachments)} · total ${formatBytes(diagnostics?.resources?.totalBytes ?? diagnostics?.textureBytes)}`,
-            `renderer bytes: canvas ${formatBytes(diagnostics?.unifiedResources?.canvasBytes)} + gpu ${formatBytes(diagnostics?.unifiedResources?.gpuBytes)} = ${formatBytes(diagnostics?.unifiedResources?.totalBytes)}/${formatBytes(diagnostics?.unifiedResources?.budgetBytes)}`,
+            `postfx hybrid: level ${diagnostics.level} · ${diagnostics.ladder?.lastDecisionReason || 'n/a'}`
+                + ` · last degrade ${diagnostics.ladder?.lastDegradationReason || 'none'}`,
+            `postfx upload: source ${formatOptionalMs(diagnostics.uploadMs)} · mask ${formatOptionalMs(diagnostics.maskUploadMs)} · setup ${formatOptionalMs(diagnostics.setupCpuMs)}`,
+            `postfx shader: cpu ${formatOptionalMs(diagnostics.shaderCpuMs)} · gpu ${diagnostics.gpuMs == null ? 'unavailable' : formatMicroMs(diagnostics.gpuMs)}`
+                + ` · total cpu ${formatOptionalMs(diagnostics.renderTotalCpuMs)} · gap ${formatOptionalMs(diagnostics.frameGapMs)}`,
+            `postfx bytes: textures ${formatBytes(diagnostics.resources?.groupTotals?.textures)} · attachments ${formatBytes(diagnostics.resources?.groupTotals?.attachments)}`
+                + ` · total ${formatBytes(diagnostics.resources?.totalBytes ?? diagnostics.textureBytes)}`,
             feed ? `postfx feed: mask ${formatPixels(feed.maskPixels)} px · rebuild ${feed.maskRebuilds} reuse ${feed.maskReuses} · ${feed.maskLastReason} ${formatOptionalMs(feed.maskLastRepaintMs)}` : null,
-        ];
+        ].filter(Boolean);
     }
 
     _trailRows(renderer) {
@@ -378,6 +414,15 @@ function formatOptionalMs(value) {
     if (value === null || value === undefined) return 'n/a';
     const number = Number(value);
     return Number.isFinite(number) ? `${formatMs(number)}ms` : 'n/a';
+}
+
+// Pass timings live in the tenths-of-a-microsecond range; `formatMs`'s one
+// decimal would round most of them to 0.0 and hide the differences that
+// justify (or refuse) a new effect.
+function formatMicroMs(value) {
+    if (value === null || value === undefined) return 'unavailable';
+    const number = Number(value);
+    return Number.isFinite(number) ? `${number.toFixed(3)}ms` : 'unavailable';
 }
 
 function formatBytes(value) {

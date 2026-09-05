@@ -432,12 +432,18 @@ export class App {
                 attention: this.attentionService,
                 chronicle: this.chroniclePanel,
                 spendLedger: this.spendLedger,
+                frameAttention: () => {
+                    if (this.modeManager?.getCurrentMode() === 'dashboard') return false;
+                    this.renderer?.cameraDirector?.frameAttention(this.renderer.agentSprites);
+                    return true;
+                },
             });
         }
         if (!this.sidebar) this.sidebar = new Sidebar(this.world);
         this._bindGlobalKeyboardNavigation();
         this._bindWorldEmptyState();
         this._initFirstRunHint();
+        this._initReadControl();
 
         // 4. Initialize application services
         if (!this.agentManager) {
@@ -949,6 +955,43 @@ export class App {
         this._eventUnsubscribers.push(eventBus.on('agent:added', sync));
         this._eventUnsubscribers.push(eventBus.on('agent:removed', sync));
         sync();
+        this._eventUnsubscribers.push(eventBus.on('mode:changed', mode => {
+            if (mode !== 'dashboard') return;
+            const hint = document.getElementById('firstRunHint');
+            if (hint && !hint.hidden) this._onFirstRunHintDismiss?.();
+        }));
+    }
+
+    _initReadControl() {
+        const button = document.getElementById('worldRead');
+        if (!button || this._readControlCleanup) return;
+        const set = on => {
+            this.renderer?.setReadMode(on);
+            button.setAttribute('aria-pressed', String(on));
+        };
+        const down = event => {
+            if (event.type === 'keydown' && ![' ', 'Enter'].includes(event.key)) return;
+            if (event.type === 'pointerdown' && event.button !== 0) return;
+            event.preventDefault();
+            set(true);
+        };
+        const up = () => set(false);
+        const bindings = [
+            [button, 'pointerdown', down], [button, 'keydown', down],
+            [button, 'keyup', up], [button, 'pointerup', up],
+            [button, 'pointerleave', up], [button, 'pointercancel', up],
+            [button, 'blur', up], [window, 'pointerup', up], [window, 'blur', up],
+        ];
+        for (const [target, name, handler] of bindings) target.addEventListener(name, handler);
+        this._eventUnsubscribers.push(eventBus.on('mode:changed', mode => {
+            up();
+            button.hidden = mode === 'dashboard';
+        }));
+        this._readControlCleanup = () => {
+            up();
+            for (const [target, name, handler] of bindings) target.removeEventListener(name, handler);
+            this._readControlCleanup = null;
+        };
     }
 
     _initFirstRunHint() {
@@ -969,6 +1012,7 @@ export class App {
     _syncFirstRunHint() {
         const hint = document.getElementById('firstRunHint');
         if (!hint || this._firstRunHintRevealed) return;
+        if (this.modeManager?.getCurrentMode() === 'dashboard') return;
         if (!USABLE_VILLAGE_PHASES.has(this.villageState?.phase)) return;
         if (this._hasFirstRunHintBeenSeen()) return;
         hint.hidden = false;
@@ -1728,6 +1772,7 @@ export class App {
             this._onDeferredInteractionKeydown = null;
         }
         this._deferredSelectionIntent = null;
+        this._readControlCleanup?.();
         if (this._onFirstRunHintDismiss) {
             document.getElementById('firstRunHintDismiss')?.removeEventListener(
                 'click',

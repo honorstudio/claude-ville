@@ -6,6 +6,7 @@ import { makeTempDir } from './support/tmp.mjs';
 
 import workingSetService from '../../claudeville/services/workingSet.js';
 import adapterRegistry from '../../claudeville/adapters/index.js';
+import ompAdapter from '../../claudeville/adapters/omp.js';
 import { AgentManager } from '../../claudeville/src/application/AgentManager.js';
 import { eventBus } from '../../claudeville/src/domain/events/DomainEvent.js';
 import { World } from '../../claudeville/src/domain/entities/World.js';
@@ -198,4 +199,50 @@ test('HTTP fallback and WebSocket delta hydration preserve F1, F2, and F3', asyn
     assert.equal(wsUpdate.sessions[0].turnStartedAt, 10);
     assert.deepEqual(wsUpdate.sessions[0].workingSet, [file('src/router.ts', 'write')]);
     assert.deepEqual(wsUpdate.collisions, collisions);
+});
+
+const ompWorkingSetFixture = fs.readFileSync(
+    new URL('../adapters/fixtures/omp/working-set.jsonl', import.meta.url), 'utf8',
+).trim().split('\n').map(line => JSON.parse(line));
+
+function ompWorkingSet(records = ompWorkingSetFixture) {
+    return ompAdapter.parseOmpTranscript(records, { fileMtimeMs: 0 }).session.workingSet;
+}
+
+test('OMP projects verified read, write, and structured edit paths newest first', () => {
+    assert.deepEqual(ompWorkingSet(), [
+        { path: 'src/edit.js', op: 'write', at: 1788264004000, source: 'transcript' },
+        { path: 'src/write.js', op: 'write', at: 1788264002000, source: 'transcript' },
+        { path: 'src/read.js', op: 'read', at: 1788264001000, source: 'transcript' },
+    ]);
+});
+
+test('OMP ignores pathless records, patch prose, failed edits, and non-file resources', () => {
+    const records = structuredClone(ompWorkingSetFixture);
+    records[1].message.content[0].arguments.path = 'https://example.com/file.js';
+    records[2].message.content[0].arguments.path = 'xd://lsp';
+    records[4].message.isError = true;
+    assert.deepEqual(ompWorkingSet(records), []);
+    assert.deepEqual(ompWorkingSet([records[0], records.at(-1)]), []);
+});
+
+test('OMP caps output at 16 paths and remembers only the latest 64 path observations', () => {
+    const records = [ompWorkingSetFixture[0]];
+    for (let i = 0; i < 20; i++) {
+        const record = structuredClone(ompWorkingSetFixture[1]);
+        record.message.timestamp = 1788264010000 + i;
+        record.message.content[0].arguments.path = `src/file-${i}.js`;
+        records.push(record);
+    }
+    assert.deepEqual(ompWorkingSet(records).map(item => item.path),
+        Array.from({ length: 16 }, (_, i) => `src/file-${19 - i}.js`));
+    for (let i = 0; i < 64; i++) {
+        const record = structuredClone(ompWorkingSetFixture[2]);
+        record.message.timestamp = 1788264020000 + i;
+        record.message.content[0].arguments.path = 'src/file-19.js';
+        records.push(record);
+    }
+    assert.deepEqual(ompWorkingSet(records), [
+        { path: 'src/file-19.js', op: 'write', at: 1788264020063, source: 'transcript' },
+    ]);
 });

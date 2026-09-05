@@ -32,7 +32,6 @@
                 <div class="topbar__meta">
                     <span id="topbarConnection" class="topbar__conn topbar__conn--syncing" title="Connection state and data freshness">SYNCING</span>
                     <span class="topbar__version" tabindex="0" role="button">v0.44</span>
-                    <span id="statFps" class="topbar__fps">-- FPS</span>
                     <span id="statQuotaWrap" class="topbar__quota-meta" hidden>
                         <span class="topbar__quota">
                             <span class="topbar__quota-bar" title="5-hour window"><span id="statQuota5h" class="topbar__quota-fill"></span></span>
@@ -40,7 +39,8 @@
                         </span>
                         <span id="statQuotaText">--</span>
                     </span>
-                    <span id="statTime" class="topbar__uptime" title="Time the village has been active">00:00:00</span>
+                    <span id="statTime" class="topbar__uptime" title="Village uptime" hidden>00:00:00</span>
+                    <span id="villageClock" class="topbar__clock" title="Modeled village weather" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor"></path></svg><span class="topbar__clock-time"></span><span class="topbar__clock-phase"></span><span class="topbar__clock-override" hidden></span></span>
                 </div>
             </div>
         </div>
@@ -96,6 +96,7 @@
                     <path fill="currentColor" d="M6 1h4v3h3v2h2v4h-2v2h-3v3H6v-3H3v-2H1V6h2V4h3V1Zm1 2v3H4v4h3v3h2v-3h3V6H9V3H7Zm0 4h2v2H7V7Z"/>
                 </svg>
             </button>
+            <button id="worldRead" class="topbar__sound-btn world-read" type="button" aria-label="Hold to read the village (B)" aria-pressed="false" title="Hold B or this button to read work labels">READ <kbd>B</kbd></button>
             <button id="topbarSoundMode" class="topbar__sound-btn" type="button" aria-pressed="false" title="Reactive ambience mode — click for continuous town music" hidden>AMBIENT</button>
             <input id="topbarSoundVolume" class="topbar__sound-vol" type="range" min="0" max="100" value="50" title="Ambience volume" aria-label="Ambience volume" hidden>
             <button id="btnModeCharacter" data-i18n="world" class="topbar__mode-btn topbar__mode-btn--active">WORLD</button>
@@ -106,7 +107,7 @@
     <aside id="firstRunHint" class="first-run-hint" aria-label="World controls hint" hidden>
         <button id="firstRunHintDismiss" class="first-run-hint__dismiss" type="button" aria-label="Dismiss hint">×</button>
         <span class="first-run-hint__title">WORLD CONTROLS</span>
-        <span class="first-run-hint__copy">Open the compass for camera keys. Press <kbd>A</kbd> anytime to jump to the longest-waiting agent.</span>
+        <span class="first-run-hint__copy">Open the compass for camera keys. Press <kbd>A</kbd> to frame agents needing attention.</span>
     </aside>
 
     <!-- Main area -->
@@ -122,6 +123,7 @@
                     </div>
                     <button id="sidebarToggle" class="sidebar__toggle" type="button" aria-label="Collapse agent sidebar" aria-expanded="true" title="Collapse sidebar">&lt;</button>
                 </div>
+                <section id="attentionShelf" class="attention-shelf" aria-label="Agents needing you, reporting errors, or quota limited" hidden></section>
                 <div class="sidebar__body">
                     <div id="agentList" class="sidebar__list">
                         <!-- Agent items are added dynamically -->
@@ -156,7 +158,8 @@
                             <span>WORLD CONTROLS</span>
                             <button class="world-grammar__close" type="button" popovertarget="worldGrammar" popovertargetaction="hide" aria-label="Close World controls">×</button>
                         </div>
-                        <div class="world-grammar__body"><b>/ or Ctrl/Cmd+K</b> search agents · <b>↑/↓/Home/End</b> move · <b>Enter</b> select and follow · <b>Esc</b> clear search / close panel · <b>A</b> attention cycle · <b>F</b> frame village · <b>drag / arrows</b> pan · <b>wheel / +/-</b> zoom · <b>R</b> replay</div>
+                        <div class="world-grammar__body"><b>/ or Ctrl/Cmd+K</b> search agents · <b>↑/↓/Home/End</b> move · <b>Enter</b> select and follow · <b>Esc</b> clear search / close panel · <b>A</b> frame attention · <b>F</b> frame village · <b>drag / arrows</b> pan · <b>wheel / +/-</b> zoom · <b>R</b> replay</div>
+                        <div class="world-grammar__body"><b>Hold B / READ</b> reveal work labels; release to restore names.</div>
                     </div>
                     <div id="worldSemanticSummary" class="world-semantic-summary" role="status" aria-live="polite"></div>
                 </div>

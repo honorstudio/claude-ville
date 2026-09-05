@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import { TopBar, usageCoverage, connectionReasonText } from '../../claudeville/src/presentation/shared/TopBar.js';
+import { SettingsPanel } from '../../claudeville/src/presentation/shared/SettingsPanel.js';
 import {
     DEFAULT_STALE_AFTER_MS,
     initialVillageState,
@@ -82,21 +83,25 @@ test('every concrete topbar class emitted by TopBar has a stylesheet rule', asyn
 });
 
 
-test('suspended FPS is hidden while genuine numeric zero remains an error', () => {
-    const classes = new Set();
-    const fps = { hidden: false, classList: { remove: value => classes.delete(value), toggle: (value, on) => on ? classes.add(value) : classes.delete(value) } };
-    const bar = { els: { fps } };
-    for (const value of [null, undefined, '', '60', NaN]) {
-        TopBar.prototype.renderFps.call(bar, value);
-        assert.equal(fps.hidden, true, String(value));
+test('a suspended render loop reads as idle in Settings > Health while genuine zero stays 0 FPS', () => {
+    // The top bar no longer prints FPS (the witness clock owns that slot); the
+    // last sample travels to Settings > Health exactly as TopBar wires it there.
+    const bar = {};
+    const healthText = (fps) => {
+        TopBar.prototype.renderFps.call(bar, fps);
+        const panel = {
+            healthFrames: {},
+            getCurrentFps: () => bar._lastFps,
+            _renderProviders() {},
+        };
+        SettingsPanel.prototype._refreshOperationalRows.call(panel);
+        return panel.healthFrames.textContent;
+    };
+    for (const suspended of [null, undefined, '', '60', NaN, Infinity]) {
+        assert.match(healthText(suspended), /^render loop idle · /, String(suspended));
     }
-    TopBar.prototype.renderFps.call(bar, 0);
-    assert.equal(fps.textContent, '0 FPS');
-    assert.equal(classes.has('topbar__fps--danger'), true);
-    TopBar.prototype.renderFps.call(bar, 60);
-    assert.equal(fps.hidden, false);
-    assert.equal(fps.textContent, '60 FPS');
-    assert.equal(classes.has('topbar__fps--danger'), false);
+    assert.match(healthText(0), /^0 FPS · /);
+    assert.match(healthText(60), /^60 FPS · /);
 });
 
 test('usage coverage distinguishes observed zero, partial counts and unavailable billing', () => {
