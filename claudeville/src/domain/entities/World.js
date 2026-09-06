@@ -1,4 +1,7 @@
 import { eventBus } from '../events/DomainEvent.js';
+import { bucketCounts } from '../services/SignalLedger.js';
+import { AgentStatus, normalizeAgentStatus } from '../value-objects/AgentStatus.js';
+import { TokenUsage } from '../value-objects/TokenUsage.js';
 
 export class World {
     constructor() {
@@ -32,22 +35,59 @@ export class World {
         this.buildings.set(building.type, building);
     }
 
+    applyVisitLoads(loadsByType, now = Date.now()) {
+        if (!loadsByType || typeof loadsByType !== 'object') return;
+        const entries = loadsByType instanceof Map
+            ? loadsByType.entries()
+            : Object.entries(loadsByType);
+        for (const [type, entry] of entries) {
+            const building = this.buildings.get(type);
+            if (!building || typeof building.updateVisitLoad !== 'function') continue;
+            const load = Number.isFinite(Number(entry?.load))
+                ? Number(entry.load)
+                : Math.max(Number(entry?.reserved) || 0, Number(entry?.occupied) || 0);
+            const changed = building.updateVisitLoad({
+                load,
+                capacity: entry?.capacity ?? null,
+                now,
+            });
+            if (changed) {
+                eventBus.emit('building:congestion', {
+                    buildingType: building.type,
+                    building,
+                    congestion: { ...building.congestion },
+                });
+            }
+        }
+    }
+
     getStats() {
         let totalTokens = 0;
         let totalCost = 0;
-        let working = 0;
         let idle = 0;
-        let waiting = 0;
 
         for (const agent of this.agents.values()) {
-            totalTokens += (agent.tokens.input || 0) + (agent.tokens.output || 0);
+            totalTokens += TokenUsage.totalTokens(agent.tokens);
             totalCost += agent.cost;
-            if (agent.status === 'working') working++;
-            else if (agent.status === 'idle') idle++;
-            else if (agent.status === 'waiting') waiting++;
+            const status = normalizeAgentStatus(agent.status);
+            if (status === AgentStatus.IDLE) idle++;
         }
 
-        return { totalTokens, totalCost, working, idle, waiting, total: this.agents.size };
+        const counts = bucketCounts(this.agents);
+        return {
+            totalTokens,
+            totalCost,
+            working: counts.working,
+            idle,
+            waiting: counts.watchlist,
+            errored: counts.errors,
+            attention: counts.actionable,
+            total: this.agents.size,
+            needsYou: counts.needsYou,
+            errors: counts.errors,
+            quota: counts.quota,
+            watchlist: counts.watchlist,
+        };
     }
 
     get activeTime() {

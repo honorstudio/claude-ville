@@ -4,15 +4,106 @@
     padding: 0;
 }
 
+/* Local display/body faces keep the dashboard independent of network fonts. */
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('../assets/fonts/PressStart2P-Regular.woff2?v=16') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Departure Mono';
+    src: url('../assets/fonts/DepartureMono-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --cv-bg: #08070b;
+    --cv-panel: rgba(20, 15, 18, 0.96);
+    --cv-panel-deep: rgba(13, 9, 11, 0.98);
+    --cv-panel-warm: rgba(31, 22, 18, 0.72);
+    --cv-gold: #f2d36b;
+    --cv-gold-deep: #c79d4c;
+    --cv-gold-bright: #ffe58d;
+    --cv-gold-warm: #f6da82;
+    --cv-gold-soft: #d7b979;
+    --cv-yellow: #e8d44d;
+    --cv-tan: #c6b08a;
+    --cv-text-muted: #a89476;
+    --cv-text-gray: #8b8b9e;
+    --cv-border: rgba(199, 157, 76, 0.42);
+    --cv-border-soft: rgba(199, 157, 76, 0.16);
+    --cv-shadow: rgba(0, 0, 0, 0.38);
+    --cv-active-ink: #241812;
+    --cv-active-top: #fff0b0;
+    --cv-active-mid: #d6a951;
+    --cv-active-bottom: #9c6732;
+
+    /* Agent status colors (dots, card borders, badges). Canonical source is
+       STATUS_VISUALS in src/config/theme.js — App.js re-stamps these vars from
+       it at boot (plan 1.1), so edit theme.js, never this block. */
+    --cv-status-working: #79d975;
+    --cv-status-idle: #86bfe0;
+    --cv-status-waiting: #df8c3f;
+    --cv-status-rate-limited: #8fa6bd;
+    --cv-status-errored: #e06c5b;
+    --cv-status-waiting-user: #e8d44d;
+    --cv-status-chatting: #f2d36b;
+    --cv-status-completed: #ffd873;
+
+    /* Tool category colors (tool history items) */
+    --cv-tool-read: #7eb7d6;
+    --cv-tool-write: #d8843a;
+    --cv-tool-exec: #e06c5b;
+    --cv-tool-search: #b79ae6;
+    --cv-tool-task: #72d071;
+    --cv-tool-other: #a89476;
+
+    /* Accents */
+    --cv-green-soft: #72d071;
+    --cv-blue-soft: #7eb7d6;
+    --cv-purple: #b79ae6;
+    --cv-warn-yellow: #e8d44d;
+    --cv-amber-deep: #d8843a;
+
+    /* ─── Type system (two-face: pixel display + legible companion) ─── */
+    --font-display: 'Press Start 2P', monospace;                 /* brand face: short labels, >=10px only */
+    --font-pixel: var(--font-display);                           /* legacy display alias */
+    --font-body: 'Departure Mono', ui-monospace, SFMono-Regular, Menlo, monospace; /* data/body face */
+    --fs-title: 12px;   /* section + card headings */
+    --fs-body: 13px;    /* prose and primary body copy */
+    --fs-data: 12px;    /* paths, values, and dense data */
+    --fs-label: 10px;   /* labels / eyebrows (floor — nothing smaller) */
+    --lh-body: 1.45;
+
+    /* ─── Spacing scale ─── */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+
+    /* ─── Surfaces / elevation (one treatment per surface; replaces the
+       duplicated per-file "refinement layer" stacks) ─── */
+    --cv-surface-1: rgba(33, 22, 16, 0.96);
+    --cv-surface-2: rgba(48, 31, 22, 0.98);
+    --cv-surface-3: rgba(20, 13, 11, 0.58);
+    --cv-elev-1: 0 6px 16px rgba(0, 0, 0, 0.2);
+    --cv-elev-2: 0 8px 22px rgba(0, 0, 0, 0.25);
+    --cv-divider: rgba(214, 169, 81, 0.16);
+    --cv-focus: rgba(255, 229, 141, 0.85);   /* global focus ring color */
+    --cv-texture: repeating-linear-gradient(0deg, rgba(246, 218, 130, 0.03) 0 1px, transparent 1px 18px); /* brand surfaces only */
+}
+
 html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: 'Press Start 2P', monospace;
-    background: #0a0a0f;
-    color: #e8d44d;
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: unset;
+    background:
+        radial-gradient(circle at 50% 12%, rgba(95, 67, 33, 0.16), transparent 36%),
+        linear-gradient(180deg, #09070a 0%, #110c0d 100%);
+    color: var(--cv-gold);
+    font-family: var(--font-body);
     image-rendering: pixelated;
 }
 
@@ -24,6 +115,12 @@ button {
     color: inherit;
 }
 
+/* ─── Global focus ring (unifies inconsistent per-control focus styles) ─── */
+:focus-visible {
+    outline: 2px solid var(--cv-focus);
+    outline-offset: 2px;
+}
+
 ul, ol {
     list-style: none;
 }
@@ -33,19 +130,35 @@ a {
     text-decoration: none;
 }
 
+/* 4.11 — cross-browser scrollbar tokens: the standard properties below cover
+   Firefox with the same warm palette as the webkit rules (Chrome keeps using
+   its ::-webkit-scrollbar path when those rules match). */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(199, 157, 76, 0.45) #130d0f;
+}
+
 ::-webkit-scrollbar {
     width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #0a0a0f;
+    background: #130d0f;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(232, 212, 77, 0.3);
+    background: rgba(199, 157, 76, 0.45);
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(232, 212, 77, 0.5);
+    background: rgba(242, 211, 107, 0.65);
 }
+
+/* Shared native disclosures keep complete available details keyboard-accessible. */
+.cv-pixel-icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex-shrink: 0; shape-rendering: crispEdges; }
+.cv-inspection { display: block; min-width: 0; color: var(--cv-tan); }
+.cv-inspection > summary { cursor: pointer; line-height: var(--lh-body); overflow-wrap: anywhere; }
+.cv-inspection[open] > summary { color: var(--cv-gold-bright); }
+.cv-inspection__text { margin-top: 8px; padding: 8px; background: var(--cv-panel-deep); color: #dfcfb8; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font: var(--fs-body)/var(--lh-body) var(--font-body); }
+.cv-inspection__note { margin-top: 4px; color: var(--cv-text-muted); font: var(--fs-data)/var(--lh-body) var(--font-body); }

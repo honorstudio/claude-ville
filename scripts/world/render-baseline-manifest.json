@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "seed": 4242,
+  "reference": {
+    "browserZoom": 1,
+    "devicePixelRatio": 1,
+    "viewports": [
+      { "id": "second-screen", "width": 1440, "height": 900 },
+      { "id": "desktop", "width": 1920, "height": 1080 },
+      { "id": "large-desktop", "width": 2560, "height": 1440 }
+    ],
+    "outputModes": ["webgl", "postfx", "canvas"]
+  },
+  "captures": [
+    {
+      "id": "team-gather-relations",
+      "scenario": "team-gather",
+      "timelineMs": 2300,
+      "pinAgentPositions": true,
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 19, "tileY": 26 }, "zoom": 1.5 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agents": 5, "focalSubject": "pinned team relationships and SendMessage cues" },
+      "overlayCensus": true
+    },
+    {
+      "id": "material-pilot-day",
+      "scenario": "material-pilot",
+      "pinAgentPositions": true,
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 18, "tileY": 22 }, "zoom": 2 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agents": 2, "focalSubject": "Sonnet fabric, Terra armor, and Command materials" }
+    },
+    {
+      "id": "material-pilot-dusk",
+      "scenario": "material-pilot",
+      "pinAgentPositions": true,
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 18, "tileY": 22 }, "zoom": 2 },
+      "atmosphere": { "hour": 19, "weather": "clear" },
+      "expected": { "agents": 2, "focalSubject": "Sonnet fabric, Terra armor, and Command materials" }
+    },
+    {
+      "id": "material-pilot-rain",
+      "scenario": "material-pilot",
+      "pinAgentPositions": true,
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 18, "tileY": 22 }, "zoom": 2 },
+      "atmosphere": { "hour": 15, "weather": "rain" },
+      "expected": { "agents": 2, "focalSubject": "Sonnet fabric, Terra armor, and Command materials" }
+    },
+    {
+      "id": "multi-provider-clear-day",
+      "scenario": "multi-provider-showcase",
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 21, "tileY": 24 }, "zoom": 2 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agents": 7, "focalSubject": "seven CLI identities, hosted models, and stale exact approval" },
+      "overlayCensus": true
+    },
+    {
+      "id": "north-star-clear-day",
+      "scenario": "mixed-tools",
+      "timelineMs": 5200,
+      "viewport": "desktop",
+      "camera": { "mode": "absolute", "x": -128, "y": 704, "zoom": 1 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agentsMin": 6, "focalSubject": "normal live village overview" },
+      "northStar": true,
+      "overlayCensus": true
+    },
+    {
+      "id": "north-star-torchlit-night",
+      "scenario": "mixed-tools",
+      "timelineMs": 5200,
+      "viewport": "large-desktop",
+      "camera": { "mode": "absolute", "x": -128, "y": 704, "zoom": 1 },
+      "atmosphere": { "hour": 23, "weather": "clear" },
+      "expected": { "agentsMin": 6, "focalSubject": "torchlit landmarks and water reflections" },
+      "northStar": true
+    },
+    {
+      "id": "north-star-action-storm",
+      "scenario": "waiting-on-user",
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 18, "tileY": 22 }, "zoom": 2.7 },
+      "atmosphere": { "hour": 23, "weather": "storm" },
+      "expected": { "agents": 2, "focalSubject": "waiting-on-user agent and Command attention scene" },
+      "northStar": true
+    },
+    {
+      "id": "normal-live-dusk-1440",
+      "scenario": "mixed-tools",
+      "timelineMs": 5200,
+      "viewport": "second-screen",
+      "camera": { "mode": "absolute", "x": -128, "y": 704, "zoom": 1 },
+      "atmosphere": { "hour": 19, "weather": "clear" },
+      "expected": { "agentsMin": 6, "focalSubject": "minimum practical second-screen composition" },
+      "overlayCensus": true
+    },
+    {
+      "id": "dense-24-rain",
+      "scenario": "dense-24-agents",
+      "timelineMs": 7000,
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 20, "tileY": 25 }, "zoom": 2.15 },
+      "atmosphere": { "hour": 15, "weather": "rain" },
+      "expected": { "agents": 24, "focalSubject": "dense live labels, trails, and weather" },
+      "overlayCensus": true
+    },
+    {
+      "id": "dense-100-clear",
+      "scenario": "dense-100-agents",
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 20, "tileY": 24 }, "zoom": 1.72 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agents": 100, "focalSubject": "crowd clustering and renderer degradation" },
+      "overlayCensus": true
+    },
+    {
+      "id": "no-agents-clear-1440",
+      "scenario": "no-agents",
+      "viewport": "second-screen",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 20, "tileY": 22 }, "zoom": 2.35 },
+      "atmosphere": { "hour": 12, "weather": "clear" },
+      "expected": { "agents": 0, "focalSubject": "empty village and idle harbor" }
+    },
+    {
+      "id": "one-agent-dusk-1440",
+      "scenario": "one-working-agent",
+      "viewport": "second-screen",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 14, "tileY": 20 }, "zoom": 2.8 },
+      "atmosphere": { "hour": 19, "weather": "clear" },
+      "expected": { "agents": 1, "focalSubject": "selected working agent and route" }
+    },
+    {
+      "id": "errored-agent-rain-1440",
+      "scenario": "one-working-agent",
+      "viewport": "second-screen",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 14, "tileY": 20 }, "zoom": 2.8 },
+      "atmosphere": { "hour": 15, "weather": "rain" },
+      "agentOverride": { "id": "sim-one-worker", "status": "errored", "lastMessage": "Deterministic baseline failure" },
+      "expected": { "agents": 1, "focalSubject": "errored agent without motion-only meaning" }
+    },
+    {
+      "id": "selected-behind-building-night",
+      "scenario": "selected-behind-building",
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 15.5, "tileY": 18.5 }, "zoom": 2.8 },
+      "atmosphere": { "hour": 23, "weather": "clear" },
+      "expected": { "agents": 2, "focalSubject": "selected-agent x-ray and building occlusion" },
+      "pinAgentPositions": true
+    },
+    {
+      "id": "building-inspection-replay-dusk",
+      "scenario": "building-inspection-replay",
+      "viewport": "desktop",
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 19, "tileY": 21 }, "zoom": 2.6 },
+      "atmosphere": { "hour": 19, "weather": "clear" },
+      "expected": { "agents": 3, "focalSubject": "selected building routes, replay, and signals" }
+    },
+    {
+      "id": "storm-night-reduced-motion",
+      "scenario": "storm-night-reduced-motion",
+      "viewport": "desktop",
+      "reducedMotion": true,
+      "camera": { "mode": "scenario-metadata", "centerTile": { "tileX": 31, "tileY": 19 }, "zoom": 2.5 },
+      "atmosphere": { "hour": 23, "weather": "storm" },
+      "expected": { "agents": 2, "focalSubject": "static semantic storm cues under reduced motion" }
+    }
+  ]
+}

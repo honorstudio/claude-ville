@@ -1,0 +1,30 @@
+# Mirror of the `palettes:` block in manifest.yaml. Source of truth is the manifest.
+# Keep both files in sync if either is edited.
+claude:
+  robe: ['#8f4f21', '#a85f24', '#7b3f1c']
+  pants: ['#3b2418', '#4b2c1a', '#33231a']
+  trim: ['#f2d36b', '#e9b85f', '#ffd98a']
+codex:
+  robe: ['#116466', '#167d86', '#1f6f8b']
+  pants: ['#102f3a', '#12353b', '#18334a']
+  trim: ['#7be3d7', '#55c7f0', '#8ee88e']
+gemini:
+  robe: ['#4f46a5', '#5d65c8', '#44528e']
+  pants: ['#201c43', '#27244d', '#1f2d55']
+  trim: ['#b7ccff', '#d6b7ff', '#7bdff2']
+kimi:
+  robe: ['#f2e4df', '#fff2ee', '#e8d6d2']
+  pants: ['#8f4150', '#6f2f42', '#4d1f24']
+  trim: ['#f5c36a', '#ff8da8', '#ffeff3']
+deepseek:
+  robe: ['#2f7d5b', '#3a9e72', '#276547']
+  pants: ['#1c3a2e', '#243f33', '#18302a']
+  trim: ['#7cf4c8', '#45dca8', '#c8fff0']
+grok:
+  robe: ['#14141f', '#1c1c2e', '#0a0a14']
+  pants: ['#101018', '#181822', '#0c0c14']
+  trim: ['#7df9ff', '#22d3ee', '#e8f7ff']
+zai:
+  robe: ['#b8382c', '#d24a3b', '#8e2a21']
+  pants: ['#3a1c18', '#48231f', '#2b1311']
+  trim: ['#ffb28c', '#ff8c5f', '#ffe0cf']

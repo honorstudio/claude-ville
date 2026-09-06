@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-09-01T11:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Minimal fixture."}]}}
+{"type":"assistant","timestamp":"2026-09-01T11:00:01.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5","stop_reason":"end_turn","content":[{"type":"text","text":"Done."}],"usage":{"input_tokens":1000,"output_tokens":100}}}

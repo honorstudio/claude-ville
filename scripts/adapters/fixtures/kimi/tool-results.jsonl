@@ -1,0 +1,9 @@
+{"type":"config.update","cwd":"__PROJECT__","modelAlias":"kimi-code/kimi-for-coding"}
+{"type":"context.append_loop_event","time":__FOUR_MINUTES_AGO_MS__,"event":{"type":"turn.begin"}}
+{"type":"context.append_loop_event","time":__FOUR_MINUTES_AGO_MS__,"event":{"type":"tool.call","toolCallId":"call-passing","name":"Bash","args":{"command":"npm run build"},"time":__FOUR_MINUTES_AGO_MS__}}
+{"type":"context.append_loop_event","time":__THREE_MINUTES_AGO_MS__,"event":{"type":"tool.result","toolCallId":"call-passing","result":{"exitCode":0,"output":"redacted"},"time":__THREE_MINUTES_AGO_MS__}}
+{"type":"context.append_loop_event","time":__THREE_MINUTES_AGO_MS__,"event":{"type":"tool.call","toolCallId":"call-quiet","name":"Read","args":{"path":"__PROJECT__/src/index.js"},"time":__THREE_MINUTES_AGO_MS__}}
+{"type":"context.append_loop_event","time":__THREE_MINUTES_AGO_MS__,"event":{"type":"tool.result","toolCallId":"call-quiet","result":{"output":"redacted"},"time":__THREE_MINUTES_AGO_MS__}}
+{"type":"context.append_loop_event","time":__COMMAND_STARTED_MS__,"event":{"type":"tool.call","toolCallId":"call-failing","name":"Bash","args":{"command":"npm test"},"time":__COMMAND_STARTED_MS__}}
+{"type":"context.append_loop_event","time":__NOW_MS__,"event":{"type":"tool.result","toolCallId":"call-failing","result":{"exit_code":1,"stderr":"fixture failure"},"time":__NOW_MS__}}
+{"type":"context.append_loop_event","time":__NOW_MS__,"event":{"type":"turn.end"}}

@@ -1,0 +1,328 @@
+{
+    "revision": "2026-09-05",
+    "models": [
+        {
+            "id": "claude.fable-5-1", "provider": "claude", "match": ["fable-5-1", "mythos-5-1"], "sample": "claude-fable-5-1",
+            "label": "Claude Fable", "shortLabel": "Fable", "modelClass": "fable", "modelTier": "mythic", "mood": "deliberate",
+            "spriteId": "agent.claude.fable", "paletteKey": "claude", "color": "#ffd6f0",
+            "trim": ["#ffd6f0", "#ffe7a8", "#c8a3ff"], "accent": ["#fff0fa", "#fff4cf", "#d8bcff"],
+            "contextWindow": 1000000, "pricing": { "input": 10, "output": 50, "cacheRead": 0.25, "cacheCreate": 12.5 }
+        },
+        {
+            "id": "claude.fable-5", "provider": "claude", "match": ["fable-5", "mythos-5"], "sample": "claude-fable-5",
+            "label": "Claude Fable", "shortLabel": "Fable", "modelClass": "fable", "modelTier": "mythic", "mood": "deliberate",
+            "spriteId": "agent.claude.fable", "paletteKey": "claude", "color": "#ffd6f0",
+            "trim": ["#ffd6f0", "#ffe7a8", "#c8a3ff"], "accent": ["#fff0fa", "#fff4cf", "#d8bcff"],
+            "contextWindow": 1000000, "pricing": { "input": 10, "output": 50, "cacheRead": 1, "cacheCreate": 12.5 }
+        },
+        {
+            "id": "claude.opus-5", "provider": "claude", "match": ["opus-5"], "sample": "claude-opus-5",
+            "label": "Claude Opus", "shortLabel": "Opus", "modelClass": "opus", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.claude.opus", "paletteKey": "claude", "color": "#ffe7a8",
+            "trim": ["#ffe7a8", "#c8a3ff", "#f4b15f"], "accent": ["#fff4cf", "#d8bcff", "#ffca7a"],
+            "contextWindow": 1000000, "pricing": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheCreate": 6.25 }
+        },
+        {
+            "id": "claude.opus-4-8", "provider": "claude", "match": ["opus-4-8"], "sample": "claude-opus-4-8",
+            "label": "Claude Opus", "shortLabel": "Opus", "modelClass": "opus", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.claude.opus", "paletteKey": "claude", "color": "#ffe7a8",
+            "trim": ["#ffe7a8", "#c8a3ff", "#f4b15f"], "accent": ["#fff4cf", "#d8bcff", "#ffca7a"],
+            "contextWindow": 1000000, "pricing": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheCreate": 6.25 }
+        },
+        {
+            "id": "claude.opus-4-7", "provider": "claude", "match": ["opus-4-7"], "sample": "claude-opus-4-7",
+            "label": "Claude Opus", "shortLabel": "Opus", "modelClass": "opus", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.claude.opus", "paletteKey": "claude", "color": "#ffe7a8",
+            "trim": ["#ffe7a8", "#c8a3ff", "#f4b15f"], "accent": ["#fff4cf", "#d8bcff", "#ffca7a"],
+            "contextWindow": 1000000, "pricing": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheCreate": 6.25 }
+        },
+        {
+            "id": "claude.opus-4-6", "provider": "claude", "match": ["opus-4-6"], "sample": "claude-opus-4-6",
+            "label": "Claude Opus", "shortLabel": "Opus", "modelClass": "opus", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.claude.opus", "paletteKey": "claude", "color": "#ffe7a8",
+            "trim": ["#ffe7a8", "#c8a3ff", "#f4b15f"], "accent": ["#fff4cf", "#d8bcff", "#ffca7a"],
+            "contextWindow": 1000000, "pricing": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheCreate": 6.25 }
+        },
+        {
+            "id": "claude.sonnet-5", "provider": "claude", "match": ["sonnet-5"], "sample": "claude-sonnet-5",
+            "label": "Claude Sonnet", "shortLabel": "Sonnet", "modelClass": "sonnet", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.claude.sonnet", "paletteKey": "claude", "color": "#f2d36b",
+            "trim": ["#f2d36b", "#b7ccff", "#e9b85f"], "accent": ["#ffe39a", "#dfe8ff", "#f7bf6d"],
+            "contextWindow": 1000000, "pricing": { "input": 2, "output": 10, "cacheRead": 0.2, "cacheCreate": 2.5 }
+        },
+        {
+            "id": "claude.sonnet-4-6", "provider": "claude", "match": ["sonnet-4-6"], "sample": "claude-sonnet-4-6",
+            "label": "Claude Sonnet", "shortLabel": "Sonnet", "modelClass": "sonnet", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.claude.sonnet", "paletteKey": "claude", "color": "#f2d36b",
+            "trim": ["#f2d36b", "#b7ccff", "#e9b85f"], "accent": ["#ffe39a", "#dfe8ff", "#f7bf6d"],
+            "contextWindow": 200000, "pricing": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheCreate": 3.75 }
+        },
+        {
+            "id": "claude.haiku-4-5", "provider": "claude", "match": ["haiku-4-5"], "sample": "claude-haiku-4-5",
+            "label": "Claude Haiku", "shortLabel": "Haiku", "modelClass": "haiku", "modelTier": "light", "mood": "quick",
+            "spriteId": "agent.claude.haiku", "paletteKey": "claude", "color": "#ffd47a",
+            "trim": ["#ffd47a", "#ffe39a", "#f6c25c"], "accent": ["#fff1c2", "#ffe39a", "#ffcc7a"],
+            "contextWindow": 200000, "pricing": { "input": 1, "output": 5, "cacheRead": 0.1, "cacheCreate": 1.25 }
+        },
+        {
+            "id": "claude.opus", "provider": "claude", "match": ["opus"], "sample": "claude-opus-4-5",
+            "label": "Claude Opus", "shortLabel": "Opus", "modelClass": "opus", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.claude.opus", "paletteKey": "claude", "color": "#ffe7a8",
+            "trim": ["#ffe7a8", "#c8a3ff", "#f4b15f"], "accent": ["#fff4cf", "#d8bcff", "#ffca7a"],
+            "contextWindow": 200000, "pricing": { "input": 15, "output": 75, "cacheRead": 1.5, "cacheCreate": 18.75 }
+        },
+        {
+            "id": "claude.sonnet", "provider": "claude", "match": ["sonnet"], "sample": "claude-sonnet-4-5",
+            "label": "Claude Sonnet", "shortLabel": "Sonnet", "modelClass": "sonnet", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.claude.sonnet", "paletteKey": "claude", "color": "#f2d36b",
+            "trim": ["#f2d36b", "#b7ccff", "#e9b85f"], "accent": ["#ffe39a", "#dfe8ff", "#f7bf6d"],
+            "contextWindow": 200000, "pricing": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheCreate": 3.75 }
+        },
+        {
+            "id": "claude.haiku", "provider": "claude", "match": ["haiku"], "sample": "claude-haiku-3-5",
+            "label": "Claude Haiku", "shortLabel": "Haiku", "modelClass": "haiku", "modelTier": "light", "mood": "quick",
+            "spriteId": "agent.claude.haiku", "paletteKey": "claude", "color": "#ffd47a",
+            "trim": ["#ffd47a", "#ffe39a", "#f6c25c"], "accent": ["#fff1c2", "#ffe39a", "#ffcc7a"],
+            "contextWindow": 200000, "pricing": { "input": 0.8, "output": 4, "cacheRead": 0.08, "cacheCreate": 1 }
+        },
+        {
+            "id": "claude.claude-5", "provider": "claude", "match": ["claude-5"], "sample": "claude-5",
+            "label": "Claude Sonnet", "shortLabel": "Claude", "modelClass": "sonnet", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.claude.sonnet", "paletteKey": "claude", "color": "#f2d36b",
+            "trim": ["#f2d36b", "#b7ccff", "#e9b85f"], "accent": ["#ffe39a", "#dfe8ff", "#f7bf6d"],
+            "contextWindow": 1000000, "pricing": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheCreate": 3.75 }
+        },
+        {
+            "id": "codex.gpt-6-astra", "provider": "codex", "match": ["gpt-6-astra"], "sample": "gpt-6-astra",
+            "label": "GPT-6 Astra", "shortLabel": "6 Astra", "modelClass": "gpt6astra", "modelTier": "mythic", "mood": "deliberate",
+            "spriteId": "agent.codex.gpt6astra", "paletteKey": "codex", "color": "#d8bcff",
+            "trim": ["#d8bcff", "#e6f1ff", "#8be9f5"], "accent": ["#f3eaff", "#c6efff", "#bff7ee"],
+            "contextWindow": 1050000, "pricing": { "input": 10, "output": 50, "cacheRead": 1, "cacheCreate": 12.5 }
+        },
+        {
+            "id": "codex.gpt-5-6-sol", "provider": "codex", "match": ["gpt-5.6-sol"], "sample": "gpt-5.6-sol",
+            "label": "GPT-5.6 Sol", "shortLabel": "5.6 Sol", "modelClass": "gpt56sol", "modelTier": "mythic", "mood": "deliberate",
+            "spriteId": "agent.codex.gpt56sol", "paletteKey": "codex", "color": "#ffd76a",
+            "trim": ["#ffd76a", "#ffedb3", "#7be3d7"], "accent": ["#fff6d8", "#ffd76a", "#bff7ee"],
+            "contextWindow": 372000, "pricing": { "input": 5, "output": 30, "cacheRead": 0.5, "cacheCreate": 6.25 }
+        },
+        {
+            "id": "codex.gpt-5-6-terra", "provider": "codex", "match": ["gpt-5.6-terra"], "sample": "gpt-5.6-terra",
+            "label": "GPT-5.6 Terra", "shortLabel": "5.6 Terra", "modelClass": "gpt56terra", "modelTier": "apex", "mood": "balanced",
+            "spriteId": "agent.codex.gpt56terra", "paletteKey": "codex", "color": "#d9a066",
+            "trim": ["#d9a066", "#9fce6e", "#7be3d7"], "accent": ["#f0c896", "#c8e8a0", "#bff7ee"],
+            "contextWindow": 372000, "pricing": { "input": 2.5, "output": 15, "cacheRead": 0.25, "cacheCreate": 3.125 }
+        },
+        {
+            "id": "codex.gpt-5-6-luna", "provider": "codex", "match": ["gpt-5.6-luna"], "sample": "gpt-5.6-luna",
+            "label": "GPT-5.6 Luna", "shortLabel": "5.6 Luna", "modelClass": "gpt56luna", "modelTier": "balanced", "mood": "quick",
+            "spriteId": "agent.codex.gpt56luna", "paletteKey": "codex", "color": "#cfe4ff",
+            "trim": ["#cfe4ff", "#9db8d9", "#7be3d7"], "accent": ["#f0f7ff", "#cfe4ff", "#bff7ee"],
+            "contextWindow": 372000, "pricing": { "input": 1, "output": 6, "cacheRead": 0.1, "cacheCreate": 1.25 }
+        },
+        {
+            "id": "codex.gpt-5-6", "provider": "codex", "match": ["gpt-5.6"], "sample": "gpt-5.6",
+            "label": "GPT-5.6 Terra", "shortLabel": "5.6 Terra", "modelClass": "gpt56terra", "modelTier": "apex", "mood": "balanced",
+            "spriteId": "agent.codex.gpt56terra", "paletteKey": "codex", "color": "#d9a066",
+            "trim": ["#d9a066", "#9fce6e", "#7be3d7"], "accent": ["#f0c896", "#c8e8a0", "#bff7ee"],
+            "contextWindow": 372000, "pricing": { "input": 2.5, "output": 15, "cacheRead": 0.25, "cacheCreate": 3.125 }
+        },
+        {
+            "id": "codex.gpt-5-5", "provider": "codex", "match": ["gpt-5.5"], "sample": "gpt-5.5",
+            "label": "GPT-5.5", "shortLabel": "5.5", "modelClass": "gpt55", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.codex.gpt55", "paletteKey": "codex", "color": "#fff1b8",
+            "trim": ["#fff1b8", "#7be3d7", "#f8c45f"], "accent": ["#ffffff", "#bff7ee", "#ffd98a"],
+            "contextWindow": 258400, "pricing": { "input": 15, "output": 120, "cacheRead": 1.5, "cacheCreate": 0 }
+        },
+        {
+            "id": "codex.gpt-5-4", "provider": "codex", "match": ["gpt-5.4"], "sample": "gpt-5.4",
+            "label": "GPT-5.4", "shortLabel": "5.4", "modelClass": "gpt54", "modelTier": "senior", "mood": "balanced",
+            "spriteId": "agent.codex.gpt54", "paletteKey": "codex", "color": "#8bd6ff",
+            "trim": ["#8bd6ff", "#7be3d7", "#a9b7ff"], "accent": ["#d5f4ff", "#95f0df", "#d3dcff"],
+            "contextWindow": 258400, "pricing": { "input": 10, "output": 80, "cacheRead": 1, "cacheCreate": 0 }
+        },
+        {
+            "id": "codex.gpt-5-3-spark", "provider": "codex", "match": ["gpt-5.3-codex-spark"], "sample": "gpt-5.3-codex-spark",
+            "label": "GPT-5.3 Codex Spark", "shortLabel": "5.3 Spark", "modelClass": "spark", "modelTier": "swift", "mood": "quick",
+            "spriteId": "agent.codex.gpt53spark", "paletteKey": "codex", "color": "#f8e36f",
+            "trim": ["#f8e36f", "#87f7ff", "#c5ff72"], "accent": ["#fff6a3", "#55e7ff", "#b8ff5c"],
+            "contextWindow": 258400, "pricing": { "input": 5, "output": 40, "cacheRead": 0.5, "cacheCreate": 0 }
+        },
+        {
+            "id": "codex.gpt-5-3-codex", "provider": "codex", "match": ["gpt-5.3-codex"], "sample": "gpt-5.3-codex",
+            "label": "GPT-5.3 Codex", "shortLabel": "5.3", "modelClass": "spark", "modelTier": "swift", "mood": "quick",
+            "spriteId": "agent.codex.gpt53spark", "paletteKey": "codex", "color": "#f8e36f",
+            "trim": ["#f8e36f", "#87f7ff", "#c5ff72"], "accent": ["#fff6a3", "#55e7ff", "#b8ff5c"],
+            "contextWindow": 258400, "pricing": { "input": 5, "output": 40, "cacheRead": 0.5, "cacheCreate": 0 }
+        },
+        {
+            "id": "codex.gpt-5-3", "provider": "codex", "match": ["gpt-5.3"], "sample": "gpt-5.3",
+            "label": "Codex", "shortLabel": "Codex", "modelClass": "codex", "modelTier": null, "mood": "quick",
+            "spriteId": "agent.codex.gpt54", "paletteKey": "codex", "color": "#7be3d7",
+            "trim": ["#7be3d7", "#55c7f0", "#8ee88e"], "accent": ["#bff7ee", "#6ee7d8", "#5ad6ff"],
+            "contextWindow": 258400, "pricing": { "input": 5, "output": 40, "cacheRead": 0.5, "cacheCreate": 0 }
+        },
+        {
+            "id": "codex.gpt-5", "provider": "codex", "match": ["gpt-5"], "sample": "gpt-5.2",
+            "label": "Codex", "shortLabel": "Codex", "modelClass": "codex", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.codex.gpt54", "paletteKey": "codex", "color": "#7be3d7",
+            "trim": ["#7be3d7", "#55c7f0", "#8ee88e"], "accent": ["#bff7ee", "#6ee7d8", "#5ad6ff"],
+            "contextWindow": 258400, "pricing": { "input": 1.25, "output": 10, "cacheRead": 0.125, "cacheCreate": 0 }
+        },
+        {
+            "id": "kimi.coding", "provider": "kimi", "match": ["kimi-for-coding"], "sample": "kimi-code/kimi-for-coding",
+            "label": "Kimi", "shortLabel": "Kimi", "modelClass": "kimi", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.kimi.base", "paletteKey": "kimi", "color": "#ff8da8",
+            "trim": ["#f5c36a", "#ff8da8", "#ffeff3"], "accent": ["#ffeff3", "#ff8da8", "#f5c36a"],
+            "contextWindow": 262144, "pricing": { "input": 3, "output": 12, "cacheRead": 0.3, "cacheCreate": 0 }
+        },
+        {
+            "id": "deepseek.v4-pro", "provider": "deepseek", "match": ["deepseek-v4-pro", "v4-pro"], "sample": "deepseek/deepseek-v4-pro",
+            "label": "DeepSeek V4 Pro", "shortLabel": "DS V4 Pro", "modelClass": "v4-pro", "modelTier": "long-context", "mood": "deliberate",
+            "spriteId": "agent.deepseek.pro", "paletteKey": "deepseek", "color": "#9ee7ff",
+            "trim": ["#9ee7ff", "#6dd7ff", "#d9f7ff"], "accent": ["#e5fbff", "#9ee7ff", "#76b8ff"],
+            "contextWindow": 1000000, "pricing": { "input": 1.74, "output": 3.48, "cacheRead": 0.145, "cacheCreate": 0 }
+        },
+        {
+            "id": "deepseek.v4-flash", "provider": "deepseek", "match": ["deepseek-v4-flash", "v4-flash"], "sample": "deepseek/deepseek-v4-flash",
+            "label": "DeepSeek V4 Flash", "shortLabel": "DS Flash", "modelClass": "v4-flash", "modelTier": "swift", "mood": "quick",
+            "spriteId": "agent.deepseek.flash", "paletteKey": "deepseek", "color": "#7cf4c8",
+            "trim": ["#7cf4c8", "#45dca8", "#c8fff0"], "accent": ["#d8fff4", "#7cf4c8", "#6dd7ff"],
+            "contextWindow": 256000, "pricing": { "input": 0.14, "output": 0.28, "cacheRead": 0.028, "cacheCreate": 0 }
+        },
+        {
+            "id": "deepseek.reasoner", "provider": "deepseek", "match": ["deepseek-reasoner", "reasoner"], "sample": "deepseek/deepseek-reasoner",
+            "label": "DeepSeek Reasoner", "shortLabel": "DS Reasoner", "modelClass": "reasoner", "modelTier": "balanced", "mood": "deliberate",
+            "spriteId": "agent.deepseek.reasoner", "paletteKey": "deepseek", "color": "#7cf4c8",
+            "trim": ["#7cf4c8", "#45dca8", "#c8fff0"], "accent": ["#d8fff4", "#7cf4c8", "#6dd7ff"],
+            "contextWindow": 128000, "pricing": { "input": 0.14, "output": 0.28, "cacheRead": 0.028, "cacheCreate": 0 }
+        },
+        {
+            "id": "grok.4-5", "provider": "grok", "match": ["grok-4-5", "grok-4.5"], "sample": "grok-4.5",
+            "label": "Grok", "shortLabel": "Grok 4.5", "modelClass": "base", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.grok.base", "paletteKey": "grok", "color": "#7df9ff",
+            "trim": ["#7df9ff", "#e8f7ff", "#22d3ee"], "accent": ["#f0fdff", "#7df9ff", "#38bdf8"],
+            "contextWindow": 500000, "pricing": { "input": 2, "output": 6, "cacheRead": 0.5, "cacheCreate": 0 }
+        },
+        {
+            "id": "grok.composer", "provider": "grok", "match": ["composer"], "sample": "grok-code-fast-1-composer",
+            "label": "Grok Composer", "shortLabel": "Composer", "modelClass": "composer", "modelTier": "swift", "mood": "quick",
+            "spriteId": "agent.grok.composer", "paletteKey": "grok", "color": "#a5f3fc",
+            "trim": ["#a5f3fc", "#67e8f9", "#e0f2fe"], "accent": ["#ecfeff", "#a5f3fc", "#67e8f9"],
+            "contextWindow": 256000, "pricing": { "input": 0.2, "output": 0.5, "cacheRead": 0.05, "cacheCreate": 0 }
+        },
+        {
+            "id": "grok.4-3", "provider": "grok", "match": ["grok-4-3", "grok-4.3"], "sample": "grok-4.3",
+            "label": "Grok", "shortLabel": "Grok", "modelClass": "base", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.grok.base", "paletteKey": "grok", "color": "#7df9ff",
+            "trim": ["#7df9ff", "#e8f7ff", "#22d3ee"], "accent": ["#f0fdff", "#7df9ff", "#38bdf8"],
+            "contextWindow": 500000, "pricing": { "input": 1.25, "output": 2.5, "cacheRead": 0.2, "cacheCreate": 0 }
+        },
+        {
+            "id": "grok.4", "provider": "grok", "match": ["grok-4"], "sample": "grok-4",
+            "label": "Grok", "shortLabel": "Grok", "modelClass": "base", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.grok.base", "paletteKey": "grok", "color": "#7df9ff",
+            "trim": ["#7df9ff", "#e8f7ff", "#22d3ee"], "accent": ["#f0fdff", "#7df9ff", "#38bdf8"],
+            "contextWindow": 500000, "pricing": { "input": 3, "output": 15, "cacheRead": 0.75, "cacheCreate": 0 }
+        },
+        {
+            "id": "zai.glm-5-3-flash", "provider": "zai", "match": ["glm-5-3-flash"], "sample": "zai/glm-5.3-flash",
+            "label": "GLM 5.3 Flash", "shortLabel": "GLM Flash", "modelClass": "glm-flash", "modelTier": "swift", "mood": "quick",
+            "spriteId": "agent.zai.flash", "paletteKey": "zai", "color": "#ffb28c",
+            "trim": ["#ffb28c", "#ff8c5f", "#ffe0cf"], "accent": ["#fff1e8", "#ffb28c", "#ff8c5f"],
+            "contextWindow": 1000000, "pricing": { "input": 0.15, "output": 0.5, "cacheRead": 0.03, "cacheCreate": 0 }
+        },
+        {
+            "id": "zai.glm-5-3", "provider": "zai", "match": ["glm-5-3"], "sample": "zai/glm-5.3",
+            "label": "GLM 5.3", "shortLabel": "GLM", "modelClass": "glm", "modelTier": "apex", "mood": "deliberate",
+            "spriteId": "agent.zai.glm", "paletteKey": "zai", "color": "#ff8c5f",
+            "trim": ["#ff8c5f", "#ffb28c", "#ffe0cf"], "accent": ["#fff1e8", "#ff8c5f", "#ffd6a5"],
+            "contextWindow": 1000000, "pricing": { "input": 1.4, "output": 4.4, "cacheRead": 0.26, "cacheCreate": 0 }
+        },
+        {
+            "id": "gemini.3-5-flash", "provider": "gemini", "match": ["gemini-3-5-flash"], "sample": "gemini-3.5-flash",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 1.5, "output": 9, "cacheRead": 0.15, "cacheCreate": 0.5 }
+        },
+        {
+            "id": "gemini.3-1-pro", "provider": "gemini", "match": ["gemini-3-1-pro"], "sample": "gemini-3.1-pro",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 2, "output": 12, "cacheRead": 0.2, "cacheCreate": 0.5 }
+        },
+        {
+            "id": "gemini.3-1-flash-lite", "provider": "gemini", "match": ["gemini-3-1-flash-lite"], "sample": "gemini-3.1-flash-lite",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "quick",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 0.25, "output": 1.5, "cacheRead": 0.025, "cacheCreate": 0.5 }
+        },
+        {
+            "id": "gemini.3-pro", "provider": "gemini", "match": ["gemini-3-pro"], "sample": "gemini-3-pro",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 2, "output": 12, "cacheRead": 0.2, "cacheCreate": 0.5 }
+        },
+        {
+            "id": "gemini.3-flash", "provider": "gemini", "match": ["gemini-3-flash"], "sample": "gemini-3-flash",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 0.5, "output": 3, "cacheRead": 0.05, "cacheCreate": 0.5 }
+        },
+        {
+            "id": "gemini.2-5-pro", "provider": "gemini", "match": ["gemini-2-5-pro"], "sample": "gemini-2.5-pro",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 1.25, "output": 10, "cacheRead": 0.125, "cacheCreate": 0 }
+        },
+        {
+            "id": "gemini.2-5-flash", "provider": "gemini", "match": ["gemini-2-5-flash"], "sample": "gemini-2.5-flash",
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null,
+            "contextWindow": null, "pricing": { "input": 0.3, "output": 2.5, "cacheRead": 0.03, "cacheCreate": 0 }
+        }
+    ],
+    "defaults": {
+        "claude": {
+            "pricingKey": "claude", "pricing": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheCreate": 3.75 }, "contextWindow": 200000,
+            "label": "Claude Sonnet", "shortLabel": "Claude", "modelClass": "sonnet", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.claude.sonnet", "paletteKey": "claude", "color": "#f2d36b",
+            "trim": ["#f2d36b", "#b7ccff", "#e9b85f"], "accent": ["#ffe39a", "#dfe8ff", "#f7bf6d"]
+        },
+        "codex": {
+            "pricingKey": "openai", "pricing": { "input": 1.25, "output": 10, "cacheRead": 0.125, "cacheCreate": 0 }, "contextWindow": 258400,
+            "label": "Codex", "shortLabel": "Codex", "modelClass": "codex", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.codex.gpt54", "paletteKey": "codex", "color": "#7be3d7",
+            "trim": ["#7be3d7", "#55c7f0", "#8ee88e"], "accent": ["#bff7ee", "#6ee7d8", "#5ad6ff"]
+        },
+        "kimi": {
+            "pricingKey": "kimi", "pricing": { "input": 3, "output": 12, "cacheRead": 0.3, "cacheCreate": 0 }, "contextWindow": 262144,
+            "label": "Kimi", "shortLabel": "Kimi", "modelClass": "kimi", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.kimi.base", "paletteKey": "kimi", "color": "#ff8da8",
+            "trim": ["#f5c36a", "#ff8da8", "#ffeff3"], "accent": ["#ffeff3", "#ff8da8", "#f5c36a"]
+        },
+        "deepseek": {
+            "pricingKey": "deepseek", "pricing": { "input": 0.14, "output": 0.28, "cacheRead": 0.028, "cacheCreate": 0 }, "contextWindow": 128000,
+            "label": "DeepSeek", "shortLabel": "DeepSeek", "modelClass": "deepseek", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.deepseek.pro", "paletteKey": "deepseek", "color": "#7cf4c8",
+            "trim": ["#7cf4c8", "#45dca8", "#c8fff0"], "accent": ["#d8fff4", "#7cf4c8", "#6dd7ff"]
+        },
+        "grok": {
+            "pricingKey": "grok", "pricing": { "input": 2, "output": 6, "cacheRead": 0.5, "cacheCreate": 0 }, "contextWindow": 500000,
+            "label": "Grok", "shortLabel": "Grok", "modelClass": "base", "modelTier": "apex", "mood": "balanced",
+            "spriteId": "agent.grok.base", "paletteKey": "grok", "color": "#7df9ff",
+            "trim": ["#7df9ff", "#e8f7ff", "#22d3ee"], "accent": ["#f0fdff", "#7df9ff", "#38bdf8"]
+        },
+        "zai": {
+            "pricingKey": "zai", "pricing": { "input": 1.4, "output": 4.4, "cacheRead": 0.26, "cacheCreate": 0 }, "contextWindow": 1000000,
+            "label": "GLM", "shortLabel": "GLM", "modelClass": "glm", "modelTier": "balanced", "mood": "balanced",
+            "spriteId": "agent.zai.glm", "paletteKey": "zai", "color": "#ff8c5f",
+            "trim": ["#ff8c5f", "#ffb28c", "#ffe0cf"], "accent": ["#fff1e8", "#ff8c5f", "#ffd6a5"]
+        },
+        "gemini": {
+            "pricingKey": "gemini", "pricing": { "input": 0.5, "output": 3, "cacheRead": 0.05, "cacheCreate": 0.5 }, "contextWindow": null,
+            "label": "Gemini", "shortLabel": "Gemini", "modelClass": "standard", "modelTier": null, "mood": "balanced",
+            "spriteId": "agent.gemini.base", "paletteKey": "gemini", "color": "#9ad7ff", "trim": null, "accent": null
+        }
+    }
+}

@@ -2,3 +2,22 @@ node_modules/
 .DS_Store
 *.log
 docs/plans/
+docs/superpowers/
+output/
+smoke-*.png
+/*.png
+widget/ClaudeVilleWidget
+widget/ClaudeVilleWidget.app/
+scripts/sprites/baselines/*-diff.png
+scripts/sprites/baselines/*-fresh.png
+!scripts/sprites/baselines/.gitkeep
+.playwright-cli/
+.playwright-mcp/
+.worktrees/
+.superpowers/
+.env
+.env.*
+.dev.var
+.dev.vars
+
+# local impeccable skill removed; design skills come from the globally enabled impeccable plugin

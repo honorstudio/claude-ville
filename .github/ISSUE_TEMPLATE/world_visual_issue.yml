@@ -1,0 +1,52 @@
+name: World Or Visual Issue
+description: Report a World mode, sprite, animation, or visual regression.
+title: "[Visual] "
+labels: ["bug", "area:world"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Screenshots are strongly preferred. Redact private project names or prompts.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Visual surface
+      options:
+        - World mode canvas
+        - Agent sprites
+        - Building sprites
+        - Terrain or scenery
+        - Dashboard cards
+        - Sidebar or activity panel
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What looks wrong
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected visual result
+  - type: input
+    id: viewport
+    attributes:
+      label: "Desktop viewport (minimum width: 1280px)"
+      description: "Record the viewport as width x height; use a width of at least 1280px."
+      placeholder: 1440x900, 100% browser zoom, 2x display scale
+    validations:
+      required: true
+  - type: input
+    id: motion
+    attributes:
+      label: Motion setting
+      placeholder: normal motion or reduced motion
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshot or capture
+      description: "Attach a screenshot/capture, or write `cannot capture — reason: <explanation>`."
+    validations:
+      required: true

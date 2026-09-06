@@ -1,131 +1,200 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClaudeVille - Agent Visualization</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1b120d">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="modulepreload" href="src/presentation/character-mode/WorldFrameRenderer.js">
+    <link rel="modulepreload" href="src/presentation/character-mode/gpu/GpuSceneBuilder.js">
+    <link rel="modulepreload" href="src/presentation/character-mode/AtmosphereState.js">
+    <!-- Dashboard stays out of the boot execution path, but a mode switch must
+         paint immediately. These warm its bytes without blocking first paint:
+         modulepreload populates the module map, and preload fetches the
+         stylesheet without applying it. -->
+    <link rel="modulepreload" href="src/presentation/dashboard-mode/DashboardRenderer.js">
+    <link rel="preload" href="css/dashboard.css" as="style">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/topbar.css">
     <link rel="stylesheet" href="css/sidebar.css">
-    <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/character.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/activity-panel.css">
 </head>
 <body>
-    <!-- 상단바 -->
+    <!-- Top bar -->
     <header id="topbar" class="topbar">
         <div class="topbar__left">
-            <span class="topbar__logo">ClaudeVille</span>
-            <span class="topbar__version">v0.1</span>
+            <div class="topbar__brand">
+                <span class="topbar__logo">ClaudeVille</span>
+                <div class="topbar__meta">
+                    <span id="topbarConnection" class="topbar__conn topbar__conn--syncing" title="Connection state and data freshness">SYNCING</span>
+                    <span class="topbar__version" tabindex="0" role="button">v0.45</span>
+                    <span id="statQuotaWrap" class="topbar__quota-meta" hidden>
+                        <span class="topbar__quota">
+                            <span class="topbar__quota-bar" title="5-hour window"><span id="statQuota5h" class="topbar__quota-fill"></span></span>
+                            <span class="topbar__quota-bar" title="7-day window"><span id="statQuota7d" class="topbar__quota-fill"></span></span>
+                        </span>
+                        <span id="statQuotaText">--</span>
+                    </span>
+                    <span id="statTime" class="topbar__uptime" title="Village uptime" hidden>00:00:00</span>
+                    <span id="villageClock" class="topbar__clock" title="Modeled village weather" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor"></path></svg><span class="topbar__clock-time"></span><span class="topbar__clock-phase"></span><span class="topbar__clock-override" hidden></span></span>
+                </div>
+            </div>
         </div>
         <div class="topbar__center">
-            <div class="topbar__stat">
-                <span data-i18n="tokens" class="topbar__stat-label">토큰</span>
-                <span id="statTokens" class="topbar__stat-value">0</span>
-            </div>
-            <div class="topbar__stat">
-                <span data-i18n="cost" class="topbar__stat-label">비용</span>
-                <span id="statCost" class="topbar__stat-value">$0.0000</span>
-            </div>
-            <div class="topbar__stat">
-                <span data-i18n="time" class="topbar__stat-label">시간</span>
-                <span id="statTime" class="topbar__stat-value">00:00:00</span>
+            <div class="topbar__ledger topbar__tag" id="topbarLedger">
+                <span class="topbar__seg-stat" id="statRateWrap">
+                    <span class="topbar__stat-label">TODAY</span>
+                    <span id="statTokens" class="topbar__stat-value">0</span>
+                    <span id="statRate" class="topbar__stat-rate"></span>
+                </span>
             </div>
             <div class="topbar__badges">
-                <span class="topbar__badge topbar__badge--working">
-                    <span class="topbar__badge-dot"></span>
-                    <span id="badgeWorking">0</span> <span data-i18n="working">작업중</span>
-                </span>
-                <span class="topbar__badge topbar__badge--idle">
-                    <span class="topbar__badge-dot"></span>
-                    <span id="badgeIdle">0</span> <span data-i18n="idle">대기</span>
-                </span>
-                <span class="topbar__badge topbar__badge--waiting">
-                    <span class="topbar__badge-dot"></span>
-                    <span id="badgeWaiting">0</span> <span data-i18n="waiting">응답대기</span>
-                </span>
-            </div>
-            <div class="topbar__divider"></div>
-            <div class="topbar__account" id="accountSection">
-                <span id="accountTier" class="topbar__account-tier"></span>
-                <span id="accountActivity" class="topbar__account-activity"></span>
-            </div>
-            <div id="quotaSection" class="topbar__quota" style="display: none;">
-                <div class="topbar__quota-bar">
-                    <span class="topbar__quota-label">5H</span>
-                    <div class="topbar__quota-track">
-                        <div id="quota5hBar" class="topbar__quota-fill"></div>
-                    </div>
-                    <span id="quota5hPct" class="topbar__quota-pct">0%</span>
-                </div>
-                <div class="topbar__quota-bar">
-                    <span class="topbar__quota-label">7D</span>
-                    <div class="topbar__quota-track">
-                        <div id="quota7dBar" class="topbar__quota-fill"></div>
-                    </div>
-                    <span id="quota7dPct" class="topbar__quota-pct">0%</span>
+                <div class="topbar__status topbar__tag">
+                    <span class="topbar__seg topbar__seg--working">
+                        <span class="topbar__badge-dot"></span>
+                        <span id="badgeWorking">0</span> <span data-i18n="working">WORKING</span>
+                    </span>
+                    <span class="topbar__seg topbar__seg--idle">
+                        <span class="topbar__badge-dot"></span>
+                        <span id="badgeIdle">0</span> <span data-i18n="idle">IDLE</span>
+                    </span>
+                    <span class="topbar__seg topbar__seg--waiting">
+                        <span class="topbar__badge-dot"></span>
+                        <span id="badgeWaiting">0</span> <span data-i18n="waiting">WAITING</span>
+                    </span>
                 </div>
             </div>
         </div>
         <div class="topbar__right">
-            <button id="btnModeCharacter" data-i18n="world" class="topbar__mode-btn topbar__mode-btn--active">월드</button>
-            <button id="btnModeDashboard" data-i18n="dashboard" class="topbar__mode-btn">대시보드</button>
-            <button id="btnSettings" class="topbar__settings-btn" title="설정">&#9881;</button>
+            <button id="topbarChronicle" class="topbar__sound-btn topbar__icon-btn topbar__icon-btn--action" type="button" aria-label="Open Village Chronicle" aria-haspopup="dialog" title="Village Chronicle — what happened today">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" fill-rule="evenodd" d="M3 1h10v1h1v4h-3V4H5v8h6v-1h3v3h-1v1H3v-1H2v-4h2V6H2V2h1V1Zm2 5h5v1H5V6Zm0 3h4v1H5V9Z"/>
+                </svg>
+            </button>
+            <button id="topbarAlertsToggle" class="topbar__sound-btn topbar__icon-btn" type="button" aria-label="Desktop alerts" aria-pressed="false" title="Enable desktop notifications">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M3 1h10v2h-2v1h1v1h1v5h2v2H1v-2h2V5h1V4h1V3H3V1Zm3 12h4v2H6v-2Z"/>
+                </svg>
+            </button>
+            <button id="topbarSoundToggle" class="topbar__sound-btn topbar__icon-btn" type="button" aria-label="Sound" aria-pressed="false" title="Enable sound">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M5 2h9v9h-1v2h-2v1H9v-1H8v-2h1v-1h3V5H7v7H6v2H4v1H2v-1H1v-2h1v-1h3V2Zm2 1v1h5V3H7Z"/>
+                </svg>
+            </button>
+            <button id="topbarCinemaToggle" class="topbar__cinema-btn topbar__icon-btn" type="button" aria-label="Automatic camera" aria-pressed="true" title="Auto-camera on: frames live action when idle">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" fill-rule="evenodd" d="M6 2h4v1h2v1h1v1h2v2h1v2h-1v2h-2v1h-1v1h-2v1H6v-1H4v-1H3v-1H1V9H0V7h1V6h2V5h1V4h2V2Zm0 4v6h4V6H6Z"/>
+                    <path fill="currentColor" d="M7 7h2v4H7V7Z"/>
+                </svg>
+            </button>
+            <button id="topbarWorldControls" class="topbar__sound-btn topbar__icon-btn topbar__icon-btn--action" type="button" popovertarget="worldGrammar" aria-label="Open World controls" title="World controls and keyboard shortcuts">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M6 1h4v3h3v2h2v4h-2v2h-3v3H6v-3H3v-2H1V6h2V4h3V1Zm1 2v3H4v4h3v3h2v-3h3V6H9V3H7Zm0 4h2v2H7V7Z"/>
+                </svg>
+            </button>
+            <button id="worldRead" class="topbar__sound-btn world-read" type="button" aria-label="Hold to read the village (B)" aria-pressed="false" title="Hold B or this button to read work labels">READ <kbd>B</kbd></button>
+            <button id="worldAmbient" class="topbar__sound-btn world-ambient" type="button" aria-pressed="false" data-state="off" title="Ambient camera: a patient broadcast of the work that is actually happening. Any camera input or selection hands the frame back.">AMBIENT CAM</button>
+            <button id="topbarSoundMode" class="topbar__sound-btn" type="button" aria-pressed="false" title="Reactive ambience mode — click for continuous town music" hidden>AMBIENT</button>
+            <span id="topbarSoundSection" class="topbar__sound-section" title="Village work behind the music" hidden></span>
+            <input id="topbarSoundVolume" class="topbar__sound-vol" type="range" min="0" max="100" value="50" title="Ambience volume" aria-label="Ambience volume" hidden>
+            <button id="btnModeCharacter" data-i18n="world" class="topbar__mode-btn topbar__mode-btn--active">WORLD</button>
+            <button id="btnModeDashboard" data-i18n="dashboard" class="topbar__mode-btn">DASHBOARD</button>
         </div>
     </header>
 
-    <!-- 메인 영역 -->
+    <aside id="firstRunHint" class="first-run-hint" aria-label="World controls hint" hidden>
+        <button id="firstRunHintDismiss" class="first-run-hint__dismiss" type="button" aria-label="Dismiss hint">×</button>
+        <span class="first-run-hint__title">WORLD CONTROLS</span>
+        <span class="first-run-hint__copy">Open the compass for camera keys. Press <kbd>A</kbd> to frame agents needing attention.</span>
+    </aside>
+
+    <!-- Main area -->
     <div class="main">
-        <!-- 상단: 사이드바 + 콘텐츠 -->
+        <!-- Top: sidebar + content -->
         <div class="main__body">
-            <!-- 사이드바 -->
+            <!-- Sidebar -->
             <aside id="sidebar" class="sidebar">
                 <div class="sidebar__header">
-                    <span data-i18n="agents" class="sidebar__title">에이전트</span>
-                    <span id="agentCount" class="sidebar__count">0</span>
+                    <div class="sidebar__heading">
+                        <span data-i18n="agents" class="sidebar__title">AGENTS</span>
+                        <span id="agentCount" class="sidebar__count">0</span>
+                    </div>
+                    <button id="sidebarToggle" class="sidebar__toggle" type="button" aria-label="Collapse agent sidebar" aria-expanded="true" title="Collapse sidebar">&lt;</button>
                 </div>
-                <div id="agentList" class="sidebar__list">
-                    <!-- 에이전트 항목이 동적으로 추가됨 -->
+                <section id="attentionShelf" class="attention-shelf" aria-label="Agents needing you, reporting errors, or quota limited" hidden></section>
+                <div class="sidebar__body">
+                    <div id="agentList" class="sidebar__list">
+                        <!-- Agent items are added dynamically -->
+                    </div>
+                    <section class="sidebar__project-group sidebar__project-group--harbor" aria-label="Harbor">
+                        <div class="sidebar__project-header sidebar__harbor-header" title="Pending commits per repo/branch - best-effort git scan (newest 120 commits on each repo's current branch; repo-watch rows cover the last 7 days; repos without an active session in the last 6h may be missing)">
+                            <span class="sidebar__project-name">HARBOR</span>
+                            <span id="harborCount" class="sidebar__project-count">0</span>
+                        </div>
+                        <div id="harborList" class="sidebar__harbor-list">
+                            <div class="sidebar__harbor-empty">No pending commits</div>
+                        </div>
+                    </section>
                 </div>
             </aside>
 
-            <!-- 메인 콘텐츠 -->
+            <!-- Main content -->
             <div class="content">
-                <!-- 캐릭터 모드 -->
+                <!-- Character mode -->
                 <div id="characterMode" class="content__character">
                     <canvas id="worldCanvas" class="content__canvas"></canvas>
+                    <canvas id="worldFxCanvas" class="content__canvas" aria-hidden="true"></canvas>
+                    <canvas id="worldOverlayCanvas" class="content__canvas" aria-hidden="true"></canvas>
+                    <div id="worldEmpty" class="world-empty" role="status">
+                        <span class="world-empty__crest" aria-hidden="true">⌂</span>
+                        <span class="world-empty__title">NO ACTIVE AGENTS</span>
+                        <span class="world-empty__copy">Start a coding CLI session to see agents here</span>
+                        <dl class="world-empty__legend" hidden></dl>
+                    </div>
+                    <div id="worldGrammar" class="world-grammar" popover>
+                        <div class="world-grammar__header">
+                            <span>WORLD CONTROLS</span>
+                            <button class="world-grammar__close" type="button" popovertarget="worldGrammar" popovertargetaction="hide" aria-label="Close World controls">×</button>
+                        </div>
+                        <div class="world-grammar__body"><b>/ or Ctrl/Cmd+K</b> search agents · <b>↑/↓/Home/End</b> move · <b>Enter</b> select and follow · <b>Esc</b> clear search / close panel · <b>A</b> frame attention · <b>F</b> frame village · <b>drag / arrows</b> pan · <b>wheel / +/-</b> zoom · <b>R</b> replay</div>
+                        <div class="world-grammar__body"><b>Hold B / READ</b> reveal work labels; release to restore names.</div>
+                        <div class="world-grammar__body"><b>AMBIENT CAM</b> hands the camera to the working-village broadcast; any pan, zoom, key, or selection hands it straight back.</div>
+                    </div>
+                    <div id="worldSemanticSummary" class="world-semantic-summary" role="status" aria-live="polite"></div>
                 </div>
 
-                <!-- 대시보드 모드 -->
+                <!-- Dashboard mode -->
                 <div id="dashboardMode" class="content__dashboard" style="display: none;">
+                    <section id="dashboardAttentionQueue" class="dashboard-attention" aria-label="Cross-project attention queue" hidden></section>
                     <div id="dashboardGrid" class="dashboard__grid">
-                        <!-- 에이전트 카드가 동적으로 추가됨 -->
+                        <!-- Agent cards are added dynamically -->
                     </div>
                     <div id="dashboardEmpty" class="dashboard__empty">
                         <span class="dashboard__empty-icon">~</span>
-                        <span data-i18n="noActiveAgents" class="dashboard__empty-text">활성 에이전트 없음</span>
-                        <span data-i18n="noActiveAgentsSub" class="dashboard__empty-sub">Claude Code 세션을 시작하면 여기에 표시됩니다</span>
+                        <span data-i18n="noActiveAgents" class="dashboard__empty-text">NO ACTIVE AGENTS</span>
+                        <span data-i18n="noActiveAgentsSub" class="dashboard__empty-sub">Start a coding CLI session to see agents here</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 우측 실시간 활동 패널 -->
+            <!-- right-side live activity panel -->
             <aside id="activityPanel" class="activity-panel" style="display: none;">
                 <div class="activity-panel__header">
-                    <div class="activity-panel__agent-info">
+                    <div class="activity-panel__name-row">
                         <span id="panelAgentName" class="activity-panel__name"></span>
+                        <button id="panelClose" class="activity-panel__close" type="button" aria-label="Close activity panel">X</button>
+                    </div>
+                    <div class="activity-panel__agent-info">
                         <span id="panelAgentStatus" class="activity-panel__status"></span>
                     </div>
-                    <button id="panelClose" class="activity-panel__close">X</button>
                 </div>
                 <div class="activity-panel__meta">
                     <div class="activity-panel__meta-row">
-                        <span class="activity-panel__label" data-i18n="model">모델</span>
+                        <span class="activity-panel__label" data-i18n="model">MODEL</span>
                         <span id="panelModel" class="activity-panel__value"></span>
                     </div>
                     <div class="activity-panel__meta-row">
@@ -133,25 +202,41 @@
                         <span id="panelProvider" class="activity-panel__value"></span>
                     </div>
                     <div class="activity-panel__meta-row">
-                        <span class="activity-panel__label" data-i18n="role">역할</span>
+                        <span class="activity-panel__label" data-i18n="role">ROLE</span>
                         <span id="panelRole" class="activity-panel__value"></span>
                     </div>
                     <div class="activity-panel__meta-row">
-                        <span class="activity-panel__label" data-i18n="team">팀</span>
+                        <span class="activity-panel__label">EFFORT</span>
+                        <span id="panelLevel" class="activity-panel__value"></span>
+                    </div>
+                    <div class="activity-panel__meta-row">
+                        <span class="activity-panel__label" data-i18n="team">TEAM</span>
                         <span id="panelTeam" class="activity-panel__value"></span>
                     </div>
+                    <div id="panelMoodRow" class="activity-panel__meta-row">
+                        <span class="activity-panel__label">Mood</span>
+                        <span id="panelMood" class="activity-panel__value">-</span>
+                    </div>
+                    <div class="activity-panel__meta-row">
+                        <span class="activity-panel__label">Last active</span>
+                        <span id="panelLastActive" class="activity-panel__value">-</span>
+                    </div>
+                    <div class="activity-panel__meta-row" id="panelModeRow" style="display: none;">
+                        <span class="activity-panel__label">Mode</span>
+                        <span id="panelMode" class="activity-panel__value"></span>
+                    </div>
                 </div>
-                <div class="activity-panel__section">
-                    <div class="activity-panel__section-title">Token Usage</div>
+                <div class="activity-panel__section" data-section="cost-tokens">
+                    <div class="activity-panel__section-title">Cost &amp; Tokens</div>
                     <div id="panelTokenUsage" class="activity-panel__token-usage">
                         <div class="activity-panel__token-row">
                             <span class="activity-panel__token-label">Context</span>
                             <span id="panelContextSize" class="activity-panel__token-value">-</span>
                         </div>
                         <div class="activity-panel__context-bar-wrap">
-                            <div id="panelContextBar" class="activity-panel__context-bar" style="width: 0%"></div>
+                            <div id="panelContextBar" class="activity-panel__context-bar"></div>
                         </div>
-                        <div class="activity-panel__token-grid">
+                        <div id="panelTokenGrid" class="activity-panel__token-grid">
                             <div class="activity-panel__token-cell">
                                 <span class="activity-panel__token-cell-label">Input</span>
                                 <span id="panelInputTokens" class="activity-panel__token-cell-value">0</span>
@@ -165,17 +250,26 @@
                                 <span id="panelCacheRead" class="activity-panel__token-cell-value">0</span>
                             </div>
                             <div class="activity-panel__token-cell">
+                                <span class="activity-panel__token-cell-label">Cache Write</span>
+                                <span id="panelCacheCreate" class="activity-panel__token-cell-value">0</span>
+                            </div>
+                            <div class="activity-panel__token-cell">
+                                <span class="activity-panel__token-cell-label">Total</span>
+                                <span id="panelCacheHit" class="activity-panel__token-cell-value">-</span>
+                            </div>
+                            <div class="activity-panel__token-cell">
                                 <span class="activity-panel__token-cell-label">Turns</span>
                                 <span id="panelTurnCount" class="activity-panel__token-cell-value">0</span>
                             </div>
                         </div>
-                        <div class="activity-panel__token-row">
-                            <span class="activity-panel__token-label">Est. Cost</span>
+                        <div id="panelNoUsage" class="activity-panel__no-usage" hidden>No usage data</div>
+                        <div id="panelCostRow" class="activity-panel__token-row">
+                            <span id="panelCostLabel" class="activity-panel__token-label">Cost</span>
                             <span id="panelEstCost" class="activity-panel__token-value activity-panel__token-value--cost">$0.00</span>
                         </div>
                     </div>
                 </div>
-                <div class="activity-panel__section">
+                <div class="activity-panel__section" data-section="current-tool">
                     <div class="activity-panel__section-title">Current Tool</div>
                     <div id="panelCurrentTool" class="activity-panel__current-tool">
                         <span class="activity-panel__tool-icon"></span>
@@ -185,11 +279,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="activity-panel__section activity-panel__section--grow">
+                <div class="activity-panel__section activity-panel__section--grow" data-section="tool-history">
                     <div class="activity-panel__section-title">Tool History</div>
                     <div id="panelToolHistory" class="activity-panel__tool-history"></div>
                 </div>
-                <div class="activity-panel__section">
+                <div class="activity-panel__section" data-section="messages">
                     <div class="activity-panel__section-title">Messages</div>
                     <div id="panelMessages" class="activity-panel__messages"></div>
                 </div>
@@ -197,19 +291,19 @@
         </div>
     </div>
 
-    <!-- 모달 컨테이너 -->
-    <div id="modalOverlay" class="modal-overlay" style="display: none;">
-        <div class="modal">
+    <!-- Modal container -->
+    <div id="modalOverlay" class="modal-overlay" style="display: none;" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal__header">
                 <span id="modalTitle" class="modal__title"></span>
-                <button id="modalClose" class="modal__close">X</button>
+                <button id="modalClose" class="modal__close" type="button" aria-label="Close dialog">X</button>
             </div>
             <div id="modalContent" class="modal__content"></div>
         </div>
     </div>
 
-    <!-- 토스트 컨테이너 -->
-    <div id="toastContainer" class="toast-container"></div>
+    <!-- Toast container -->
+    <div id="toastContainer" class="toast-container" role="status" aria-live="polite" aria-relevant="additions text"></div>
 
     <script type="module" src="src/presentation/App.js"></script>
 </body>

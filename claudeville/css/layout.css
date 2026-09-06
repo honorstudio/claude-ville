@@ -30,6 +30,10 @@ body {
     flex: 1;
     min-height: 0;
     position: relative;
+    background:
+        radial-gradient(circle at 44% 42%, rgba(245, 171, 75, 0.16), transparent 28%),
+        radial-gradient(circle at 70% 18%, rgba(88, 129, 76, 0.12), transparent 30%),
+        linear-gradient(180deg, rgba(9, 10, 12, 0.98), rgba(20, 15, 12, 1));
 }
 
 .content__canvas {
@@ -43,24 +47,143 @@ body {
     cursor: grabbing;
 }
 
-.content__minimap {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    border: 2px solid rgba(232, 212, 77, 0.3);
-    background: rgba(10, 10, 15, 0.85);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.content__minimap canvas {
-    display: block;
-}
-
 .content__dashboard {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     padding: 16px;
     box-sizing: border-box;
+    /* 1.8 — ambient tint/hearth are stamped per local-clock phase from
+       DashboardRenderer (minute-scale, static); fallbacks read as day.
+       4.5 — the hearth layer anchors the grid bottom so tall viewports never
+       end in a void; it also warms the empty state. */
+    background:
+        linear-gradient(180deg, var(--cv-ambient-tint, rgba(255, 226, 138, 0.02)), var(--cv-ambient-tint, rgba(255, 226, 138, 0.02))),
+        radial-gradient(ellipse 62% 42% at 50% 100%, var(--cv-ambient-hearth, rgba(245, 171, 75, 0.13)), transparent 70%),
+        radial-gradient(circle at 18% 12%, rgba(210, 143, 69, 0.18), transparent 28%),
+        radial-gradient(circle at 80% 18%, rgba(62, 94, 61, 0.14), transparent 30%),
+        linear-gradient(180deg, rgba(17, 12, 10, 0.96), rgba(8, 7, 7, 1));
+}
+
+/* 4.6 — dashboard house palette. Scoped to the dashboard surface (rather than
+   reset.css) so the shared token file stays untouched; rgb-triplet form keeps
+   each alpha at its call site. */
+#dashboardMode {
+    --cv-dash-glint-rgb: 255, 226, 138;
+    --cv-dash-rim-rgb: 214, 169, 81;
+    --cv-dash-rim-dim-rgb: 199, 157, 76;
+    --cv-dash-amber: #f5b54b;
+    --cv-dash-gilt: #f4d983;
+    --cv-dash-tan-warm: #d8b77a;
+    --cv-dash-tool-name: #f5df8a;
+    --cv-dash-detail: #a08a68;
+    --cv-dash-error-text: #e08f8f;
+    --cv-dash-ink: #2d1a12;
+}
+
+/* 4.9 — mode switch: brief fade on the incoming container. Static cut under
+   reduced motion; the world loop already stops, so this costs one compositor
+   pass, nothing per-frame. */
+@keyframes cv-mode-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.content__mode--enter {
+    animation: cv-mode-fade-in 180ms ease-out;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.boot-status-wrap[hidden] {
+    display: none !important;
+}
+
+/* Toasts can render during boot, before the deferred modal stylesheet loads. */
+.toast-container {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+    transition: right 0.16s ease;
+}
+
+body.cv-panel-open .toast-container {
+    right: 336px;
+}
+
+.toast {
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: var(--font-body);
+    border: 1px solid var(--cv-border);
+    background: linear-gradient(180deg, rgba(66, 43, 25, 0.97), rgba(18, 12, 11, 0.97));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.08),
+        0 4px 14px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    animation: toast-in 0.3s ease;
+    max-width: 320px;
+    line-height: 1.6;
+}
+
+.toast--info {
+    color: var(--cv-status-idle);
+    border-color: color-mix(in srgb, var(--cv-status-idle) 40%, transparent);
+}
+
+.toast--success {
+    color: var(--cv-status-working);
+    border-color: color-mix(in srgb, var(--cv-status-working) 40%, transparent);
+}
+
+.toast--warning {
+    color: var(--cv-status-waiting);
+    border-color: color-mix(in srgb, var(--cv-status-waiting) 40%, transparent);
+}
+
+.toast--error {
+    color: var(--cv-status-errored);
+    border-color: color-mix(in srgb, var(--cv-status-errored) 45%, transparent);
+}
+
+.toast--fadeout {
+    animation: toast-out 0.3s ease forwards;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(20px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .content__mode--enter,
+    .toast,
+    .toast--fadeout {
+        animation: none;
+    }
+
+    .toast-container {
+        transition: none;
+    }
 }

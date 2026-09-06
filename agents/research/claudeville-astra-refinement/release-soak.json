@@ -1,0 +1,129 @@
+{
+  "version": "0.42.0",
+  "ok": true,
+  "date": "2026-09-05",
+  "durations": {
+    "browserSeconds": 600,
+    "serverSeconds": 1800,
+    "warmupSeconds": 120,
+    "intervalSeconds": 60
+  },
+  "provenance": {
+    "serverPid": 93631,
+    "browserServerPid": 19641,
+    "note": "Thirty-minute server trace validated independently with the maintained assertServerPlateau. The final ten-minute browser run used another fresh process with identical backend code and the final frontend. Earlier browser traces exposed motion-query retention, finished image callbacks and transient-I/O audit errors; they are not claimed as passes."
+  },
+  "server": {
+    "checkpoints": 31,
+    "slopes": {
+      "steady": {
+        "bytesPerMinute": -4358628,
+        "projectedGrowthBytes": 0,
+        "windowSeconds": 1680
+      },
+      "trailing": {
+        "bytesPerMinute": -13238857,
+        "projectedGrowthBytes": 0,
+        "windowSeconds": 840
+      }
+    },
+    "rssFirstSteady": 481132544,
+    "rssLast": 316506112,
+    "eventLoopP95MaxMs": 24.527,
+    "wsInitMaxMs": 433
+  },
+  "browser": {
+    "heapFirst": 22853844,
+    "heapLast": 26170016,
+    "heapMin": 22853844,
+    "heapMax": 29267297,
+    "listeners": 145,
+    "eventBusListeners": 138,
+    "lightFadeColors": 231,
+    "harborSeenEvents": 5,
+    "trails": {
+      "totalSamples": 1613,
+      "maxPerAgentSamples": 237,
+      "pendingSamples": 93,
+      "hydratedSamples": 0,
+      "duplicateDrops": 4343,
+      "repaintCount": 0,
+      "repaintTimeMs": 0,
+      "highWaterSamples": 1613,
+      "highWaterCachePixels": 0
+    },
+    "frameP95Ms": [
+      66.6,
+      66.7,
+      41.7,
+      41.7,
+      41.7,
+      50.1,
+      42.6,
+      34,
+      50.1,
+      41.7,
+      41.9
+    ],
+    "checkpoints": 11,
+    "slopes": {
+      "steady": {
+        "bytesPerMinute": 199059,
+        "projectedGrowthBytes": 1592473,
+        "windowSeconds": 480
+      },
+      "trailing": {
+        "bytesPerMinute": 451474,
+        "projectedGrowthBytes": 1805894,
+        "windowSeconds": 240
+      }
+    },
+    "worldSuspendResume": {
+      "beforePixels": 1286560,
+      "suspendedPixels": 0,
+      "resumedPixels": 1286560,
+      "suspendedAssetPixels": 0,
+      "resumedAssetPixels": 4238432,
+      "suspendedCompositorPixels": 0,
+      "resumedCompositorPixels": 4739840
+    },
+    "retainedListeners": [
+      {
+        "seconds": 120,
+        "count": 145
+      },
+      {
+        "seconds": 180,
+        "count": 145
+      },
+      {
+        "seconds": 240,
+        "count": 151
+      },
+      {
+        "seconds": 300,
+        "count": 145
+      },
+      {
+        "seconds": 360,
+        "count": 145
+      },
+      {
+        "seconds": 420,
+        "count": 145
+      },
+      {
+        "seconds": 480,
+        "count": 145
+      },
+      {
+        "seconds": 540,
+        "count": 145
+      },
+      {
+        "seconds": 600,
+        "count": 145
+      }
+    ]
+  }
+}

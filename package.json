@@ -1,10 +1,85 @@
 {
   "name": "claude-ville",
-  "version": "0.1.0",
+  "version": "0.45.0",
+  "description": "Local-first dashboard for watching Claude Code, Codex CLI, Gemini, Grok, Kimi, and OpenCode sessions as an isometric pixel village and monitoring dashboard.",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TokenBrice/claude-ville.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TokenBrice/claude-ville/issues"
+  },
+  "homepage": "https://github.com/TokenBrice/claude-ville#readme",
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "codex-cli",
+    "gemini-cli",
+    "grok-cli",
+    "opencode",
+    "local-first",
+    "dashboard",
+    "observability",
+    "pixel-art",
+    "websocket",
+    "vanilla-js"
+  ],
+  "engines": {
+    "node": ">=22.7.0"
+  },
   "scripts": {
     "dev": "node claudeville/server.js",
-    "widget:build": "cd widget && bash build.sh",
-    "widget": "open widget/ClaudeVilleWidget.app"
+    "check:server": "node --check claudeville/server.js",
+    "check:adapters": "node scripts/check-syntax.cjs claudeville/adapters",
+    "check:services": "node scripts/check-syntax.cjs claudeville/services",
+    "check:frontend-syntax": "node scripts/check-syntax.cjs claudeville/src",
+    "check:scripts": "node scripts/check-syntax.cjs scripts",
+    "check:git-events": "node scripts/check-git-events.cjs",
+    "check:adapter-fixtures": "node scripts/adapters/validate-fixtures.cjs",
+    "check:theme-tokens": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke/theme-tokens.mjs",
+    "test:unit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"scripts/tests/*.test.mjs\"",
+    "test:integration": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"scripts/tests/integration/*.test.mjs\"",
+    "test:e2e:replay": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/smoke/r1-18.e2e-replay.mjs",
+    "check:artifacts": "node scripts/agents/check-artifacts.mjs",
+    "validate:quick": "npm run models:check && npm run verify:architecture && npm run check:server && npm run check:adapters && npm run check:services && npm run check:frontend-syntax && npm run check:scripts && npm run check:git-events && npm run check:adapter-fixtures && npm run check:theme-tokens && npm run check:artifacts && npm run test:unit && npm run sprites:audit-ids",
+    "validate:full": "npm run validate:quick && npm run test:integration && npm run verify:server && npm run world:validate-buildings && npm run world:validate-terrain && npm run sprites:validate",
+    "gate:release": "npm run release:verify && npm run validate:quick && npm run test:integration && npm run verify:server",
+    "release:check": "node scripts/release/prepare.mjs",
+    "release:prepare": "node scripts/release/prepare.mjs",
+    "release:verify": "node scripts/release/prepare.mjs --verify",
+    "models:generate": "node scripts/models/generate.mjs",
+    "models:check": "node scripts/models/generate.mjs --check",
+    "models:resolve": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/models/resolve.mjs",
+    "verify:architecture": "node scripts/smoke/architecture.mjs",
+    "verify:server": "NODE_NO_WARNINGS=1 node scripts/smoke/boot-contract.mjs && NODE_NO_WARNINGS=1 node scripts/smoke/server-security.mjs && NODE_NO_WARNINGS=1 node scripts/smoke/server-fatal.mjs",
+    "verify:render": "NODE_NO_WARNINGS=1 node scripts/smoke/render-smoke.mjs",
+    "sprites:audit-ids": "node scripts/sprites/manifest-id-audit.mjs",
+    "sprites:audit-refresh": "sh -c 'npm run sprites:audit-ids; ids=$?; npm run sprites:validate; manifest=$?; node scripts/sprites/author-roster-channels.mjs --check; roster=$?; npm run sprites:channels-validate; channels=$?; exit $((ids || manifest || roster || channels))'",
+    "sprites:plan": "node scripts/sprites/plan.mjs",
+    "sprites:validate": "NODE_NO_WARNINGS=1 node scripts/sprites/manifest-validator.mjs",
+    "sprites:atlas-plan": "NODE_NO_WARNINGS=1 node scripts/sprites/atlas-plan.mjs",
+    "sprites:atlas-bake": "NODE_NO_WARNINGS=1 node scripts/sprites/atlas-bake.mjs",
+    "sprites:channels-validate": "NODE_NO_WARNINGS=1 node scripts/sprites/channel-validate.mjs",
+    "sprites:channels-contact-sheet": "NODE_NO_WARNINGS=1 node scripts/sprites/channel-contact-sheet.mjs",
+    "sprites:sidecar-mask-fix": "NODE_NO_WARNINGS=1 node scripts/sprites/sidecar-mask-fix.mjs",
+    "sprites:generate-grok": "node scripts/sprites/generate-grok-procedural.mjs",
+    "sprites:visual-diff": "node scripts/sprites/visual-diff.mjs",
+    "sprites:capture-baseline": "node scripts/sprites/capture-baseline.mjs",
+    "sprites:capture-fresh": "node scripts/sprites/capture-baseline.mjs --fresh",
+    "world:validate-buildings": "node scripts/world/validate-buildings.mjs",
+    "world:validate-terrain": "node scripts/world/validate-terrain.mjs",
+    "world:capture-render-baselines": "node scripts/world/capture-render-baselines.mjs",
+    "world:verify-dpr": "NODE_NO_WARNINGS=1 node scripts/world/verify-dpr-fix.mjs",
+    "world:benchmark-trails": "node scripts/smoke/trail-camera-benchmark.mjs",
+    "world:benchmark-fps": "node scripts/smoke/world-fps-benchmark.mjs --profile",
+    "vendor:refresh-js-yaml": "node scripts/vendor/refresh-js-yaml.mjs"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.3.1",
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.59.1",
+    "pngjs": "^7.0.0"
   }
 }

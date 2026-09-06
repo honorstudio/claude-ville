@@ -1,0 +1,54 @@
+name: Bug Report
+description: Report a reproducible ClaudeVille bug.
+title: "[Bug] "
+labels: ["bug", "status:needs-repro"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include provider logs, tokens, private paths, or screenshots with secrets.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - World mode
+        - Dashboard mode
+        - Sidebar or activity panel
+        - Server or API
+        - Provider adapter
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Run `npm run dev`\n2. Open `http://localhost:4000`\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the operating system, Node version, and installed providers.
+      placeholder: "OS: ...; Node: ...; Providers installed: ..."
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Redacted logs, screenshots, or extra context
+      description: Include browser console output or screenshots when useful, but redact private content.

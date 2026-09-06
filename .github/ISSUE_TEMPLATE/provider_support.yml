@@ -1,0 +1,54 @@
+name: Provider Support Or Parsing Issue
+description: Report a supported AI coding CLI provider detection or parsing problem.
+title: "[Provider] "
+labels: ["bug", "area:provider", "status:needs-fixture"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Redact provider logs before posting. Do not include tokens, private prompts, private paths, or full transcripts.
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Claude Code
+        - Codex CLI
+        - Gemini CLI
+        - Grok
+        - Kimi
+        - OMP
+        - OpenCode
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-node
+    attributes:
+      label: OS and Node version
+      placeholder: macOS 15, Node 22.14.0
+    validations:
+      required: true
+  - type: textarea
+    id: provider-state
+    attributes:
+      label: Provider path state
+      description: Say whether the expected provider home/session path exists. Redact usernames if needed.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What ClaudeVille shows
+      description: Include `/api/providers` or `/api/sessions` snippets only after redaction.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected ClaudeVille to show
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Minimal redacted fixture or shape
+      description: A small redacted event shape helps fix parser bugs faster.

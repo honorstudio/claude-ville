@@ -1,0 +1,6 @@
+# Project-scoped MCP: pixellab is only used by the -ville repos. Moved here from
+# the global ~/.codex/config.toml so its ~40 tool schemas stop loading into every
+# Codex session in every repo.
+[mcp_servers.pixellab]
+url = "https://api.pixellab.ai/mcp"
+bearer_token_env_var = "PIXELLAB_TOKEN"

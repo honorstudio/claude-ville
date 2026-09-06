@@ -1,0 +1,334 @@
+{
+  "errors": [],
+  "selected": "codex-dense-01",
+  "mode": "compact",
+  "crowd": {
+    "agentCount": 24,
+    "visibleAgents": 24,
+    "movingAgents": 5,
+    "clusterCellSize": 4,
+    "minClusterSize": 3,
+    "denseClusterCount": 4,
+    "maxClusterSize": 5,
+    "congestedAgents": 15,
+    "clusters": [
+      {
+        "id": "6,7",
+        "tileX": 25.4,
+        "tileY": 30,
+        "count": 5,
+        "moving": 0,
+        "dominantStatus": "working",
+        "statuses": {
+          "waiting_on_user": 1,
+          "working": 4
+        },
+        "dominantProvider": "claude",
+        "teamCount": 2
+      },
+      {
+        "id": "1,6",
+        "tileX": 7.044111286306574,
+        "tileY": 26.179928779969856,
+        "count": 4,
+        "moving": 4,
+        "dominantStatus": "idle",
+        "statuses": {
+          "idle": 4
+        },
+        "dominantProvider": "claude",
+        "teamCount": 2
+      },
+      {
+        "id": "3,5",
+        "tileX": 14,
+        "tileY": 21.666666666666668,
+        "count": 3,
+        "moving": 0,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 3
+        },
+        "dominantProvider": "codex",
+        "teamCount": 1
+      },
+      {
+        "id": "7,7",
+        "tileX": 29.333333333333332,
+        "tileY": 30,
+        "count": 3,
+        "moving": 0,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 3
+        },
+        "dominantProvider": "codex",
+        "teamCount": 2
+      }
+    ]
+  },
+  "gpu": {
+    "supported": true,
+    "active": true,
+    "contextHealthy": true,
+    "suspended": false,
+    "width": 880,
+    "height": 846,
+    "frames": 711,
+    "records": 179,
+    "batches": 140,
+    "lights": 0,
+    "localLightPhase": 0,
+    "uploads": 2673,
+    "uploadBytes": 3008736316,
+    "uploadMs": 1.0406355875532682,
+    "cpuMs": 1.4695010948977045,
+    "shaderCpuMs": 0.42886550734443635,
+    "gpuMs": null,
+    "gpuTimerSupported": false,
+    "gpuTimerExtension": null,
+    "gpuTimerPendingQueries": 0,
+    "gpuTimerErrors": 0,
+    "qualityTimingSource": "cpu-fallback",
+    "frameGapMs": 27.63022396988256,
+    "textureBytes": 118449940,
+    "residentTextureBytes": 118449940,
+    "cachedTextureBytes": 111238780,
+    "cachedTextureCapBytes": 50331648,
+    "cachedTextureCapExceeded": true,
+    "cachedTextures": 76,
+    "textureEvictions": 14,
+    "maxCachedTextureBytes": 50331648,
+    "maxCachedTextures": 512,
+    "materialAttachments": 2,
+    "occlusionScale": 0.375,
+    "bloomScale": 0.375,
+    "qualityLevel": 0,
+    "qualityReason": "within-budget",
+    "qualityDegradationReason": null,
+    "qualityTransitionAtMs": 4492.399999991059,
+    "qualityTransitionMetrics": {
+      "score": 1.2999999970197678,
+      "driver": "uploadMs",
+      "uploadMs": 1,
+      "auxUploadMs": 0,
+      "setupCpuMs": 0,
+      "shaderCpuMs": 0.29999999701976776,
+      "gpuMs": 0,
+      "frameGapPenaltyMs": 0
+    },
+    "resources": {
+      "textures": {
+        "cachedSources": 111238780
+      },
+      "attachments": {
+        "sceneColor": 2977920,
+        "sceneEmission": 2977920,
+        "bloomA": 418440,
+        "bloomB": 418440,
+        "occlusion": 418440
+      },
+      "buffers": {
+        "vertices": 75168
+      }
+    },
+    "atlasRecords": 16,
+    "individualRecords": 163,
+    "sourceBatchCount": 140,
+    "sourceUploadBytes": 3003563196
+  },
+  "census": [
+    {
+      "id": "codex-dense-01",
+      "status": "idle",
+      "selected": true,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 231.00000000000003
+    },
+    {
+      "id": "claude-dense-02",
+      "status": "waiting_on_user",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 151.8
+    },
+    {
+      "id": "claude-dense-03",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 39.63076923076923
+    },
+    {
+      "id": "codex-dense-04",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 71.27272727272727
+    },
+    {
+      "id": "claude-dense-05",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 39.63076923076923
+    },
+    {
+      "id": "claude-dense-06",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 40.25
+    },
+    {
+      "id": "codex-dense-07",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 72.5925925925926
+    },
+    {
+      "id": "claude-dense-08",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 41.54838709677419
+    },
+    {
+      "id": "claude-dense-09",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1,
+      "bodyHeight": 40.888888888888886
+    },
+    {
+      "id": "codex-dense-10",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 71.27272727272727
+    },
+    {
+      "id": "claude-dense-11",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 42.22950819672131
+    },
+    {
+      "id": "claude-dense-12",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 40.888888888888886
+    },
+    {
+      "id": "codex-dense-13",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 75.38461538461539
+    },
+    {
+      "id": "claude-dense-14",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 41.54838709677419
+    },
+    {
+      "id": "claude-dense-15",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1,
+      "bodyHeight": 41.54838709677419
+    },
+    {
+      "id": "codex-dense-16",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 3,
+      "bodyHeight": 71.27272727272727
+    },
+    {
+      "id": "claude-dense-17",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 41.54838709677419
+    },
+    {
+      "id": "claude-dense-18",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 41.54838709677419
+    },
+    {
+      "id": "codex-dense-19",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 72.5925925925926
+    },
+    {
+      "id": "claude-dense-20",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 40.888888888888886
+    },
+    {
+      "id": "claude-dense-21",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 1,
+      "bodyHeight": 42.22950819672131
+    },
+    {
+      "id": "codex-dense-22",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 71.27272727272727
+    },
+    {
+      "id": "claude-dense-23",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 39.03030303030303
+    },
+    {
+      "id": "claude-dense-24",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0,
+      "bodyHeight": 41.54838709677419
+    }
+  ]
+}

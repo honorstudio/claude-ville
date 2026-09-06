@@ -1,0 +1,6 @@
+{"type":"session_meta","payload":{"id":"item-completed","cwd":"__PROJECT__","model":"gpt-5.6-sol"}}
+{"type":"turn_context","payload":{"cwd":"__PROJECT__","model":"gpt-5.6-sol","effort":"medium","approval_policy":"never-ask"}}
+{"timestamp":"__FIVE_MINUTES_AGO__","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"__FOUR_MINUTES_AGO__","type":"event_msg","payload":{"type":"item_completed","started_at_ms":__FOUR_MINUTES_AGO_MS__,"completed_at_ms":__FOUR_MINUTES_AGO_MS__,"item":{"type":"FileChange","id":"file-change-old","changes":{"__PROJECT__/src/older.js":{"type":"update","content":"redacted"}},"status":"completed"}}}
+{"timestamp":"__THREE_MINUTES_AGO__","type":"event_msg","payload":{"type":"item_completed","started_at_ms":__THREE_MINUTES_AGO_MS__,"completed_at_ms":__THREE_MINUTES_AGO_MS__,"item":{"type":"FileChange","id":"file-change-new","changes":{"__PROJECT__/src/newer.js":{"type":"add","content":"redacted"},"__PROJECT__/src/older.js":{"type":"update","content":"redacted"}},"status":"completed"}}}
+{"timestamp":"__NOW__","type":"event_msg","payload":{"type":"item_completed","started_at_ms":__COMMAND_STARTED_MS__,"completed_at_ms":__NOW_MS__,"item":{"type":"CommandExecution","id":"command-failed","command":"npm test","cwd":"__PROJECT__","status":"failed","stderr":"fixture failure","exit_code":1,"duration":{"secs":1,"nanos":500000000}}}}

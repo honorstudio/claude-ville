@@ -1,0 +1,26 @@
+name: Documentation Issue
+description: Report stale, missing, or confusing documentation.
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Affected page or file
+      placeholder: README.md, docs/troubleshooting.md, docs/design-decisions.md
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or unclear
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context

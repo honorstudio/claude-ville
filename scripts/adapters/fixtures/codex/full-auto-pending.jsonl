@@ -1,0 +1,4 @@
+{"type":"session_meta","payload":{"id":"full-auto-pending","cwd":"__PROJECT__","model":"gpt-5.6-sol"}}
+{"type":"turn_context","payload":{"cwd":"__PROJECT__","model":"gpt-5.6-sol","effort":"high","approval_policy":"full-auto"}}
+{"timestamp":"__FIVE_MINUTES_AGO__","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"__FIVE_MINUTES_AGO__","type":"response_item","payload":{"type":"function_call","name":"Bash","call_id":"call-full-auto-bash","arguments":"{\"command\":\"npm test\"}"}}

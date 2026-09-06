@@ -1,51 +1,53 @@
-# ClaudeVille - 프로젝트 규칙
+# ClaudeVille Agent Notes
 
-## 레이아웃 구조 (중요)
+## Scope and Shape
 
-```
-body (flex column, height 100vh)
-  header.topbar            ← 48px 고정 높이, flex-shrink: 0
-  div.main                 ← flex: 1, flex-direction: column
-    div.main__body         ← flex: 1, display: flex (가로 배치)
-      aside.sidebar        ← width: 240px, flex-shrink: 0
-      div.content          ← flex: 1 (캐릭터/대시보드 모드)
-      aside#activityPanel  ← width: 320px (에이전트 선택 시 표시, 기본 숨김)
-```
+Work from the repository root. This shared checkout may be edited by multiple agents: run `git status --short` before changes, preserve unrelated edits, and follow the root [`AGENTS.md`](../AGENTS.md).
 
-### 주의사항
-- **절대 `position: fixed`로 UI 요소를 배치하지 말 것** (모달, 토스트 제외)
-- 새 패널 추가 시 반드시 flex 레이아웃 안에서 배치해야 함
-- activityPanel(320px)이 열리면 content 영역이 줄어드므로 반응형 고려 필요
-- 대시보드 모드는 `overflow-y: auto`로 스크롤, 캐릭터 모드는 캔버스가 남은 영역을 채움
+ClaudeVille is static HTML/CSS with vanilla ES modules. `server.js` uses Node built-ins only; there is no build step, bundler, transpiler, framework, or runtime dependency. The desktop-only UI targets viewports at least 1280px wide. Start the maintained server with `npm run dev`; do not change its port casually.
 
-## 기술 스택
-- 순수 HTML/CSS/JS (프레임워크 없음)
-- ES Modules (import/export)
-- Node.js 서버 (server.js) - HTTP + WebSocket (RFC 6455 직접 구현)
-- Canvas 2D API로 아이소메트릭 렌더링
-- 어댑터 패턴으로 멀티 프로바이더 지원 (adapters/ 디렉토리)
-- **서버 포트: 4000** (3000 아님! 변경하지 말 것)
+## Server
 
-## 데이터 소스 (멀티 프로바이더)
-- **Claude Code**: `~/.claude/` (history.jsonl, projects/, teams/, tasks/)
-- **Codex CLI**: `~/.codex/sessions/` (rollout-*.jsonl)
-- **Gemini CLI**: `~/.gemini/tmp/` (session-*.json)
-- 각 어댑터는 `adapters/claude.js`, `adapters/codex.js`, `adapters/gemini.js`에 구현
-- `adapters/index.js`가 레지스트리 역할, 설치된 CLI만 자동 감지
+`server.js` binds `127.0.0.1:4000`. Local Host and same-origin checks guard HTTP and WebSocket access. Static files come from `claudeville/`; watch paths come from active provider adapters. Filesystem updates debounce alongside a two-second poll, and broadcasts no-op when there are no WebSocket clients.
 
-## 모드
-- **WORLD**: 아이소메트릭 픽셀 월드에서 에이전트가 캐릭터로 돌아다님
-- **DASHBOARD**: 에이전트별 카드 형태로 도구 사용/활동 실시간 모니터링
+Main surfaces are `/api/sessions`, `/api/session-detail`, `POST /api/session-details`, `POST /api/ingest/hook`, `/api/teams`, `/api/tasks`, `/api/providers`, `/api/usage`, `/api/perf`, `/api/changelog`, and `/ws`. The app fetches `/api/providers` during boot. `/api/tasks` and `/api/perf` are diagnostic/external-integration surfaces; the product UI does not consume `/api/tasks`.
 
-## 주요 기능
-- **카메라 팔로우**: 에이전트 클릭 시 카메라가 lerp으로 부드럽게 따라감 (드래그 시 해제)
-- **실시간 활동 패널**: 우측 320px 패널에서 도구 히스토리, 메시지, 토큰 사용량 2초 폴링
-- **토큰 사용량**: 컨텍스트 프로그레스 바 + input/output/cache/turns + 예상 비용
-- **대화 애니메이션**: SendMessage 사용 시 캐릭터가 상대에게 걸어가서 말풍선 표시
-- **세션 감지**: history.jsonl + subagents/ + 프로젝트 디렉토리 직접 스캔 (고아 세션 포함)
+Client session collection runs through `collectSessionsForClients()`, which folds unresolved `tool_pending` residents from `services/sessionResidency.js` into the live list. Completed turns use the shorter departed-villager grace. Discovery, canonical active projects, and watch topology remain on the raw `ACTIVE_THRESHOLD_MS` window so residency never widens the watcher footprint.
 
-## 이벤트 흐름
-- `agent:selected` → ActivityPanel 열기 + 카메라 팔로우 시작
-- `agent:deselected` → ActivityPanel 닫기 + 카메라 팔로우 해제
-- `agent:updated` → 스프라이트/패널 실시간 갱신
-- `agent:added` / `agent:removed` → 스프라이트 생성/제거
+Cadence constants live in `src/config/constants.js`, `server.js`, `adapters/index.js`, and `adapters/gitEvents.js`. The client fallback poll is two seconds, server session-list cache TTL is 2000 ms, and WebSocket heartbeat is 30 seconds. Never lower the client poll below half the server cache TTL.
+
+Hook ingestion payload schema and opt-in Claude Code dogfood instructions: see [`docs/troubleshooting.md#permission-prompts-are-inferred-or-arrive-late`](../docs/troubleshooting.md#permission-prompts-are-inferred-or-arrive-late).
+
+## Provider Adapters
+
+Adapters are read-only inputs registered by `adapters/index.js`. Availability is automatic, empty output is not necessarily an error, and adapter failures may use short stale caches. The normalized contract, provider source paths, watch behavior, token semantics, and per-provider fixtures live in [`adapters/README.md`](adapters/README.md).
+
+## Model Registry
+
+`src/config/models.json` is the source of truth for model identity, pricing, context window, and mood. `npm run models:generate` emits `models.generated.js` and `models.generated.cjs`; never edit either generated file. Rendering policy stays in `src/presentation/shared/ModelVisualIdentity.js`, keyed by `modelClass`. Use `npm run models:resolve -- <provider> <model>` to inspect a match and [`.claude/skills/add-model/SKILL.md`](../.claude/skills/add-model/SKILL.md) for the contributor workflow.
+
+## Frontend Ownership
+
+`src/presentation/App.js` owns startup. UI and documentation copy are English-only. Mode-specific behavior belongs with its nearest owner:
+
+- [World renderer and selection lifecycle](src/presentation/character-mode/README.md)
+- [Dashboard cards, lifecycle, and detail polling](src/presentation/dashboard-mode/README.md)
+- [Shared chrome, Activity Panel, selection, and detail cache](src/presentation/shared/README.md)
+
+The World canvas is pixel-art Canvas 2D. `Camera.js` uses integer zoom steps `{1,2,3}`; `SpriteRenderer.js` is the only sprite-blit entry point and disables smoothing. Motion-bearing changes must follow [`docs/motion-budget.md`](../docs/motion-budget.md).
+
+The World's explicit operator instruments — READ (hold `B`), the `A` attention frame, AMBIENT CAM, and the panel's SCORE control — plus the frontier contracts (observation certainty, action strips, effect receipts, the inspection aperture, the shape grammar, Ambient ownership) are documented in [the World mode README](src/presentation/character-mode/README.md). Their pure models (`ObservationCertainty`, `BuildingApertureModel`, `BuildingInstrumentModel`, `WorkWaterfallModel`, `AttentionFraming`) are the single derivation of each fact; do not re-derive those fields inside components.
+
+## Sprite Generation
+
+`assets/sprites/manifest.yaml` is the sprite source of truth: every runtime sprite must have a manifest entry, every PNG must live at its manifest-implied path, character `generationSize` is distinct from the 92px engine cell, palette mirrors must remain identical, and `style.assetVersion` changes only when PNG bytes change. Optional per-character action strips are separate PNGs beside the sheet with named groups (`read`), generated through `scripts/sprites/generate-action-strip.mjs`; the base sheet is never widened and characters without a strip keep the procedural overlay. Follow [`scripts/sprites/generate.md`](../scripts/sprites/generate.md), including its canonical “Add One Character” procedure and validation commands.
+
+## Event Bus
+
+The singleton `src/domain/events/DomainEvent.js` exports `eventBus`; subscriptions are global with no replay or persistence. Major families include agent lifecycle/selection, attention, mode, usage/FPS, WebSocket state/messages, and village/director presentation signals. This list is intentionally partial: search emitters in `src/application/`, `src/presentation/`, and `src/infrastructure/WebSocketClient.js` before changing an event contract.
+
+## Validation and Constraints
+
+Use the canonical change-to-command table in [`AGENTS.md#validation`](../AGENTS.md#validation). For presentation work, automated screenshot and console evidence comes from `npm run verify:render`; visual judgment on the operator-maintained server remains manual.
+
+Keep changes narrow. Do not mutate local CLI session files, introduce a frontend framework, or delete generated app artifacts unless explicitly asked. Re-run `git status --short` before handoff.

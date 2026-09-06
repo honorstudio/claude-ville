@@ -1,4 +1,23 @@
-// 싱글턴 이벤트 버스 (옵저버 패턴)
+// Singleton event bus (observer pattern)
+//
+// Event-name contracts (string keys; no registry enforcement):
+//   agent:added, agent:updated, agent:removed
+//   agent:selected, agent:deselected
+//   agents:pins-changed                       // { pinnedAgentIds: string[] } in insertion order
+//   building:selected, building:deselected     // emitted by IsometricRenderer click handler
+//   building:active-agents                      // map<type,{count,recencyScore,tier}> from LandmarkActivity (~500ms)
+//   tool:invoked, subagent:dispatched, subagent:completed
+//   mode:changed, usage:updated
+//   fps:updated                                 // number (~2/s) from IsometricRenderer loop, null when loop stops
+//   atmosphere:updated                           // atmosphere snapshot (~2/s) from IsometricRenderer; audio director listens
+//   weather:storm-flash                          // {intensity} per lightning strike from WeatherRenderer; audio thunder listens
+//   ws:connected, ws:disconnected, ws:init, ws:update, ws:message
+export const BUILDING_EVENTS = Object.freeze({
+    SELECTED: 'building:selected',
+    DESELECTED: 'building:deselected',
+    ACTIVE_AGENTS: 'building:active-agents',
+});
+
 class DomainEvent {
     constructor() {
         this.listeners = new Map();
@@ -26,7 +45,12 @@ class DomainEvent {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             for (const callback of callbacks) {
-                callback(data);
+                try {
+                    callback(data);
+                } catch (error) {
+                    const message = error?.message || String(error);
+                    console.error(`[DomainEvent] listener failed for "${event}": ${message}`);
+                }
             }
         }
     }

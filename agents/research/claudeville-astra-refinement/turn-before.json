@@ -1,0 +1,30 @@
+{
+  "provider": "codex",
+  "id": "codex-sim3",
+  "samples": [
+    {
+      "direction": 4,
+      "lagged": true,
+      "displayed": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:0:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder",
+      "desired": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:560:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder"
+    },
+    {
+      "direction": 2,
+      "lagged": true,
+      "displayed": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:0:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder",
+      "desired": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:280:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder"
+    },
+    {
+      "direction": 6,
+      "lagged": true,
+      "displayed": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:0:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder",
+      "desired": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:840:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder"
+    },
+    {
+      "direction": 0,
+      "lagged": false,
+      "displayed": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:0:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder",
+      "desired": "agent:codex-sim3:agent-sheet:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_:0:980:140:140:agent.codex.gpt54|codex|0|_|engineerWrench|raw|_|engineerWrench|2026-09-05-astra-v2:2026-09-05-astra-v2:material:emissive:occluder"
+    }
+  ]
+}

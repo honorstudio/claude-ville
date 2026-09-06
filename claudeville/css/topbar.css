@@ -1,72 +1,481 @@
 .topbar {
-    height: 52px;
+    height: 54px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
-    background: rgba(15, 15, 25, 0.95);
-    border-bottom: 2px solid rgba(232, 212, 77, 0.3);
+    padding: 0 12px;
+    font-family: var(--font-display);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 12% 0%, rgba(246, 218, 130, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(58, 36, 22, 0.99), rgba(15, 10, 10, 0.99)),
+        repeating-linear-gradient(90deg, rgba(246, 218, 130, 0.04) 0 1px, transparent 1px 18px);
+    border-bottom: 2px solid rgba(235, 184, 82, 0.86);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 238, 174, 0.16),
+        inset 0 -1px 0 rgba(62, 37, 21, 0.9),
+        0 5px 18px rgba(0, 0, 0, 0.42),
+        0 1px 0 rgba(255, 226, 138, 0.1);
     flex-shrink: 0;
     z-index: 100;
+    -webkit-font-smoothing: none;
+}
+
+/* ── Living activity rail ──
+   A 2px strip along the topbar bottom whose hue/brightness echo the fleet's
+   status mix. JS sets --cv-rail-hue (45 gold → 8 red), --cv-rail-alpha
+   (intensity), and --cv-rail-bleed (red enters from the left as errors climb).
+   A slow background-position shimmer gives a warm gold heartbeat. */
+.topbar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    pointer-events: none;
+    z-index: -1;
+    background-image:
+        linear-gradient(90deg,
+            hsla(8, 78%, 52%, calc(var(--cv-rail-alpha, 0.18) + 0.15)) 0%,
+            transparent var(--cv-rail-bleed, 100%)),
+        linear-gradient(90deg,
+            transparent 0%,
+            hsla(var(--cv-rail-hue, 45), 82%, 60%, var(--cv-rail-alpha, 0.18)) 30%,
+            hsla(var(--cv-rail-hue, 45), 88%, 70%, calc(var(--cv-rail-alpha, 0.18) + 0.18)) 50%,
+            hsla(var(--cv-rail-hue, 45), 82%, 60%, var(--cv-rail-alpha, 0.18)) 70%,
+            transparent 100%);
+    background-size: 100% 100%, 220% 100%;
+    background-repeat: no-repeat;
+    background-position: 0 0, 0 0;
+    animation: topbar-rail-shimmer 5.5s linear infinite;
+}
+
+@keyframes topbar-rail-shimmer {
+    from { background-position: 0 0, 0% 0; }
+    to   { background-position: 0 0, -220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .topbar::before {
+        animation: none;
+        background-position: 0 0, 0 0;
+    }
+}
+
+/* The persisted operator override covers CSS-only motion immediately. Canvas
+   systems receive the same preference through SettingsPanel's matchMedia bridge. */
+.cv-reduced-motion-override *,
+.cv-reduced-motion-override *::before,
+.cv-reduced-motion-override *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+}
+
+/* Subtle bottom glow line */
+.topbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 226, 138, 0.62), rgba(126, 82, 39, 0.5), transparent);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .topbar__left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+/* Brand block: the wordmark is the hero; a single quiet meta sub-line beneath
+   it carries connection · version · FPS so they cost no horizontal width. */
+.topbar__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
 }
 
 .topbar__logo {
-    font-size: 13px;
-    color: #e8d44d;
+    font-size: 14px;
+    color: var(--cv-gold-bright);
     letter-spacing: 2px;
+    line-height: 1;
+    text-shadow:
+        1px 1px 0 #2d1a12,
+        0 0 12px rgba(255, 222, 117, 0.32);
 }
 
-.topbar__version {
-    font-size: 8px;
-    color: #8b8b9e;
-    padding: 2px 6px;
-    border: 1px solid rgba(139, 139, 158, 0.3);
+/* Meta sub-line — legible mono (the app's data face), middot-separated, no
+   chrome. One quiet line instead of three competing bordered chips. */
+.topbar__meta {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-body);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--cv-text-muted);
+    -webkit-font-smoothing: auto;
+}
+
+.topbar__clock { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: #f2d36b; }
+.topbar__clock[hidden] { display: none; }
+.topbar__clock svg { width: 16px; height: 16px; shape-rendering: crispEdges; }
+.topbar__clock-time { font: var(--fs-data)/1 var(--font-body); }
+.topbar__clock-phase { font: var(--fs-label)/1 var(--font-display); }
+.topbar__clock-override { font: var(--fs-data)/1 var(--font-body); color: #bda472; }
+.topbar__meta > [hidden] { display: none; }
+
+.topbar__meta > * + *::before {
+    content: "\00B7";
+    margin: 0 7px;
+    color: rgba(199, 157, 76, 0.5);
+}
+
+/* ── Shared chip base ── */
+/* Mode and sound buttons share one border and subtle inset shadow. */
+.topbar__sound-btn,
+.topbar__mode-btn {
+    border: 1px solid rgba(214, 169, 81, 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.08),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.26);
+}
+
+/* ── Shared tag base ── */
+/* The center tags (metrics ledger and status block) share one frame. */
+.topbar__tag {
+    border: 1px solid rgba(236, 187, 89, 0.46);
     border-radius: 2px;
+    background: linear-gradient(180deg, rgba(66, 43, 25, 0.96), rgba(18, 12, 11, 0.96));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.08),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.26);
+}
+
+/* ── Version (meta sub-line, clickable → changelog) ── */
+/* Quiet dotted underline at rest reads as "click me"; solid gold on hover. */
+.topbar__version {
+    color: var(--cv-text-muted);
+    cursor: pointer;
+    text-decoration: underline dotted rgba(199, 157, 76, 0.55);
+    text-underline-offset: 2px;
+    transition: color 0.15s;
+}
+
+.topbar__version:hover {
+    color: var(--cv-gold-bright);
+    text-decoration: underline solid var(--cv-gold-bright);
+    text-underline-offset: 2px;
+}
+
+/* ── Connection (meta sub-line) with a soft live heartbeat dot ── */
+.topbar__conn {
+    display: inline-flex;
+    align-items: center;
+    letter-spacing: 1px;
+}
+
+.topbar__conn::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+    animation: topbar-live-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes topbar-live-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .topbar__conn::before {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+.topbar__conn--connected {
+    color: var(--cv-status-working);
+}
+
+.topbar__conn--disconnected {
+    color: var(--cv-status-errored);
+}
+
+.topbar__conn--syncing {
+    color: var(--cv-text-muted);
+}
+
+.topbar__conn--syncing::before {
+    border: 1px solid currentColor;
+    background: transparent;
+    box-shadow: none;
+}
+
+.topbar__conn--polling {
+    color: var(--cv-status-idle);
+}
+
+.topbar__conn--polling::before {
+    border-radius: 1px;
+    box-shadow: none;
+}
+
+.topbar__conn--reconnecting {
+    color: var(--cv-status-rate-limited);
+}
+
+.topbar__conn--reconnecting::before {
+    border-radius: 1px;
+    box-shadow: none;
+    animation: none;
+    opacity: 0.72;
+}
+
+.topbar__conn--stale {
+    padding: 2px 5px;
+    color: var(--cv-status-errored);
+    border: 2px solid currentColor;
+    background: color-mix(in srgb, var(--cv-status-errored) 14%, transparent);
+    box-shadow: 0 0 9px color-mix(in srgb, var(--cv-status-errored) 38%, transparent);
+    font-weight: bold;
+    animation: topbar-stale-warning 1.8s ease-in-out infinite;
+}
+
+.topbar__conn--stale::before {
+    width: 6px;
+    height: 6px;
+    border-radius: 0;
+    animation: none;
+}
+
+.topbar__conn[role="button"] {
+    cursor: pointer;
+}
+
+.topbar__conn[role="button"]:focus-visible {
+    outline: 1px solid var(--cv-gold-soft);
+    outline-offset: 3px;
+}
+
+@keyframes topbar-stale-warning {
+    0%, 100% { box-shadow: 0 0 5px color-mix(in srgb, var(--cv-status-errored) 24%, transparent); }
+    50% { box-shadow: 0 0 12px color-mix(in srgb, var(--cv-status-errored) 52%, transparent); }
+}
+
+.topbar__connection-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.topbar__connection-panel {
+    position: fixed;
+    z-index: 1200;
+    display: grid;
+    gap: 7px;
+    width: 318px;
+    padding: 10px 11px;
+    color: var(--cv-tan);
+    background: linear-gradient(180deg, var(--cv-panel), var(--cv-panel-deep));
+    border: 1px solid var(--cv-gold-warm);
+    border-radius: 2px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--cv-panel-deep) 92%, transparent), var(--cv-elev-2);
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.topbar__connection-panel > * + * {
+    padding-top: 7px;
+    border-top: 1px solid var(--cv-border-soft);
+}
+
+.topbar__connection-panel:focus {
+    outline: 1px solid var(--cv-gold-soft);
+    outline-offset: 3px;
+}
+
+/* ── #48 Connection-loss chrome ── */
+/* While the WebSocket is down, body.cv-offline desaturates and dims the topbar
+   so the lost link is felt, not alarmed. A slow shimmer keeps it from reading
+   as a dead/static error state. On reconnect, body.cv-reconnect-sweep washes a
+   single warm gold band across the chrome to restore color. */
+.cv-offline .topbar {
+    filter: saturate(0.32) brightness(0.86);
+    transition: filter 0.4s ease;
+}
+
+.cv-offline .topbar__conn--disconnected {
+    animation: topbar-offline-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes topbar-offline-shimmer {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+}
+
+.cv-reconnect-sweep .topbar::after {
+    background: linear-gradient(
+        100deg,
+        transparent 0%,
+        rgba(255, 226, 138, 0.85) 48%,
+        rgba(255, 244, 198, 0.95) 50%,
+        rgba(255, 226, 138, 0.85) 52%,
+        transparent 100%);
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    height: 100%;
+    animation: topbar-reconnect-sweep 0.9s ease-out 1;
+}
+
+@keyframes topbar-reconnect-sweep {
+    from { background-position: -120% 0; }
+    to   { background-position: 220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* Instant state swap: no shimmer, no sweep. */
+    .cv-offline .topbar {
+        transition: none;
+    }
+    .cv-offline .topbar__conn--disconnected {
+        animation: none;
+        opacity: 1;
+    }
+    .cv-reconnect-sweep .topbar::after {
+        animation: none;
+        background: linear-gradient(90deg, transparent, rgba(255, 226, 138, 0.62), rgba(126, 82, 39, 0.5), transparent);
+        height: 3px;
+    }
+    .topbar__conn--stale {
+        animation: none;
+    }
 }
 
 .topbar__center {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 10px;
+    /* Center absorbs any extreme overflow so the left brand and right
+       nav buttons stay pinned and visible at every agent count. */
+    min-width: 0;
+    overflow: hidden;
 }
 
-.topbar__stat {
+/* ── Metrics ledger (tokens/cost/time) ──
+   One segmented tag with hairline-divided cells, deliberately matching the
+   status tag below so the center reads as two members of one family.
+   Frame/gradient/shadow come from the shared .topbar__tag base. */
+/* When the center runs out of room the ledger is what gives. Spend figures
+   are nice to have; the exception badges beside them are the alert surface and
+   must never be the thing that gets clipped off the right edge. */
+.topbar__ledger {
     display: flex;
-    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.topbar__seg-stat {
+    display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
+    padding: 5px 8px;
+    white-space: nowrap;
+}
+
+.topbar__seg-stat + .topbar__seg-stat {
+    border-left: 1px solid rgba(214, 169, 81, 0.3);
 }
 
 .topbar__stat-label {
-    font-size: 7px;
-    color: #8b8b9e;
+    font-size: 10px;
+    color: var(--cv-text-muted);
     letter-spacing: 1px;
+    opacity: 0.78;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 
+/* Quota headroom: two thin gauges (5-hour, 7-day). It sits on the brand meta
+   line with the other account/connection readouts rather than in the spend
+   ledger — quota is a property of the account, not of today's tokens. */
+.topbar__quota-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--cv-text-muted);
+}
+
+/* The chip is hidden until a quota window has real usage; inline-flex above
+   would otherwise override the [hidden] UA rule and leak an empty gauge. */
+.topbar__quota-meta[hidden] {
+    display: none;
+}
+
+.topbar__quota {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.topbar__quota-bar {
+    display: block;
+    width: 26px;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(199, 157, 76, 0.32);
+}
+
+.topbar__quota-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--cv-gold-soft);
+}
+
+/* Near the ceiling the gauges stop being scenery. */
+.topbar__quota-meta--hot .topbar__quota-fill {
+    background: var(--cv-status-errored);
+}
+
+.topbar__quota-meta--hot {
+    color: var(--cv-status-errored);
+}
+
+/* Values use the legible data face (Departure Mono), sized up from the pixel
+   labels so the numbers read first. */
 .topbar__stat-value {
-    font-size: 11px;
-    color: #e8d44d;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: rgba(244, 214, 120, 0.92);
+    text-shadow: 0 0 8px rgba(242, 211, 107, 0.16);
+    -webkit-font-smoothing: auto;
 }
 
 .topbar__badges {
     display: flex;
-    gap: 10px;
-}
-
-.topbar__badge {
-    display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 8px;
-    padding: 3px 8px;
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.05);
+    gap: 7px;
+    flex-shrink: 0;
 }
 
 .topbar__badge-dot {
@@ -74,161 +483,454 @@
     height: 6px;
     border-radius: 50%;
     display: inline-block;
+    border: 1px solid rgba(255, 245, 205, 0.52);
+    box-shadow: 0 0 6px currentColor;
 }
 
-.topbar__badge--working .topbar__badge-dot {
-    background: #4ade80;
-    box-shadow: 0 0 4px #4ade80;
-}
-
-.topbar__badge--working {
-    color: #4ade80;
-}
-
-.topbar__badge--idle .topbar__badge-dot {
-    background: #60a5fa;
-    box-shadow: 0 0 4px #60a5fa;
-}
-
-.topbar__badge--idle {
-    color: #60a5fa;
-}
-
-.topbar__badge--waiting .topbar__badge-dot {
-    background: #f97316;
-    box-shadow: 0 0 4px #f97316;
-}
-
-.topbar__badge--waiting {
-    color: #f97316;
-}
-
-/* ── 구분선 ── */
-.topbar__divider {
-    width: 1px;
-    height: 24px;
-    background: rgba(139, 139, 158, 0.3);
-}
-
-/* ── 계정/구독 섹션 ── */
-.topbar__account {
+/* ── Primary status block (working/idle/waiting) — one tag, hairline-divided segments ── */
+.topbar__status {
     display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.topbar__account-tier {
-    font-size: 8px;
-    padding: 3px 8px;
-    border-radius: 3px;
-    background: rgba(167, 139, 250, 0.15);
-    color: #a78bfa;
-    letter-spacing: 0.5px;
-}
-
-.topbar__account-activity {
-    font-size: 8px;
-    color: #8b8b9e;
-}
-
-/* ── Quota 프로그레스 바 ── */
-.topbar__quota {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.topbar__quota-bar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.topbar__quota-label {
-    font-size: 7px;
-    color: #8b8b9e;
-    letter-spacing: 0.5px;
-    width: 16px;
-}
-
-.topbar__quota-track {
-    width: 48px;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
+    align-items: stretch;
     overflow: hidden;
 }
 
-.topbar__quota-fill {
-    height: 100%;
-    border-radius: 3px;
-    background: #4ade80;
-    transition: width 0.5s ease, background-color 0.3s;
-    width: 0%;
+.topbar__seg {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 4px 6px;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
 }
 
-.topbar__quota-fill--warn {
-    background: #eab308;
+@media (max-width: 1400px) {
+    .topbar__seg { font: var(--fs-data)/1.2 var(--font-body); padding: 4px; }
+    .topbar__center { gap: 6px; }
+    .topbar__stat-label { font: var(--fs-data)/1.2 var(--font-body); }
 }
 
-.topbar__quota-fill--danger {
-    background: #ef4444;
+.topbar__seg + .topbar__seg {
+    border-left: 1px solid rgba(214, 169, 81, 0.3);
 }
 
-.topbar__quota-pct {
-    font-size: 7px;
-    color: #8b8b9e;
-    width: 22px;
-    text-align: right;
+.topbar__seg[hidden] {
+    display: none;
+}
+
+.topbar__seg--needs-you {
+    color: var(--cv-status-waiting-user);
+    white-space: nowrap;
+}
+
+.topbar__seg--working .topbar__badge-dot {
+    background: var(--cv-status-working);
+}
+
+.topbar__seg--working {
+    color: var(--cv-status-working);
+}
+
+/* idle = hollow ring (shape differs from working so it doesn't rely on color alone) */
+.topbar__seg--idle .topbar__badge-dot {
+    background: transparent;
+    border: 2px solid currentColor;
+}
+
+.topbar__seg--idle {
+    color: var(--cv-status-idle);
+}
+
+/* waiting = rounded square */
+.topbar__seg--waiting .topbar__badge-dot {
+    background: var(--cv-status-waiting);
+    border-radius: 1px;
+}
+
+.topbar__seg--waiting {
+    color: var(--cv-status-waiting);
 }
 
 .topbar__right {
     display: flex;
+    align-items: center;
     gap: 4px;
+    flex-shrink: 0;
 }
 
-.topbar__mode-btn {
+/* Audio toggle (opt-in, tertiary) */
+.topbar__sound-btn {
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: 6px 8px;
+    border-color: rgba(199, 157, 76, 0.28);
+    border-radius: 2px;
+    color: rgba(187, 161, 122, 0.9);
+    background: linear-gradient(180deg, rgba(43, 28, 20, 0.86), rgba(18, 12, 11, 0.9));
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.topbar__sound-btn:hover:not(:disabled) {
+    color: var(--cv-gold-soft);
+    border-color: rgba(242, 211, 107, 0.58);
+}
+
+/* Engaged but quiet: gold text + warm inset glow. The filled gold slab stays
+   reserved for the active mode button (single-gold hierarchy). */
+.topbar__sound-btn--on {
+    color: var(--cv-gold-bright);
+    border-color: rgba(242, 211, 107, 0.58);
+    background: linear-gradient(180deg, rgba(66, 43, 25, 0.9), rgba(22, 14, 12, 0.94));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.12),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.26),
+        inset 0 0 10px rgba(246, 218, 130, 0.1);
+}
+
+.topbar__sound-btn--on:hover:not(:disabled) {
+    color: var(--cv-gold-warm);
+    border-color: rgba(255, 229, 141, 0.75);
+}
+
+.topbar__sound-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+/* 5.3 — the working section beside the music control. A static count readout,
+   never a level meter: the music follows these numbers, it never replaces
+   them. */
+.topbar__sound-section {
+    font-family: var(--font-display);
     font-size: 9px;
-    padding: 6px 14px;
-    border: 1px solid rgba(232, 212, 77, 0.3);
-    border-radius: 3px;
-    color: #8b8b9e;
-    background: transparent;
+    letter-spacing: 0.4px;
+    padding: 0 2px;
+    color: rgba(187, 161, 122, 0.9);
+    white-space: nowrap;
+}
+
+/* Ambience volume slider — visible only while sound is on. */
+.topbar__sound-vol {
+    width: 72px;
+    height: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: linear-gradient(180deg, rgba(43, 28, 20, 0.86), rgba(18, 12, 11, 0.9));
+    border: 1px solid rgba(199, 157, 76, 0.28);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.topbar__sound-vol::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 10px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(242, 211, 107, 0.72);
+    background: linear-gradient(180deg, #efd780, #c7953e 70%, #765026);
+}
+
+.topbar__sound-vol::-moz-range-thumb {
+    width: 10px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(242, 211, 107, 0.72);
+    background: linear-gradient(180deg, #efd780, #c7953e 70%, #765026);
+}
+
+/* Auto-camera toggle (#attract) — mirrors the sound toggle's tertiary look. */
+.topbar__cinema-btn {
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: 6px 8px;
+    border: 1px solid rgba(199, 157, 76, 0.28);
+    border-radius: 2px;
+    color: rgba(187, 161, 122, 0.9);
+    background: linear-gradient(180deg, rgba(43, 28, 20, 0.86), rgba(18, 12, 11, 0.9));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.08),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.26);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.topbar__cinema-btn:hover {
+    color: var(--cv-gold-soft);
+    border-color: rgba(242, 211, 107, 0.58);
+}
+
+/* Engaged but quiet: gold text + warm inset glow, not the filled gold slab. */
+.topbar__cinema-btn--on {
+    color: var(--cv-gold-bright);
+    border-color: rgba(242, 211, 107, 0.58);
+    background: linear-gradient(180deg, rgba(66, 43, 25, 0.9), rgba(22, 14, 12, 0.94));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 231, 150, 0.12),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.26),
+        inset 0 0 10px rgba(246, 218, 130, 0.1);
+}
+
+.topbar__cinema-btn--on:hover {
+    color: var(--cv-gold-warm);
+    border-color: rgba(255, 229, 141, 0.75);
+}
+
+/* Compact utility row: inactive toggles recede to a warm gray; engaged
+   controls pick up the same quiet torchlight as the existing text toggles. */
+.topbar__icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: rgba(145, 137, 125, 0.62);
+    line-height: 1;
+}
+
+.topbar__icon-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    shape-rendering: crispEdges;
+}
+
+.topbar__settings-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    background:
+        linear-gradient(currentColor, currentColor) 1px 3px / 14px 2px no-repeat,
+        linear-gradient(currentColor, currentColor) 1px 8px / 14px 2px no-repeat,
+        linear-gradient(currentColor, currentColor) 1px 13px / 14px 2px no-repeat,
+        linear-gradient(currentColor, currentColor) 5px 1px / 3px 6px no-repeat,
+        linear-gradient(currentColor, currentColor) 10px 6px / 3px 6px no-repeat,
+        linear-gradient(currentColor, currentColor) 4px 11px / 3px 5px no-repeat;
+}
+
+.topbar__icon-btn--action {
+    color: rgba(215, 185, 121, 0.84);
+}
+
+.topbar__icon-btn:hover:not(:disabled) {
+    color: var(--cv-gold-soft);
+}
+
+.topbar__icon-btn.topbar__sound-btn--on,
+.topbar__icon-btn.topbar__cinema-btn--on {
+    color: var(--cv-gold-bright);
+}
+
+body:has(#worldGrammar:popover-open) #topbarWorldControls {
+    color: var(--cv-gold-bright);
+    border-color: rgba(242, 211, 107, 0.72);
+}
+
+.topbar__icon-btn.topbar__sound-btn--on svg,
+.topbar__icon-btn.topbar__cinema-btn--on svg {
+    filter: drop-shadow(0 0 2px rgba(255, 229, 141, 0.62));
+}
+
+/* ── Mode buttons (primary) ── */
+.topbar__mode-btn {
+    font-family: var(--font-display);
+    font-size: 10px;
+    padding: 6px 10px;
+    border-color: rgba(199, 157, 76, 0.48);
+    border-radius: 2px;
+    color: #bba17a;
+    background: linear-gradient(180deg, rgba(49, 31, 21, 0.92), rgba(22, 14, 12, 0.92));
     transition: all 0.15s;
 }
 
 .topbar__mode-btn:hover {
-    color: #e8d44d;
-    border-color: rgba(232, 212, 77, 0.6);
+    color: var(--cv-gold);
+    border-color: rgba(242, 211, 107, 0.72);
+    background: rgba(57, 37, 24, 0.78);
 }
 
 .topbar__mode-btn--active {
-    color: #0a0a0f;
-    background: #e8d44d;
-    border-color: #e8d44d;
+    color: var(--cv-active-ink);
+    background: linear-gradient(180deg, var(--cv-active-top), var(--cv-active-mid) 62%, var(--cv-active-bottom));
+    border-color: var(--cv-gold-warm);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        inset 0 -2px 0 rgba(91, 49, 21, 0.38);
 }
 
 .topbar__mode-btn--active:hover {
-    color: #0a0a0f;
+    color: var(--cv-active-ink);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--cv-active-top) 86%, white), color-mix(in srgb, var(--cv-active-mid) 88%, white) 62%, color-mix(in srgb, var(--cv-active-bottom) 88%, white));
+    border-color: var(--cv-gold-bright);
 }
 
-.topbar__settings-btn {
-    font-size: 16px;
-    width: 34px;
-    height: 34px;
-    display: flex;
+/* A number the reader should weigh less: present, legible, not a headline. */
+.topbar__seg-stat--muted .topbar__stat-value {
+    color: rgba(187, 161, 122, 0.9);
+}
+
+.topbar__uptime {
+    color: rgba(187, 161, 122, 0.9);
+}
+
+/* Burn rate rides in the TODAY cell: same subject, secondary weight. */
+.topbar__stat-rate {
+    font-family: var(--font-body);
+    font-size: var(--fs-data);
+    line-height: 1;
+    color: rgba(187, 161, 122, 0.9);
+    -webkit-font-smoothing: auto;
+}
+
+.topbar__stat-rate:empty {
+    display: none;
+}
+
+.topbar__spend-panel {
+    position: fixed;
+    z-index: 1200;
+    width: 500px;
+    padding: 11px;
+    color: var(--cv-tan, #d6c09c);
+    background: linear-gradient(180deg, var(--cv-panel, #211811), #17100c);
+    border: 1px solid var(--cv-gold-warm, #c79d4c);
+    border-radius: 2px;
+    box-shadow: 0 0 0 2px rgba(28, 17, 11, 0.96), var(--cv-elev-2);
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.topbar__mixer-panel:focus,
+.topbar__spend-panel:focus {
+    outline: 1px solid var(--cv-gold-soft, #d7b96f);
+    outline-offset: 3px;
+}
+
+.topbar__spend-heading {
+    margin-bottom: 3px;
+    color: var(--cv-gold-bright, #f2d36b);
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+
+.topbar__spend-note {
+    margin-bottom: 9px;
+    color: var(--cv-text-muted);
+    font-size: var(--fs-data);
+}
+
+.topbar__spend-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.topbar__spend-section {
+    min-width: 0;
+}
+
+.topbar__spend-section--projects,
+.topbar__spend-section--providers {
+    position: relative;
+}
+
+.topbar__spend-section-heading {
+    padding-bottom: 4px;
+    color: var(--cv-text-muted);
+    border-bottom: 1px solid rgba(199, 157, 76, 0.3);
+    font-family: var(--font-pixel);
+    font-size: var(--fs-label);
+    letter-spacing: 1px;
+}
+
+.topbar__spend-empty {
+    padding: 9px 2px;
+    color: var(--cv-text-muted);
+}
+
+.topbar__spend-row {
+    display: grid;
+    grid-template-columns: minmax(0, 82px) 1fr;
+    gap: 7px;
     align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(232, 212, 77, 0.3);
-    border-radius: 3px;
-    color: #8b8b9e;
-    background: transparent;
-    transition: all 0.15s;
-    margin-left: 8px;
+    min-height: 31px;
+    border-bottom: 1px solid rgba(199, 157, 76, 0.12);
+}
+
+.topbar__spend-name {
+    overflow: hidden;
+    color: var(--cv-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar__spend-name--active {
+    color: var(--cv-gold-soft);
+}
+
+.topbar__spend-primary {
+    color: var(--cv-text-muted);
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.topbar__spend-primary--burning {
+    color: rgba(244, 214, 120, 0.96);
+    font-weight: bold;
+}
+
+.topbar__spend-detail {
+    margin-top: 2px;
+    color: var(--cv-text-muted);
+    font-size: var(--fs-data);
+}
+
+.topbar__spend-more {
+    padding-top: 5px;
+    color: var(--cv-text-muted);
+    font-size: var(--fs-data);
+    text-align: right;
+}
+
+/* The TODAY cell opens the Spend Map popover, so it must read as actionable. */
+#statRateWrap[role="button"] {
     cursor: pointer;
 }
 
-.topbar__settings-btn:hover {
-    color: #e8d44d;
-    border-color: rgba(232, 212, 77, 0.6);
+#statRateWrap[role="button"]:hover {
+    color: var(--cv-gold-bright);
+}
+
+#statRateWrap[role="button"]:focus-visible {
+    outline: 1px solid var(--cv-gold-soft);
+    outline-offset: 2px;
+}
+
+.topbar__mixer-panel {
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.topbar__mixer-heading {
+    margin-bottom: 3px;
+    color: var(--cv-gold-bright, #f2d36b);
+    font: var(--fs-label)/1.4 var(--font-display);
+    letter-spacing: 1px;
+}
+
+.topbar__mixer-note {
+    margin-bottom: 8px;
+    color: var(--cv-text-muted);
+    font-size: var(--fs-data);
+}
+
+.topbar__mixer-row {
+    color: var(--cv-gold-soft, #d7b96f);
+    font: var(--fs-label)/1.4 var(--font-display);
+}
+
+:where(
+    .topbar__spend-heading,
+    .topbar__spend-section-heading,
+    .topbar__mixer-heading,
+    .topbar__mixer-row
+) {
+    -webkit-font-smoothing: none;
 }

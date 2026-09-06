@@ -22,13 +22,17 @@ export class NotificationService {
         };
 
         this._onWsConnected = () => {
+            // Suppress the toast on the first connection of the page load; only
+            // announce genuine reconnections (mirrors _onAgentAdded).
+            if (this.wsEverConnected) {
+                this.toast.show(i18n.t('serverConnected'), 'success');
+            }
             this.wsEverConnected = true;
-            this.toast.show(i18n.t('serverConnected'), 'success');
         };
 
         this._onWsDisconnected = () => {
             if (this.wsEverConnected) {
-                this.toast.show(i18n.t('serverDisconnected'), 'warning');
+                this.toast.show(i18n.t('serverDisconnected'), 'error');
             }
         };
 

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature ideas and roadmap
+    url: https://github.com/TokenBrice/claude-ville/discussions
+    about: Start here for broad ideas, roadmap questions, and new provider proposals.
+  - name: Setup troubleshooting
+    url: https://github.com/TokenBrice/claude-ville/blob/main/docs/troubleshooting.md
+    about: First-hour setup, provider, API, and graphics checks.
+  - name: Security report
+    url: https://github.com/TokenBrice/claude-ville/security/advisories/new
+    about: Report vulnerabilities privately instead of opening a public issue.

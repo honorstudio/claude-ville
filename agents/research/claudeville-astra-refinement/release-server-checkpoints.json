@@ -1,0 +1,3341 @@
+[
+  {
+    "elapsedSeconds": 2.2,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 5,
+      "memory": {
+        "sampledAt": 1788610062048,
+        "rss": 59146240,
+        "heapTotal": 12025856,
+        "heapUsed": 8397056,
+        "external": 2345365,
+        "arrayBuffers": 31231
+      },
+      "eventLoop": {
+        "sampledAt": 1788610062048,
+        "windowMs": 5000,
+        "utilization": 0,
+        "delayMs": {
+          "min": 9223372036854.775,
+          "max": 0,
+          "mean": null,
+          "p50": 0.001,
+          "p95": 0.001,
+          "p99": 0.001
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 25692733,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 0,
+        "misses": 41,
+        "parsePasses": 41,
+        "parsedLines": 24394,
+        "projectedLines": 3000,
+        "reusedLines": 0,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 167231054,
+        "projectionBytes": 17314774
+      }
+    },
+    "tailRate": null,
+    "gitCommandCount": 27,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 22,
+      "probeChanges": 1,
+      "reconciliations": 0,
+      "gitStateScans": 1,
+      "gitStateChanges": 0,
+      "gitStateProjects": 3,
+      "lastReconciliationAt": 1788610062085,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 60,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 63,
+      "memory": {
+        "sampledAt": 1788610122058,
+        "rss": 465485824,
+        "heapTotal": 191315968,
+        "heapUsed": 47953160,
+        "external": 71841733,
+        "arrayBuffers": 7734652
+      },
+      "eventLoop": {
+        "sampledAt": 1788610122058,
+        "windowMs": 5000,
+        "utilization": 0.1354,
+        "delayMs": {
+          "min": 19.481,
+          "max": 227.934,
+          "mean": 23.937,
+          "p50": 21.053,
+          "p95": 22.675,
+          "p99": 151.126
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 6,
+      "estimatedBytes": 20727896,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 0,
+        "misses": 206,
+        "parsePasses": 206,
+        "parsedLines": 113827,
+        "projectedLines": 13000,
+        "reusedLines": 1900,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 948987203,
+        "projectionBytes": 14239244
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610122058,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 3.599,
+      "parsedLinesPerSecond": 2031.794,
+      "projectedLinesPerSecond": 199.96,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 19270998.4
+    },
+    "gitCommandCount": 39,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 330,
+      "probeChanges": 21,
+      "reconciliations": 2,
+      "gitStateScans": 10,
+      "gitStateChanges": 1,
+      "gitStateProjects": 30,
+      "lastReconciliationAt": 1788610123301,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 120,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 122,
+      "memory": {
+        "sampledAt": 1788610182069,
+        "rss": 481132544,
+        "heapTotal": 190791680,
+        "heapUsed": 48237576,
+        "external": 71915461,
+        "arrayBuffers": 7742844
+      },
+      "eventLoop": {
+        "sampledAt": 1788610182069,
+        "windowMs": 5000,
+        "utilization": 0.0966,
+        "delayMs": {
+          "min": 19.399,
+          "max": 280.232,
+          "mean": 22.892,
+          "p50": 21.053,
+          "p95": 21.381,
+          "p99": 101.45
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27313942,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 0,
+        "misses": 316,
+        "parsePasses": 316,
+        "parsedLines": 163502,
+        "projectedLines": 19000,
+        "reusedLines": 1900,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 1308019165,
+        "projectionBytes": 18933260
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610182069,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 4.2,
+      "parsedLinesPerSecond": 2103,
+      "projectedLinesPerSecond": 200,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 17184562.2
+    },
+    "gitCommandCount": 39,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 660,
+      "probeChanges": 26,
+      "reconciliations": 4,
+      "gitStateScans": 20,
+      "gitStateChanges": 1,
+      "gitStateProjects": 60,
+      "lastReconciliationAt": 1788610183450,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 180,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 183,
+      "memory": {
+        "sampledAt": 1788610242628,
+        "rss": 582189056,
+        "heapTotal": 275988480,
+        "heapUsed": 146154472,
+        "external": 38226753,
+        "arrayBuffers": 25044367
+      },
+      "eventLoop": {
+        "sampledAt": 1788610242628,
+        "windowMs": 5000,
+        "utilization": 0.3894,
+        "delayMs": {
+          "min": 19.53,
+          "max": 505.414,
+          "mean": 33.986,
+          "p50": 21.07,
+          "p95": 23.904,
+          "p99": 499.384
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 18490899,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 0,
+        "misses": 493,
+        "parsePasses": 493,
+        "parsedLines": 252007,
+        "projectedLines": 28000,
+        "reusedLines": 2523,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 2018001573,
+        "projectionBytes": 12498986
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610242628,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 1.6,
+      "parsedLinesPerSecond": 1013.997,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 11271870.626
+    },
+    "gitCommandCount": 43,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 979,
+      "probeChanges": 38,
+      "reconciliations": 5,
+      "gitStateScans": 30,
+      "gitStateChanges": 2,
+      "gitStateProjects": 90,
+      "lastReconciliationAt": 1788610213900,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 240,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 243,
+      "memory": {
+        "sampledAt": 1788610302638,
+        "rss": 478199808,
+        "heapTotal": 164937728,
+        "heapUsed": 23836976,
+        "external": 16209510,
+        "arrayBuffers": 7734671
+      },
+      "eventLoop": {
+        "sampledAt": 1788610302638,
+        "windowMs": 5000,
+        "utilization": 0.1517,
+        "delayMs": {
+          "min": 0.018,
+          "max": 498.598,
+          "mean": 24.329,
+          "p50": 21.053,
+          "p95": 21.643,
+          "p99": 103.481
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 433,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 24798857,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 0,
+        "misses": 638,
+        "parsePasses": 638,
+        "parsedLines": 325049,
+        "projectedLines": 37000,
+        "reusedLines": 2523,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 2610081755,
+        "projectionBytes": 16684298
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610302638,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 3,
+      "parsedLinesPerSecond": 1561,
+      "projectedLinesPerSecond": 200,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 13464519.8
+    },
+    "gitCommandCount": 43,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 1294,
+      "probeChanges": 52,
+      "reconciliations": 7,
+      "gitStateScans": 40,
+      "gitStateChanges": 2,
+      "gitStateProjects": 120,
+      "lastReconciliationAt": 1788610275163,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 300,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 303,
+      "memory": {
+        "sampledAt": 1788610362648,
+        "rss": 502218752,
+        "heapTotal": 171556864,
+        "heapUsed": 28585672,
+        "external": 48988925,
+        "arrayBuffers": 7734652
+      },
+      "eventLoop": {
+        "sampledAt": 1788610362648,
+        "windowMs": 5000,
+        "utilization": 0.3952,
+        "delayMs": {
+          "min": 19.366,
+          "max": 828.375,
+          "mean": 34.223,
+          "p50": 21.053,
+          "p95": 22.102,
+          "p99": 605.553
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 4,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 25699120,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 1,
+        "misses": 856,
+        "parsePasses": 856,
+        "parsedLines": 445360,
+        "projectedLines": 48000,
+        "reusedLines": 5982,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 3597951370,
+        "projectionBytes": 17311372
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610362648,
+      "windowMs": 5002,
+      "parsePassesPerSecond": 4.398,
+      "parsedLinesPerSecond": 2483.806,
+      "projectedLinesPerSecond": 199.92,
+      "reusedLinesPerSecond": 135.346,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 20300200.72
+    },
+    "gitCommandCount": 77,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 1626,
+      "probeChanges": 70,
+      "reconciliations": 9,
+      "gitStateScans": 50,
+      "gitStateChanges": 3,
+      "gitStateProjects": 150,
+      "lastReconciliationAt": 1788610336419,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 360,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 363,
+      "memory": {
+        "sampledAt": 1788610422881,
+        "rss": 536838144,
+        "heapTotal": 194265088,
+        "heapUsed": 64561824,
+        "external": 22560247,
+        "arrayBuffers": 7795168
+      },
+      "eventLoop": {
+        "sampledAt": 1788610422881,
+        "windowMs": 5000,
+        "utilization": 0.3255,
+        "delayMs": {
+          "min": 0.019,
+          "max": 577.241,
+          "mean": 30.337,
+          "p50": 21.053,
+          "p95": 24.51,
+          "p99": 169.345
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 23706103,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 1138,
+        "parsePasses": 1138,
+        "parsedLines": 623861,
+        "projectedLines": 57000,
+        "reusedLines": 8028,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 5158037248,
+        "projectionBytes": 16048762
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610422881,
+      "windowMs": 5023,
+      "parsePassesPerSecond": 7.565,
+      "parsedLinesPerSecond": 5021.302,
+      "projectedLinesPerSecond": 199.084,
+      "reusedLinesPerSecond": 139.956,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 44755972.925
+    },
+    "gitCommandCount": 78,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 1986,
+      "probeChanges": 101,
+      "reconciliations": 11,
+      "gitStateScans": 60,
+      "gitStateChanges": 3,
+      "gitStateProjects": 180,
+      "lastReconciliationAt": 1788610397911,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 420,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 423,
+      "memory": {
+        "sampledAt": 1788610483787,
+        "rss": 522010624,
+        "heapTotal": 207618048,
+        "heapUsed": 67316672,
+        "external": 43028427,
+        "arrayBuffers": 24520079
+      },
+      "eventLoop": {
+        "sampledAt": 1788610483787,
+        "windowMs": 5000,
+        "utilization": 0.0095,
+        "delayMs": {
+          "min": 19.202,
+          "max": 25.756,
+          "mean": 21.063,
+          "p50": 21.053,
+          "p95": 21.807,
+          "p99": 24.019
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 205,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27348028,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 1368,
+        "parsePasses": 1368,
+        "parsedLines": 762189,
+        "projectedLines": 67000,
+        "reusedLines": 10836,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 6216397546,
+        "projectionBytes": 18961864
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610483787,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 86,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 2346,
+      "probeChanges": 120,
+      "reconciliations": 13,
+      "gitStateScans": 70,
+      "gitStateChanges": 4,
+      "gitStateProjects": 210,
+      "lastReconciliationAt": 1788610459184,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 480,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 486,
+      "memory": {
+        "sampledAt": 1788610544765,
+        "rss": 444203008,
+        "heapTotal": 218841088,
+        "heapUsed": 136961608,
+        "external": 34681770,
+        "arrayBuffers": 16173422
+      },
+      "eventLoop": {
+        "sampledAt": 1788610544765,
+        "windowMs": 5000,
+        "utilization": 0.1678,
+        "delayMs": {
+          "min": 19.71,
+          "max": 826.278,
+          "mean": 25.294,
+          "p50": 21.07,
+          "p95": 24.527,
+          "p99": 27.623
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 5,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 25049715,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 1619,
+        "parsePasses": 1619,
+        "parsedLines": 935475,
+        "projectedLines": 72000,
+        "reusedLines": 16393,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 7741628194,
+        "projectionBytes": 16863700
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610544765,
+      "windowMs": 5239,
+      "parsePassesPerSecond": 2.481,
+      "parsedLinesPerSecond": 1456.576,
+      "projectedLinesPerSecond": 190.876,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 8995681.619
+    },
+    "gitCommandCount": 86,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 2706,
+      "probeChanges": 153,
+      "reconciliations": 15,
+      "gitStateScans": 80,
+      "gitStateChanges": 4,
+      "gitStateProjects": 240,
+      "lastReconciliationAt": 1788610519784,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 540,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 543,
+      "memory": {
+        "sampledAt": 1788610604773,
+        "rss": 482852864,
+        "heapTotal": 197148672,
+        "heapUsed": 64587680,
+        "external": 44775895,
+        "arrayBuffers": 24520060
+      },
+      "eventLoop": {
+        "sampledAt": 1788610604773,
+        "windowMs": 5000,
+        "utilization": 0.31,
+        "delayMs": {
+          "min": 19.694,
+          "max": 664.797,
+          "mean": 29.937,
+          "p50": 21.053,
+          "p95": 23.249,
+          "p99": 163.709
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 24251708,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 1825,
+        "parsePasses": 1825,
+        "parsedLines": 1071768,
+        "projectedLines": 81000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 8812716117,
+        "projectionBytes": 16435086
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610604773,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 4.599,
+      "parsedLinesPerSecond": 2997.001,
+      "projectedLinesPerSecond": 199.96,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 24978959.808
+    },
+    "gitCommandCount": 122,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 3030,
+      "probeChanges": 172,
+      "reconciliations": 17,
+      "gitStateScans": 89,
+      "gitStateChanges": 9,
+      "gitStateProjects": 267,
+      "lastReconciliationAt": 1788610583645,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 600,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 603,
+      "memory": {
+        "sampledAt": 1788610660485,
+        "rss": 443383808,
+        "heapTotal": 187547648,
+        "heapUsed": 39340104,
+        "external": 39298155,
+        "arrayBuffers": 7734652
+      },
+      "eventLoop": {
+        "sampledAt": 1788610660485,
+        "windowMs": 5000,
+        "utilization": 0.0716,
+        "delayMs": {
+          "min": 19.153,
+          "max": 332.923,
+          "mean": 22.36,
+          "p50": 21.053,
+          "p95": 21.545,
+          "p99": 22.135
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 4,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 24251708,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 1986,
+        "parsePasses": 1986,
+        "parsedLines": 1173391,
+        "projectedLines": 89000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 9595682065,
+        "projectionBytes": 16435086
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610660485,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 2.599,
+      "parsedLinesPerSecond": 1544.091,
+      "projectedLinesPerSecond": 199.96,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 9496792.442
+    },
+    "gitCommandCount": 138,
+    "watchers": {
+      "configured": 35,
+      "canonical": 26,
+      "installed": 26,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 7,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 12,
+      "probeCap": 1024,
+      "probeScans": 3390,
+      "probeChanges": 186,
+      "reconciliations": 19,
+      "gitStateScans": 99,
+      "gitStateChanges": 10,
+      "gitStateProjects": 297,
+      "lastReconciliationAt": 1788610644535,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 660,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 660,
+      "memory": {
+        "sampledAt": 1788610720950,
+        "rss": 386514944,
+        "heapTotal": 178864128,
+        "heapUsed": 61849920,
+        "external": 80361413,
+        "arrayBuffers": 16123260
+      },
+      "eventLoop": {
+        "sampledAt": 1788610720950,
+        "windowMs": 5000,
+        "utilization": 0.0068,
+        "delayMs": {
+          "min": 19.759,
+          "max": 28.951,
+          "mean": 21.079,
+          "p50": 21.053,
+          "p95": 21.823,
+          "p99": 22.938
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 23648983,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2054,
+        "parsePasses": 2054,
+        "parsedLines": 1214080,
+        "projectedLines": 93000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 9887491341,
+        "projectionBytes": 15959316
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610720950,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 153,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 3703,
+      "probeChanges": 188,
+      "reconciliations": 21,
+      "gitStateScans": 108,
+      "gitStateChanges": 11,
+      "gitStateProjects": 324,
+      "lastReconciliationAt": 1788610705094,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 720,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 720,
+      "memory": {
+        "sampledAt": 1788610780961,
+        "rss": 353255424,
+        "heapTotal": 185712640,
+        "heapUsed": 41496048,
+        "external": 10100376,
+        "arrayBuffers": 7734708
+      },
+      "eventLoop": {
+        "sampledAt": 1788610780961,
+        "windowMs": 5000,
+        "utilization": 0.0022,
+        "delayMs": {
+          "min": 20.021,
+          "max": 21.201,
+          "mean": 20.924,
+          "p50": 21.037,
+          "p95": 21.07,
+          "p99": 21.119
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27285560,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2067,
+        "parsePasses": 2067,
+        "parsedLines": 1221238,
+        "projectedLines": 94000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 9928947372,
+        "projectionBytes": 18906736
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610780961,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 157,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 3703,
+      "probeChanges": 188,
+      "reconciliations": 23,
+      "gitStateScans": 108,
+      "gitStateChanges": 11,
+      "gitStateProjects": 324,
+      "lastReconciliationAt": 1788610767077,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 780,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 780,
+      "memory": {
+        "sampledAt": 1788610840968,
+        "rss": 381059072,
+        "heapTotal": 196984832,
+        "heapUsed": 41351128,
+        "external": 10100376,
+        "arrayBuffers": 7734708
+      },
+      "eventLoop": {
+        "sampledAt": 1788610840968,
+        "windowMs": 5000,
+        "utilization": 0.0016,
+        "delayMs": {
+          "min": 19.202,
+          "max": 21.152,
+          "mean": 20.918,
+          "p50": 21.037,
+          "p95": 21.086,
+          "p99": 21.119
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 1,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27232705,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2090,
+        "parsePasses": 2090,
+        "parsedLines": 1233941,
+        "projectedLines": 96000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 9995908073,
+        "projectionBytes": 18873494
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610840968,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 161,
+    "watchers": {
+      "configured": 27,
+      "canonical": 24,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 5,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 3703,
+      "probeChanges": 188,
+      "reconciliations": 25,
+      "gitStateScans": 108,
+      "gitStateChanges": 11,
+      "gitStateProjects": 324,
+      "lastReconciliationAt": 1788610827102,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 840,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 840,
+      "memory": {
+        "sampledAt": 1788610900975,
+        "rss": 400867328,
+        "heapTotal": 216154112,
+        "heapUsed": 84145864,
+        "external": 10100376,
+        "arrayBuffers": 7734708
+      },
+      "eventLoop": {
+        "sampledAt": 1788610900975,
+        "windowMs": 5000,
+        "utilization": 0.0016,
+        "delayMs": {
+          "min": 19.104,
+          "max": 22.184,
+          "mean": 20.906,
+          "p50": 21.037,
+          "p95": 21.07,
+          "p99": 21.234
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27232705,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2114,
+        "parsePasses": 2114,
+        "parsedLines": 1247972,
+        "projectedLines": 98000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 10072542876,
+        "projectionBytes": 18873494
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610900975,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 165,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 3703,
+      "probeChanges": 188,
+      "reconciliations": 27,
+      "gitStateScans": 108,
+      "gitStateChanges": 11,
+      "gitStateProjects": 324,
+      "lastReconciliationAt": 1788610887123,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 900,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 900,
+      "memory": {
+        "sampledAt": 1788610960985,
+        "rss": 402571264,
+        "heapTotal": 191741952,
+        "heapUsed": 41416296,
+        "external": 10100376,
+        "arrayBuffers": 7734708
+      },
+      "eventLoop": {
+        "sampledAt": 1788610960985,
+        "windowMs": 5000,
+        "utilization": 0.0015,
+        "delayMs": {
+          "min": 19.513,
+          "max": 25.215,
+          "mean": 20.907,
+          "p50": 21.037,
+          "p95": 21.07,
+          "p99": 21.217
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27277626,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2137,
+        "parsePasses": 2137,
+        "parsedLines": 1262534,
+        "projectedLines": 100000,
+        "reusedLines": 17072,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 10155819892,
+        "projectionBytes": 18904532
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788610960985,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 177,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 3703,
+      "probeChanges": 188,
+      "reconciliations": 29,
+      "gitStateScans": 108,
+      "gitStateChanges": 11,
+      "gitStateProjects": 324,
+      "lastReconciliationAt": 1788610947150,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 960,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 960,
+      "memory": {
+        "sampledAt": 1788611021378,
+        "rss": 481345536,
+        "heapTotal": 169328640,
+        "heapUsed": 28190888,
+        "external": 52257514,
+        "arrayBuffers": 7734652
+      },
+      "eventLoop": {
+        "sampledAt": 1788611021378,
+        "windowMs": 5000,
+        "utilization": 0.1846,
+        "delayMs": {
+          "min": 19.382,
+          "max": 418.382,
+          "mean": 25.305,
+          "p50": 21.053,
+          "p95": 21.25,
+          "p99": 88.932
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 23911089,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2281,
+        "parsePasses": 2281,
+        "parsedLines": 1368274,
+        "projectedLines": 111000,
+        "reusedLines": 20369,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 10889807089,
+        "projectionBytes": 16145926
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611021378,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 1.8,
+      "parsedLinesPerSecond": 1292.941,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 169.766,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 12162518.696
+    },
+    "gitCommandCount": 204,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 3978,
+      "probeChanges": 198,
+      "reconciliations": 31,
+      "gitStateScans": 117,
+      "gitStateChanges": 13,
+      "gitStateProjects": 351,
+      "lastReconciliationAt": 1788611007301,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1020,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1020,
+      "memory": {
+        "sampledAt": 1788611081791,
+        "rss": 513949696,
+        "heapTotal": 185303040,
+        "heapUsed": 58600528,
+        "external": 44479089,
+        "arrayBuffers": 24520060
+      },
+      "eventLoop": {
+        "sampledAt": 1788611081791,
+        "windowMs": 5000,
+        "utilization": 0.3005,
+        "delayMs": {
+          "min": 19.382,
+          "max": 613.941,
+          "mean": 29.617,
+          "p50": 21.053,
+          "p95": 21.43,
+          "p99": 448.791
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 23911089,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2411,
+        "parsePasses": 2411,
+        "parsedLines": 1461063,
+        "projectedLines": 118000,
+        "reusedLines": 20369,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 11599549525,
+        "projectionBytes": 16145926
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611081791,
+      "windowMs": 5221,
+      "parsePassesPerSecond": 3.256,
+      "parsedLinesPerSecond": 2301.475,
+      "projectedLinesPerSecond": 191.534,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 17155479.219
+    },
+    "gitCommandCount": 212,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 4308,
+      "probeChanges": 210,
+      "reconciliations": 33,
+      "gitStateScans": 127,
+      "gitStateChanges": 14,
+      "gitStateProjects": 381,
+      "lastReconciliationAt": 1788611068036,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1080,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1080,
+      "memory": {
+        "sampledAt": 1788611142119,
+        "rss": 479363072,
+        "heapTotal": 185450496,
+        "heapUsed": 50124888,
+        "external": 27001128,
+        "arrayBuffers": 7734652
+      },
+      "eventLoop": {
+        "sampledAt": 1788611142119,
+        "windowMs": 5000,
+        "utilization": 0.0084,
+        "delayMs": {
+          "min": 19.268,
+          "max": 25.264,
+          "mean": 21.112,
+          "p50": 21.053,
+          "p95": 21.791,
+          "p99": 24.74
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 9,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27298662,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 2,
+        "misses": 2523,
+        "parsePasses": 2523,
+        "parsedLines": 1535993,
+        "projectedLines": 126000,
+        "reusedLines": 20369,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12105247668,
+        "projectionBytes": 18919652
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611142119,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 220,
+    "watchers": {
+      "configured": 31,
+      "canonical": 25,
+      "installed": 25,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 6,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 4638,
+      "probeChanges": 217,
+      "reconciliations": 35,
+      "gitStateScans": 137,
+      "gitStateChanges": 15,
+      "gitStateProjects": 411,
+      "lastReconciliationAt": 1788611128174,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 73,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1140,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1140,
+      "memory": {
+        "sampledAt": 1788611197279,
+        "rss": 502906880,
+        "heapTotal": 230490112,
+        "heapUsed": 99104968,
+        "external": 10439739,
+        "arrayBuffers": 8074071
+      },
+      "eventLoop": {
+        "sampledAt": 1788611197279,
+        "windowMs": 5000,
+        "utilization": 0.0048,
+        "delayMs": {
+          "min": 19.661,
+          "max": 22.905,
+          "mean": 20.938,
+          "p50": 21.053,
+          "p95": 21.217,
+          "p99": 22.577
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27298662,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 4,
+        "misses": 2630,
+        "parsePasses": 2630,
+        "parsedLines": 1602580,
+        "projectedLines": 136001,
+        "reusedLines": 23368,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12501722255,
+        "projectionBytes": 18919652
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611197279,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 233,
+    "watchers": {
+      "configured": 29,
+      "canonical": 26,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 7,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 11,
+      "probeCap": 1024,
+      "probeScans": 4950,
+      "probeChanges": 225,
+      "reconciliations": 37,
+      "gitStateScans": 146,
+      "gitStateChanges": 16,
+      "gitStateProjects": 442,
+      "lastReconciliationAt": 1788611188361,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1200,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1200,
+      "memory": {
+        "sampledAt": 1788611257291,
+        "rss": 481067008,
+        "heapTotal": 166002688,
+        "heapUsed": 36665536,
+        "external": 10382395,
+        "arrayBuffers": 8000343
+      },
+      "eventLoop": {
+        "sampledAt": 1788611257291,
+        "windowMs": 5000,
+        "utilization": 0.0046,
+        "delayMs": {
+          "min": 19.415,
+          "max": 22.446,
+          "mean": 20.973,
+          "p50": 21.053,
+          "p95": 21.201,
+          "p99": 21.873
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 4,
+      "estimatedBytes": 12840782,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 6,
+        "misses": 2673,
+        "parsePasses": 2673,
+        "parsedLines": 1624389,
+        "projectedLines": 141001,
+        "reusedLines": 24992,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12620759582,
+        "projectionBytes": 8790362
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611257291,
+      "windowMs": 5002,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 251,
+    "watchers": {
+      "configured": 25,
+      "canonical": 25,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 6,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 5274,
+      "probeChanges": 227,
+      "reconciliations": 39,
+      "gitStateScans": 156,
+      "gitStateChanges": 17,
+      "gitStateProjects": 479,
+      "lastReconciliationAt": 1788611248391,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1260,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1260,
+      "memory": {
+        "sampledAt": 1788611317302,
+        "rss": 464699392,
+        "heapTotal": 211451904,
+        "heapUsed": 69216328,
+        "external": 35248301,
+        "arrayBuffers": 26773462
+      },
+      "eventLoop": {
+        "sampledAt": 1788611317302,
+        "windowMs": 5000,
+        "utilization": 0.0442,
+        "delayMs": {
+          "min": 19.677,
+          "max": 167.51,
+          "mean": 21.644,
+          "p50": 21.053,
+          "p95": 21.316,
+          "p99": 21.807
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 1,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 25696757,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 7,
+        "misses": 2716,
+        "parsePasses": 2716,
+        "parsedLines": 1646814,
+        "projectedLines": 147001,
+        "reusedLines": 25806,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12736038838,
+        "projectionBytes": 17328918
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611317302,
+      "windowMs": 5002,
+      "parsePassesPerSecond": 2.199,
+      "parsedLinesPerSecond": 1222.511,
+      "projectedLinesPerSecond": 199.92,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 6952843.663
+    },
+    "gitCommandCount": 276,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 5568,
+      "probeChanges": 229,
+      "reconciliations": 41,
+      "gitStateScans": 166,
+      "gitStateChanges": 18,
+      "gitStateProjects": 507,
+      "lastReconciliationAt": 1788611308412,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1320,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1320,
+      "memory": {
+        "sampledAt": 1788611377313,
+        "rss": 454770688,
+        "heapTotal": 200916992,
+        "heapUsed": 49470536,
+        "external": 10658004,
+        "arrayBuffers": 8284118
+      },
+      "eventLoop": {
+        "sampledAt": 1788611377313,
+        "windowMs": 5000,
+        "utilization": 0.0039,
+        "delayMs": {
+          "min": 19.841,
+          "max": 21.955,
+          "mean": 20.961,
+          "p50": 21.053,
+          "p95": 21.25,
+          "p99": 21.873
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 25730017,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 9,
+        "misses": 2763,
+        "parsePasses": 2763,
+        "parsedLines": 1672172,
+        "projectedLines": 152001,
+        "reusedLines": 27438,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12861240280,
+        "projectionBytes": 17351838
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611377313,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 286,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 5838,
+      "probeChanges": 231,
+      "reconciliations": 43,
+      "gitStateScans": 176,
+      "gitStateChanges": 19,
+      "gitStateProjects": 527,
+      "lastReconciliationAt": 1788611368435,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1380,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1380,
+      "memory": {
+        "sampledAt": 1788611437321,
+        "rss": 468041728,
+        "heapTotal": 173015040,
+        "heapUsed": 38666648,
+        "external": 16758957,
+        "arrayBuffers": 8284118
+      },
+      "eventLoop": {
+        "sampledAt": 1788611437321,
+        "windowMs": 5000,
+        "utilization": 0.0114,
+        "delayMs": {
+          "min": 19.448,
+          "max": 44.63,
+          "mean": 21.045,
+          "p50": 21.053,
+          "p95": 21.201,
+          "p99": 21.758
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 4,
+      "estimatedBytes": 33542597,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 11,
+        "misses": 2810,
+        "parsePasses": 2810,
+        "parsedLines": 1695520,
+        "projectedLines": 158001,
+        "reusedLines": 29906,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 12975582563,
+        "projectionBytes": 22724094
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611437321,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0.2,
+      "parsedLinesPerSecond": 165.2,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 1676590.4
+    },
+    "gitCommandCount": 296,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 6108,
+      "probeChanges": 234,
+      "reconciliations": 45,
+      "gitStateScans": 186,
+      "gitStateChanges": 20,
+      "gitStateProjects": 547,
+      "lastReconciliationAt": 1788611428455,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1440,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1440,
+      "memory": {
+        "sampledAt": 1788611497330,
+        "rss": 398917632,
+        "heapTotal": 195985408,
+        "heapUsed": 49290008,
+        "external": 29266474,
+        "arrayBuffers": 8284118
+      },
+      "eventLoop": {
+        "sampledAt": 1788611497330,
+        "windowMs": 5000,
+        "utilization": 0.0097,
+        "delayMs": {
+          "min": 19.874,
+          "max": 29.131,
+          "mean": 21.216,
+          "p50": 21.053,
+          "p95": 22.856,
+          "p99": 26.132
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 24086055,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 2925,
+        "parsePasses": 2925,
+        "parsedLines": 1750967,
+        "projectedLines": 167001,
+        "reusedLines": 38225,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 13303848821,
+        "projectionBytes": 16269028
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611497330,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 306,
+    "watchers": {
+      "configured": 27,
+      "canonical": 24,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 5,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 6399,
+      "probeChanges": 243,
+      "reconciliations": 47,
+      "gitStateScans": 196,
+      "gitStateChanges": 21,
+      "gitStateProjects": 567,
+      "lastReconciliationAt": 1788611488605,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1500,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1500,
+      "memory": {
+        "sampledAt": 1788611557485,
+        "rss": 452853760,
+        "heapTotal": 204177408,
+        "heapUsed": 90080232,
+        "external": 19050792,
+        "arrayBuffers": 16685124
+      },
+      "eventLoop": {
+        "sampledAt": 1788611557485,
+        "windowMs": 5000,
+        "utilization": 0.0788,
+        "delayMs": {
+          "min": 8.7,
+          "max": 271.581,
+          "mean": 22.536,
+          "p50": 21.053,
+          "p95": 22.839,
+          "p99": 27.804
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 24230675,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 3085,
+        "parsePasses": 3085,
+        "parsedLines": 1844115,
+        "projectedLines": 175001,
+        "reusedLines": 41590,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 13980056872,
+        "projectionBytes": 16374004
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611557485,
+      "windowMs": 5143,
+      "parsePassesPerSecond": 2.722,
+      "parsedLinesPerSecond": 1600.622,
+      "projectedLinesPerSecond": 194.439,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 9964675.092
+    },
+    "gitCommandCount": 324,
+    "watchers": {
+      "configured": 27,
+      "canonical": 24,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 5,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 6699,
+      "probeChanges": 259,
+      "reconciliations": 49,
+      "gitStateScans": 206,
+      "gitStateChanges": 22,
+      "gitStateProjects": 587,
+      "lastReconciliationAt": 1788611548727,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 74,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1560,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1560,
+      "memory": {
+        "sampledAt": 1788611617497,
+        "rss": 454983680,
+        "heapTotal": 186515456,
+        "heapUsed": 41472184,
+        "external": 10650607,
+        "arrayBuffers": 8284939
+      },
+      "eventLoop": {
+        "sampledAt": 1788611617497,
+        "windowMs": 5000,
+        "utilization": 0.0028,
+        "delayMs": {
+          "min": 19.186,
+          "max": 24.723,
+          "mean": 20.954,
+          "p50": 21.037,
+          "p95": 21.185,
+          "p99": 21.856
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 7,
+      "estimatedBytes": 20840860,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 3119,
+        "parsePasses": 3119,
+        "parsedLines": 1860486,
+        "projectedLines": 178001,
+        "reusedLines": 41590,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 14077396410,
+        "projectionBytes": 14369780
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611617497,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 345,
+    "watchers": {
+      "configured": 27,
+      "canonical": 24,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 5,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 6769,
+      "probeChanges": 261,
+      "reconciliations": 51,
+      "gitStateScans": 209,
+      "gitStateChanges": 22,
+      "gitStateProjects": 593,
+      "lastReconciliationAt": 1788611608755,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1620,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1620,
+      "memory": {
+        "sampledAt": 1788611677508,
+        "rss": 457687040,
+        "heapTotal": 173047808,
+        "heapUsed": 34479368,
+        "external": 10649433,
+        "arrayBuffers": 8283765
+      },
+      "eventLoop": {
+        "sampledAt": 1788611677508,
+        "windowMs": 5000,
+        "utilization": 0.0021,
+        "delayMs": {
+          "min": 19.35,
+          "max": 21.43,
+          "mean": 20.876,
+          "p50": 21.053,
+          "p95": 21.152,
+          "p99": 21.348
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 4,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 6,
+      "estimatedBytes": 19411887,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 3128,
+        "parsePasses": 3128,
+        "parsedLines": 1864247,
+        "projectedLines": 179001,
+        "reusedLines": 41590,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 14100061901,
+        "projectionBytes": 13310368
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611677508,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 347,
+    "watchers": {
+      "configured": 27,
+      "canonical": 24,
+      "installed": 24,
+      "stableInstalled": 19,
+      "dynamicRequested": 5,
+      "dynamicInstalled": 5,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 10,
+      "probeCap": 1024,
+      "probeScans": 6769,
+      "probeChanges": 261,
+      "reconciliations": 53,
+      "gitStateScans": 209,
+      "gitStateChanges": 22,
+      "gitStateProjects": 593,
+      "lastReconciliationAt": 1788611668783,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1680,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1680,
+      "memory": {
+        "sampledAt": 1788611737519,
+        "rss": 410779648,
+        "heapTotal": 171032576,
+        "heapUsed": 32377296,
+        "external": 10649994,
+        "arrayBuffers": 8284326
+      },
+      "eventLoop": {
+        "sampledAt": 1788611737519,
+        "windowMs": 5000,
+        "utilization": 0.0024,
+        "delayMs": {
+          "min": 20.038,
+          "max": 22.282,
+          "mean": 20.938,
+          "p50": 21.037,
+          "p95": 21.217,
+          "p99": 21.61
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 3,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 5,
+      "estimatedBytes": 16267593,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 3135,
+        "parsePasses": 3135,
+        "parsedLines": 1866938,
+        "projectedLines": 180001,
+        "reusedLines": 41590,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 14113891952,
+        "projectionBytes": 11151936
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611737519,
+      "windowMs": 5002,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 353,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 6769,
+      "probeChanges": 261,
+      "reconciliations": 55,
+      "gitStateScans": 209,
+      "gitStateChanges": 22,
+      "gitStateProjects": 593,
+      "lastReconciliationAt": 1788611728805,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1740,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1740,
+      "memory": {
+        "sampledAt": 1788611797526,
+        "rss": 202047488,
+        "heapTotal": 34701312,
+        "heapUsed": 31649600,
+        "external": 16766644,
+        "arrayBuffers": 8291805
+      },
+      "eventLoop": {
+        "sampledAt": 1788611797526,
+        "windowMs": 5000,
+        "utilization": 0.0026,
+        "delayMs": {
+          "min": 19.694,
+          "max": 22.987,
+          "mean": 20.948,
+          "p50": 21.053,
+          "p95": 21.25,
+          "p99": 21.774
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 5,
+      "estimatedBytes": 32280523,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 14,
+        "misses": 3140,
+        "parsePasses": 3140,
+        "parsedLines": 1869166,
+        "projectedLines": 181001,
+        "reusedLines": 41590,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 14124273506,
+        "projectionBytes": 21931354
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611797526,
+      "windowMs": 5000,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 359,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 6769,
+      "probeChanges": 261,
+      "reconciliations": 57,
+      "gitStateScans": 209,
+      "gitStateChanges": 22,
+      "gitStateProjects": 593,
+      "lastReconciliationAt": 1788611788845,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  },
+  {
+    "elapsedSeconds": 1800,
+    "runtime": {
+      "pid": 93631,
+      "uptimeSeconds": 1800,
+      "memory": {
+        "sampledAt": 1788611857538,
+        "rss": 316506112,
+        "heapTotal": 204898304,
+        "heapUsed": 41644472,
+        "external": 10649994,
+        "arrayBuffers": 8284326
+      },
+      "eventLoop": {
+        "sampledAt": 1788611857538,
+        "windowMs": 5000,
+        "utilization": 0.0025,
+        "delayMs": {
+          "min": 19.12,
+          "max": 25.936,
+          "mean": 20.924,
+          "p50": 21.053,
+          "p95": 21.283,
+          "p99": 21.791
+        }
+      },
+      "processErrors": {
+        "unhandledRejections": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastReason": null
+        },
+        "uncaughtExceptions": {
+          "count": 0,
+          "lastOccurredAt": null,
+          "lastMessage": null
+        }
+      }
+    },
+    "wsInitMs": 2,
+    "wsAttempts": 1,
+    "tailCache": {
+      "entries": 1,
+      "estimatedBytes": 27271115,
+      "entryLimit": 128,
+      "byteLimit": 33554432,
+      "parsed": {
+        "hits": 16,
+        "misses": 3145,
+        "parsePasses": 3145,
+        "parsedLines": 1872445,
+        "projectedLines": 181001,
+        "reusedLines": 43488,
+        "rejectedEntries": 0,
+        "rejectedBytes": 0,
+        "bytesRead": 14139049529,
+        "projectionBytes": 18902646
+      }
+    },
+    "tailRate": {
+      "sampledAt": 1788611857538,
+      "windowMs": 5001,
+      "parsePassesPerSecond": 0,
+      "parsedLinesPerSecond": 0,
+      "projectedLinesPerSecond": 0,
+      "reusedLinesPerSecond": 0,
+      "rejectedEntriesPerSecond": 0,
+      "bytesReadPerSecond": 0
+    },
+    "gitCommandCount": 365,
+    "watchers": {
+      "configured": 23,
+      "canonical": 23,
+      "installed": 23,
+      "stableInstalled": 19,
+      "dynamicRequested": 4,
+      "dynamicInstalled": 4,
+      "dynamicDropped": 0,
+      "dynamicCap": 512,
+      "dynamicEnabled": true,
+      "probePaths": 9,
+      "probeCap": 1024,
+      "probeScans": 6769,
+      "probeChanges": 261,
+      "reconciliations": 59,
+      "gitStateScans": 209,
+      "gitStateChanges": 22,
+      "gitStateProjects": 593,
+      "lastReconciliationAt": 1788611848868,
+      "linux": {
+        "supported": false,
+        "sampledAt": null,
+        "inotifyFds": null,
+        "watchEntries": null,
+        "error": null
+      }
+    },
+    "providers": {
+      "claude": {
+        "orphanScan": {
+          "projectDirectories": 10,
+          "subagentActivityEntries": 32,
+          "subagentActivityLimit": 8192,
+          "subagentActivityRefreshMs": 30000
+        }
+      }
+    }
+  }
+]

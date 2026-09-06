@@ -1,21 +1,268 @@
-/* 캐릭터 모드 전용 스타일 */
 .content__character {
-    background: #0a0a0f;
+    position: relative;
 }
 
 #worldCanvas {
-    background: #0a0a0f;
+    position: relative;
+    z-index: 0;
+    background: transparent;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
 
-#minimapCanvas {
+#worldFxCanvas,
+#worldOverlayCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    opacity: 0.85;
 }
 
-.content__minimap:hover {
-    opacity: 1;
-    border-color: rgba(232, 212, 77, 0.5);
+#worldFxCanvas {
+    z-index: 1;
+    display: none;
 }
+
+#worldOverlayCanvas {
+    z-index: 2;
+}
+
+.world-empty {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    top: 52%;
+    display: flex;
+    width: 420px;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 22px 20px;
+    pointer-events: none;
+    color: var(--cv-text-muted);
+    background:
+        linear-gradient(180deg, rgba(55, 37, 24, 0.9), rgba(20, 14, 12, 0.92)),
+        repeating-linear-gradient(90deg, rgba(255, 226, 138, 0.035) 0 1px, transparent 1px 14px);
+    border: 1px solid rgba(214, 169, 81, 0.58);
+    box-shadow:
+        0 0 0 2px rgba(20, 13, 10, 0.76),
+        inset 0 1px 0 rgba(255, 231, 150, 0.12),
+        0 12px 30px rgba(0, 0, 0, 0.38);
+    text-align: center;
+}
+
+.world-empty[hidden],
+.first-run-hint[hidden] {
+    display: none;
+}
+
+.world-empty__crest {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    color: var(--cv-gold-bright);
+    background: rgba(19, 12, 10, 0.74);
+    border: 1px solid rgba(242, 211, 107, 0.46);
+    font: 17px/1 var(--font-display);
+    text-shadow: 1px 1px 0 #2d1a12;
+}
+
+.world-empty__title {
+    color: var(--cv-gold-bright);
+    font: 12px/1.5 var(--font-display);
+    letter-spacing: 2px;
+    text-shadow: 1px 1px 0 #2d1a12;
+}
+
+.world-empty__copy {
+    max-width: 340px;
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+    letter-spacing: 0.5px;
+}
+
+.world-empty__legend {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    width: 100%;
+    max-width: 340px;
+    margin: 2px 0 0;
+    gap: 5px 14px;
+    text-align: left;
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.world-empty__legend[hidden] {
+    display: none;
+}
+
+.world-empty__legend dt {
+    color: var(--cv-gold-bright);
+    font-family: var(--font-display);
+    font-size: var(--fs-label);
+}
+
+.world-empty__legend dd {
+    margin: 0;
+    color: var(--cv-tan);
+}
+
+.first-run-hint {
+    position: fixed;
+    z-index: 1100;
+    top: 63px;
+    right: 167px;
+    display: flex;
+    width: 300px;
+    box-sizing: border-box;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 32px 12px 12px;
+    color: var(--cv-text-muted);
+    background: linear-gradient(180deg, rgba(45, 30, 20, 0.98), rgba(18, 12, 11, 0.98));
+    border: 1px solid rgba(214, 169, 81, 0.58);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 231, 150, 0.1);
+}
+
+body.cv-panel-open .first-run-hint,
+body.cv-panel-open .world-grammar {
+    right: calc(167px + 320px);
+}
+
+.first-run-hint::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    right: 14px;
+    width: 12px;
+    height: 12px;
+    transform: rotate(45deg);
+    background: rgba(45, 30, 20, 0.98);
+    border-top: 1px solid rgba(214, 169, 81, 0.58);
+    border-left: 1px solid rgba(214, 169, 81, 0.58);
+}
+
+.first-run-hint__title {
+    color: var(--cv-gold-bright);
+    font: var(--fs-label)/1.4 var(--font-display);
+    letter-spacing: 1px;
+}
+
+.first-run-hint__copy {
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.first-run-hint__copy kbd {
+    padding: 1px 4px;
+    color: var(--cv-gold-bright);
+    background: rgba(8, 6, 5, 0.72);
+    border: 1px solid rgba(214, 169, 81, 0.42);
+    font: var(--fs-label)/1 var(--font-display);
+}
+
+.first-run-hint__dismiss {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    color: var(--cv-text-muted);
+    background: rgba(20, 13, 11, 0.74);
+    border: 1px solid rgba(214, 169, 81, 0.34);
+    font: 12px/1 var(--font-display);
+}
+
+.first-run-hint__dismiss:hover,
+.first-run-hint__dismiss:focus-visible {
+    color: var(--cv-gold-bright);
+    border-color: rgba(242, 211, 107, 0.72);
+}
+
+/* Ungraded, discoverable grammar opened from the matching topbar icon. */
+.world-grammar { position: fixed; inset: 58px 174px auto auto; margin: 0; width: 310px; padding: 0; color: #d7b979; background: rgba(20, 15, 18, .98); border: 1px solid rgba(199, 157, 76, .52); border-radius: 2px; font: var(--fs-data)/var(--lh-body) var(--font-body); box-shadow: inset 0 1px 0 rgba(255,226,138,.1), 0 10px 24px rgba(0,0,0,.42); }
+.world-grammar::backdrop { background: transparent; }
+.world-grammar__header { display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 6px 9px; color: #f2d36b; font: var(--fs-label)/1.4 var(--font-display); letter-spacing: 1px; border-bottom: 1px solid rgba(199,157,76,.22); }
+.world-grammar__close { width: 18px; height: 18px; padding: 0; border: 1px solid rgba(199,157,76,.34); color: #bda472; background: rgba(48,31,24,.72); font: var(--fs-label)/1 var(--font-display); }
+.world-grammar__close:hover { color: #ffe58d; border-color: rgba(242,211,107,.72); }
+.world-grammar__body { padding: 9px; color: #a89476; }
+.world-grammar__body b { color: #ffe58d; }
+.world-read { touch-action: none; user-select: none; white-space: nowrap; }
+.world-read kbd { font: var(--fs-data)/1 var(--font-body); color: #bda472; }
+.world-read[aria-pressed="true"] { color: #ffe58d; background: #543c22; border-color: #f2d36b; }
+/* 5.1 — the Ambient camera control. One chip, three honest states: available,
+   broadcasting (the shared --on treatment), and handed back to the operator,
+   where it waits as RESUME AMBIENT and never re-takes the frame on its own. */
+.world-ambient { user-select: none; white-space: nowrap; }
+.world-ambient[data-state="resume"] { color: #f2d36b; border-color: rgba(242,211,107,.5); }
+.world-semantic-summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.boot-status {
+    color: var(--cv-gold-bright, #ffe58d);
+    font: var(--fs-label)/1.4 var(--font-display);
+    letter-spacing: 1.5px;
+    text-shadow: 1px 1px 0 #2d1a12;
+}
+
+.boot-failure {
+    color: var(--cv-text-muted, #8b8b9e);
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+}
+
+.boot-action {
+    color: #1b120d;
+    background: var(--cv-gold-bright, #ffe58d);
+    border: 1px solid rgba(214, 169, 81, 0.8);
+    padding: 6px 12px;
+    font: var(--fs-label)/1 var(--font-display);
+    letter-spacing: 1px;
+}
+
+.world-empty__next,
+.dashboard__empty-next {
+    max-width: 340px;
+    color: var(--cv-tan, #d8b77a);
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+    letter-spacing: 0.5px;
+}
+
+:where(
+    .world-empty__crest,
+    .world-empty__title,
+    .world-empty__legend dt,
+    .first-run-hint__title,
+    .first-run-hint__copy kbd,
+    .first-run-hint__dismiss,
+    .world-grammar__header,
+    .world-grammar__close,
+    .boot-status,
+    .boot-action
+) {
+    -webkit-font-smoothing: none;
+}
+
+/* A healthy empty village stays visible and available to explore. */
+.world-empty[data-phase="ready-empty"] {
+    left: 24px;
+    top: auto;
+    bottom: 24px;
+    width: auto;
+    max-width: calc(100% - 48px);
+    transform: none;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px 16px;
+    text-align: left;
+    background: rgba(20, 14, 12, .92);
+    box-shadow: none;
+}
+.world-empty[data-phase="ready-empty"] .world-empty__crest,
+.world-empty[data-phase="ready-empty"] .world-empty__legend,
+.world-empty[data-phase="ready-empty"] .world-empty__next { display: none; }
+.world-empty[data-phase="ready-empty"] .world-empty__title { font: var(--fs-label) var(--font-display); }
+.world-empty[data-phase="ready-empty"] .world-empty__copy { font: var(--fs-body)/var(--lh-body) var(--font-body); }

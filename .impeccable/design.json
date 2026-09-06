@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-14T12:00:00Z",
+  "title": "Design System: ClaudeVille",
+  "extensions": {
+    "colorMeta": {
+      "torchlight-gold": { "role": "primary", "displayName": "Torchlight Gold", "canonical": "#f2d36b", "tonalRamp": ["oklch(22% 0.04 85)", "oklch(33% 0.06 86)", "oklch(45% 0.09 87)", "oklch(57% 0.11 88)", "oklch(68% 0.12 89)", "oklch(78% 0.13 90)", "oklch(86% 0.13 90)", "oklch(95% 0.06 92)"] },
+      "gold-bright": { "role": "primary", "displayName": "Gold Bright", "canonical": "#ffe58d" },
+      "gold-deep": { "role": "primary", "displayName": "Brass", "canonical": "#c79d4c", "tonalRamp": ["oklch(20% 0.03 80)", "oklch(30% 0.05 82)", "oklch(42% 0.07 84)", "oklch(53% 0.09 85)", "oklch(64% 0.10 86)", "oklch(73% 0.10 87)", "oklch(83% 0.08 88)", "oklch(93% 0.04 90)"] },
+      "gold-soft": { "role": "primary", "displayName": "Gold Soft", "canonical": "#d7b979" },
+      "signal-yellow": { "role": "primary", "displayName": "Signal Yellow", "canonical": "#e8d44d" },
+      "harbor-teal": { "role": "secondary", "displayName": "Harbor Teal", "canonical": "#7ac8d8", "tonalRamp": ["oklch(28% 0.04 215)", "oklch(40% 0.06 213)", "oklch(52% 0.08 211)", "oklch(63% 0.09 209)", "oklch(73% 0.09 207)", "oklch(80% 0.08 205)", "oklch(88% 0.06 203)", "oklch(95% 0.03 200)"] },
+      "sky-soft": { "role": "secondary", "displayName": "Sky Soft", "canonical": "#7eb7d6" },
+      "charred-timber": { "role": "neutral", "displayName": "Charred Timber", "canonical": "#08070b", "tonalRamp": ["oklch(8% 0.004 60)", "oklch(14% 0.006 60)", "oklch(20% 0.008 60)", "oklch(28% 0.010 60)", "oklch(40% 0.012 62)", "oklch(55% 0.010 64)", "oklch(72% 0.008 66)", "oklch(92% 0.004 70)"] },
+      "timber-panel": { "role": "neutral", "displayName": "Timber Panel", "canonical": "#140f12" },
+      "ember-brown": { "role": "neutral", "displayName": "Tavern Ember Brown", "canonical": "#2d1e17", "tonalRamp": ["oklch(18% 0.02 50)", "oklch(26% 0.03 50)", "oklch(34% 0.04 52)", "oklch(44% 0.05 55)", "oklch(55% 0.06 60)", "oklch(66% 0.07 65)", "oklch(78% 0.07 70)", "oklch(90% 0.05 75)"] },
+      "parchment-tan": { "role": "neutral", "displayName": "Parchment Tan", "canonical": "#a89476", "tonalRamp": ["oklch(25% 0.02 70)", "oklch(36% 0.03 72)", "oklch(47% 0.035 73)", "oklch(57% 0.04 74)", "oklch(66% 0.04 75)", "oklch(75% 0.04 76)", "oklch(84% 0.03 78)", "oklch(93% 0.02 80)"] },
+      "tan-bright": { "role": "neutral", "displayName": "Tan Bright", "canonical": "#c6b08a" },
+      "ash-gray": { "role": "neutral", "displayName": "Ash Gray", "canonical": "#8b8b9e" },
+      "status-working": { "role": "status", "displayName": "Quest Green", "canonical": "#4ade80" },
+      "status-idle": { "role": "status", "displayName": "Wanderer Blue", "canonical": "#60a5fa" },
+      "status-waiting": { "role": "status", "displayName": "Hearth Orange", "canonical": "#f97316" },
+      "status-rate-limited": { "role": "status", "displayName": "Amber Warning", "canonical": "#f59e0b" },
+      "status-errored": { "role": "status", "displayName": "Alarm Red", "canonical": "#ef4444" },
+      "status-waiting-user": { "role": "status", "displayName": "Beacon Yellow", "canonical": "#facc15" },
+      "accent-purple": { "role": "status", "displayName": "Workflow Purple", "canonical": "#c084fc" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The ClaudeVille wordmark in the top bar; dark drop plus gold glow." },
+      "headline": { "displayName": "Headline", "purpose": "Dashboard section names, card names, modal title." },
+      "title": { "displayName": "Title", "purpose": "Tool names, token values, primary in-card labels." },
+      "body": { "displayName": "Body", "purpose": "Card meta, messages, tool detail, modal prose." },
+      "label": { "displayName": "Label", "purpose": "Uppercase stat labels, section eyebrows, meta keys; letter-spaced." },
+      "micro": { "displayName": "Micro", "purpose": "Token-cell and journey labels; the densest readouts at 5-6px." }
+    },
+    "shadows": [
+      { "name": "carved-bevel", "value": "inset 0 1px 0 rgba(255,226,138,0.10), inset 0 -2px 0 rgba(0,0,0,0.30)", "purpose": "Default raised-plate treatment on stat tiles, badges, chips, buttons. Light catches the top edge, shadow falls under." },
+      { "name": "panel-float", "value": "0 8px 22px rgba(0,0,0,0.22)", "purpose": "Cards and dashboard sections lifting off the timber ground." },
+      { "name": "edge-seam", "value": "inset -1px 0 0 rgba(255,226,138,0.10), 8px 0 20px rgba(0,0,0,0.18)", "purpose": "Lit inner edge plus cast shadow on the sidebar and activity panel." },
+      { "name": "torch-glow", "value": "0 0 18px rgba(214,169,81,0.08)", "purpose": "Warm hover bloom on cards and the wordmark. Warmth, not a neon ring." },
+      { "name": "status-halo", "value": "0 0 6px currentColor", "purpose": "Status dot glowing in its own status hue." }
+    ],
+    "motion": [
+      { "name": "ui-transition", "value": "0.15s ease", "purpose": "Default state transition on buttons, chips, hover treatments." },
+      { "name": "meter-fill", "value": "width 0.5s ease", "purpose": "Quota and context progress-bar fills." },
+      { "name": "panel-enter", "value": "0.16s ease", "purpose": "Activity-panel fade-and-slide entrance (translateX 12px to 0)." },
+      { "name": "status-pulse", "value": "1.2s-2.4s ease-in-out infinite", "purpose": "Per-status dot pulse; 1.2s errored (fastest) to 2.4s rate-limited (slowest); idle does not pulse." },
+      { "name": "skeleton-shimmer", "value": "1.4s ease-in-out infinite", "purpose": "First-fetch card loading sweep, in place of spinners." }
+    ],
+    "breakpoints": [
+      { "name": "desktop-min", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Mode Toggle (default)",
+      "kind": "button",
+      "refersTo": "button-mode",
+      "description": "Top-bar World/Dashboard switch in its unlit state: a ghost ember plate.",
+      "html": "<button class='ds-mode-btn'>WORLD</button>",
+      "css": ".ds-mode-btn { font-family:'Press Start 2P',monospace; font-size:9px; padding:6px 14px; color:#bba17a; background:linear-gradient(180deg, rgba(49,31,21,0.92), rgba(22,14,12,0.92)); border:1px solid rgba(199,157,76,0.48); border-radius:2px; box-shadow: inset 0 1px 0 rgba(255,226,138,0.10), inset 0 -2px 0 rgba(0,0,0,0.28); cursor:pointer; transition:all .15s; } .ds-mode-btn:hover { color:#f2d36b; border-color:rgba(242,211,107,0.72); background:rgba(57,37,24,0.78); } .ds-mode-btn:focus-visible { outline:2px solid rgba(255,229,141,0.75); outline-offset:2px; }"
+    },
+    {
+      "name": "Mode Toggle (active)",
+      "kind": "button",
+      "refersTo": "button-mode-active",
+      "description": "The lit, selected mode button: a gold gradient with near-black text. The only place solid gold fill is allowed.",
+      "html": "<button class='ds-mode-btn-active'>DASHBOARD</button>",
+      "css": ".ds-mode-btn-active { font-family:'Press Start 2P',monospace; font-size:9px; padding:6px 14px; color:#241812; background:linear-gradient(180deg, #fff0b0, #d6a951 62%, #9c6732); border:1px solid #f6da82; border-radius:2px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -2px 0 rgba(91,49,21,0.38); cursor:pointer; } .ds-mode-btn-active:hover { color:#0a0a0f; }"
+    },
+    {
+      "name": "Count Chip",
+      "kind": "chip",
+      "refersTo": "chip-count",
+      "description": "Small tally chip beside sidebar and section headers.",
+      "html": "<span class='ds-count-chip'>7</span>",
+      "css": ".ds-count-chip { font-family:'Press Start 2P',monospace; font-size:9px; color:#d7b979; background:linear-gradient(180deg, rgba(74,50,29,0.88), rgba(29,20,16,0.88)); border:1px solid rgba(214,169,81,0.38); border-radius:2px; padding:2px 8px; box-shadow: inset 0 1px 0 rgba(255,226,138,0.10); }"
+    },
+    {
+      "name": "Status Badge (working)",
+      "kind": "custom",
+      "refersTo": "status-spine",
+      "description": "Agent status pill: a carved plate, glowing pulsing dot, uppercase status word. Color is paired with a dot and a label, never color alone.",
+      "html": "<span class='ds-status ds-status--working'><span class='ds-status-dot'></span>WORKING</span>",
+      "css": ".ds-status { display:inline-flex; align-items:center; gap:6px; font-family:'Press Start 2P',monospace; font-size:10px; font-weight:bold; text-transform:uppercase; padding:3px 7px; border:1px solid rgba(214,169,81,0.26); border-radius:2px; background:linear-gradient(180deg, rgba(57,37,24,0.82), rgba(22,15,13,0.82)); box-shadow: inset 0 1px 0 rgba(255,226,138,0.08); } .ds-status--working { color:#4ade80; } .ds-status-dot { width:6px; height:6px; border-radius:50%; background:currentColor; border:1px solid rgba(255,245,205,0.46); box-shadow: inset 0 1px 1px rgba(255,255,255,0.28), 0 0 6px currentColor; animation:ds-status-pulse 1.5s ease-in-out infinite; } @keyframes ds-status-pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } } @media (prefers-reduced-motion:reduce) { .ds-status-dot { animation:none; } }"
+    },
+    {
+      "name": "Adventurer Dossier (card)",
+      "kind": "card",
+      "refersTo": "card-dossier",
+      "description": "The dashboard agent card: timber plate, 3px status spine on the left, inset hairline frame, lifts and glows on hover.",
+      "html": "<article class='ds-dossier ds-dossier--working'><div class='ds-dossier__head'><span class='ds-dossier__name'>claude-opus</span><span class='ds-dossier__status'><span class='ds-dossier__dot'></span>WORKING</span></div><div class='ds-dossier__body'>Editing AgentSprite.js</div></article>",
+      "css": ".ds-dossier { position:relative; font-family:'Press Start 2P',monospace; border:1px solid rgba(214,169,81,0.30); border-left:3px solid #4ade80; border-radius:3px; background: radial-gradient(circle at 10% 0%, rgba(255,226,138,0.09), transparent 30%), linear-gradient(180deg, rgba(58,40,25,0.99), rgba(19,13,11,0.99)); box-shadow: inset 0 1px 0 rgba(255,226,138,0.08), inset 0 0 0 1px rgba(0,0,0,0.34), 0 6px 16px rgba(0,0,0,0.20); overflow:hidden; transition: border-color .2s, box-shadow .2s, transform .2s; } .ds-dossier::after { content:''; position:absolute; inset:3px; border:1px solid rgba(255,226,138,0.06); pointer-events:none; } .ds-dossier:hover { border-color:rgba(255,226,138,0.58); box-shadow: inset 0 1px 0 rgba(255,226,138,0.12), 0 9px 20px rgba(0,0,0,0.28), 0 0 18px rgba(214,169,81,0.08); transform:translateY(-1px); } .ds-dossier__head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:linear-gradient(180deg, rgba(38,25,17,0.88), rgba(20,13,11,0.72)); border-bottom:1px solid rgba(214,169,81,0.24); } .ds-dossier__name { font-size:12px; font-weight:bold; color:#ffe58d; text-shadow:1px 1px 0 #2d1a12; } .ds-dossier__status { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:bold; color:#4ade80; } .ds-dossier__dot { width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 6px currentColor; } .ds-dossier__body { padding:8px 12px; font-size:10px; color:#a89476; } @media (prefers-reduced-motion:reduce) { .ds-dossier { transition:none; } .ds-dossier:hover { transform:none; } }"
+    },
+    {
+      "name": "Model Badge",
+      "kind": "chip",
+      "refersTo": "badge-model",
+      "description": "Identity badge for the agent's model: a cool Sky-Soft wash distinct from gold authority.",
+      "html": "<span class='ds-model-badge'>claude-opus-4-8</span>",
+      "css": ".ds-model-badge { font-family:'Press Start 2P',monospace; font-size:10px; color:#7eb7d6; background:rgba(126,183,214,0.14); border:1px solid rgba(126,183,214,0.18); border-radius:3px; padding:1px 6px; }"
+    },
+    {
+      "name": "Quota Meter",
+      "kind": "custom",
+      "refersTo": "meter-quota",
+      "description": "Thin top-bar usage gauge: inset track, square-cornered fill. A usage gauge, not a score bar.",
+      "html": "<div class='ds-quota'><span class='ds-quota__label'>5H</span><div class='ds-quota__track'><div class='ds-quota__fill'></div></div><span class='ds-quota__pct'>62%</span></div>",
+      "css": ".ds-quota { display:inline-flex; align-items:center; gap:6px; font-family:'Press Start 2P',monospace; } .ds-quota__label { font-size:7px; color:#a89476; letter-spacing:0.5px; width:16px; } .ds-quota__track { width:48px; height:6px; background:rgba(0,0,0,0.32); border:1px solid rgba(199,157,76,0.20); border-radius:1px; overflow:hidden; box-shadow: inset 0 1px 0 rgba(255,226,138,0.10), inset 0 -1px 0 rgba(0,0,0,0.35); } .ds-quota__fill { height:100%; width:62%; background:#72d071; transition: width 0.5s ease, background-color 0.3s; } .ds-quota__pct { font-size:7px; color:#a89476; width:22px; text-align:right; }"
+    },
+    {
+      "name": "Version Chip",
+      "kind": "button",
+      "refersTo": "version-chip",
+      "description": "Clickable version tag in the top bar that opens the changelog modal.",
+      "html": "<button class='ds-version-chip'>v0.9.1.1</button>",
+      "css": ".ds-version-chip { font-family:'Press Start 2P',monospace; font-size:8px; color:#c0a172; padding:2px 6px; border:1px solid rgba(199,157,76,0.45); background:rgba(36,24,17,0.90); border-radius:1px; cursor:pointer; transition: color .15s, border-color .15s; } .ds-version-chip:hover { color:#e8d4a0; border-color:rgba(199,157,76,0.80); }"
+    },
+    {
+      "name": "Stale Badge",
+      "kind": "chip",
+      "refersTo": "badge-stale",
+      "description": "Amber warning tag when a card's data is stale.",
+      "html": "<span class='ds-stale-badge'>STALE</span>",
+      "css": ".ds-stale-badge { font-family:'Press Start 2P',monospace; font-size:8px; letter-spacing:1px; color:#f5b54b; padding:2px 6px; border:1px solid rgba(245,158,11,0.45); background:rgba(120,72,16,0.35); border-radius:2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Keep at Night",
+    "overview": "\"The Keep at Night\" describes the DOM frame, not the whole app. The chrome is the interior of a darkened keep: near-black timber walls, gold lamplight pooling along every bevelled panel edge, and at the center a window onto the village below. The chrome is never bright by default; it is meant to be left lit in the corner of a second monitor, quiet when the work is quiet and only loud when a single agent needs a person. Every chrome surface is carved and torchlit: raised plates with bevelled edges and a faint inset gold hairline. But the window the frame surrounds is a living world: the canvas village runs on the real clock and weather, bright at midday and torchlit at night. This spec documents the chrome only; the canvas visual system (terrain and water palette, the nine buildings, sprite identity, and a real-time atmosphere engine) is canonical in theme.js and the docs/ world references. This system serves a brand-register product built for one developer at a desktop (1280px and wider): the village is the point, the chrome is its frame, and color is rationed (gold is light, not fill; saturated hues belong to agent status alone).",
+    "keyCharacteristics": [
+      "One pixel typeface (Press Start 2P) at whole-pixel sizes, smoothing off.",
+      "Warm gold-on-near-black; gold used as lamplight (text, edges, glow), never as a fill.",
+      "Carved relief: top highlight + drop shadow + inset hairline frame on every raised surface.",
+      "Saturated color reserved for agent status and provider identity, never decoration.",
+      "Near-square corners (1-3px); the changelog modal is the lone exception at 6px.",
+      "Calm at rest; motion is a status signal, with a reduced-motion fallback everywhere.",
+      "The canvas village is a separate, real-time visual system (day/night, weather), documented in theme.js and the world docs, not in this spec."
+    ],
+    "rules": [
+      { "name": "The Lamplight Rule", "body": "Gold is light, not fill. It lives on text, hairlines, top-edge highlights, and glows, and never floods more than a sliver of any surface. The surface underneath is always timber.", "section": "colors" },
+      { "name": "The Status-Only Color Rule", "body": "The saturated spectrum (green, blue, orange, amber, red, yellow) is reserved for agent status and provider identity. It never decorates. If red means errored, nothing else may be red for flavor.", "section": "colors" },
+      { "name": "The Single Outlier Rule", "body": "Ash Gray (#8b8b9e) is the one cool note in a warm system. It belongs to the changelog modal and empty states. Do not spread it onto panels, cards, or the world chrome.", "section": "colors" },
+      { "name": "The Whole-Pixel Rule", "body": "Sizes are whole pixels and fixed, never fluid clamp(). A pixel font sheared by sub-pixel scaling stops being pixel art. Keep smoothing off and let the bitmap be the bitmap.", "section": "typography" },
+      { "name": "The Breathing-Label Rule", "body": "Small labels get letter-spacing (1-3px) and uppercase so the heavy glyphs have air. Uppercase is for short labels only (a few words), never for sentences or messages.", "section": "typography" },
+      { "name": "The Torchlight-From-Above Rule", "body": "Every raised surface carries a warm highlight on its top edge and a dark drop beneath, as if lit from overhead. Light never comes from below.", "section": "elevation" },
+      { "name": "The Double-Frame Rule", "body": "Panels, stat plates, and cards carry a faint inset gold hairline a few pixels inside their border. It is the carved inner bezel that makes a plate look milled rather than printed.", "section": "elevation" },
+      { "name": "The Status Spine Rule", "body": "The 3px left border on cards and the selected sidebar row is a functional status/selection encoding, never decorative trim.", "section": "components" }
+    ],
+    "dos": [
+      "Do render every glyph in Press Start 2P at whole-pixel sizes, smoothing off, image-rendering: pixelated.",
+      "Do treat gold as lamplight (text, hairlines, top-edge highlights, glow) and keep surfaces timber/near-black. Solid gold fill is allowed only on the single active mode button.",
+      "Do reserve the saturated spectrum for agent status and provider identity, and pair every status color with a second cue (a dot, a label, a position), never color alone.",
+      "Do build depth with torchlight-from-above relief: warm top highlight, dark drop shadow, and a faint inset gold hairline frame.",
+      "Do keep corners near-square (1-3px); only the changelog modal rounds to 6px.",
+      "Do ship a prefers-reduced-motion fallback for every animation (status pulses, skeleton shimmer, panel fade-in, hover lift)."
+    ],
+    "donts": [
+      "Don't let it read as a generic SaaS dashboard: no cool grays, no Inter, no chart-card grids, no analytics-tool look.",
+      "Don't drift toward neon cyberpunk / synthwave: no glowing neon grids, no purple-and-cyan techno sheen.",
+      "Don't add corporate gamification: no XP bars, points, streaks, or achievement badges bolted on. The quota and context bars are usage gauges, not scores.",
+      "Don't adopt mobile / casual-game UI: no bubbly rounded buttons, candy gradients, big juicy CTAs, or freemium sheen.",
+      "Don't introduce a second typeface. One pixel family carries the whole system, deliberately.",
+      "Don't apply fluid clamp() sizing to the pixel font; whole pixels only.",
+      "Don't flood a surface with solid gold. Gold is a sliver per the Lamplight Rule.",
+      "Don't spread Ash Gray (#8b8b9e) beyond the modal and empty states; it is the one off-hue note.",
+      "Don't reuse the 3px left-accent as decorative trim. The status spine means status or selection, nothing else."
+    ]
+  }
+}

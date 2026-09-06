@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-09-01T12:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Launch an explorer."}]}}
+{"type":"assistant","timestamp":"2026-09-01T12:00:01.000Z","message":{"role":"assistant","model":"claude-opus-4-6","content":[{"type":"tool_use","id":"agent-1","name":"Agent","input":{"description":"Map the fixture","prompt":"Explore fixture","subagent_type":"Explore"}}]}}

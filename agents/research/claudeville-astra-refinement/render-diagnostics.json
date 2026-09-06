@@ -1,0 +1,30 @@
+{
+  "status": "ok",
+  "baseUrl": "http://127.0.0.1:61577",
+  "port": 61577,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "consoleErrors": [],
+  "consoleWarnings": [
+    "[.WebGL-0x10c001d3e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x10c001d3e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x10c001d3e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x10c001d3e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  ],
+  "pageErrors": [],
+  "failedRequests": [],
+  "fpsSample": 16,
+  "modeTimings": {
+    "world": 1993,
+    "dashboard": 797,
+    "select": 16,
+    "panel": 1159,
+    "deselect": 1112,
+    "simulation-isolation": 1347
+  },
+  "failure": null,
+  "simulationIsolation": "live history, leases, broadcast and usage preserved",
+  "durationMs": 6825
+}

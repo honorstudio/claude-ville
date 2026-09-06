@@ -1,0 +1,967 @@
+{
+  "schemaVersion": 1,
+  "id": "material-pilot-dusk",
+  "mode": "webgl",
+  "scenario": "material-pilot",
+  "declared": {
+    "viewport": {
+      "id": "desktop",
+      "width": 1920,
+      "height": 1080
+    },
+    "dpr": 1,
+    "browserZoom": 1,
+    "reducedMotion": false,
+    "camera": {
+      "mode": "scenario-metadata",
+      "centerTile": {
+        "tileX": 18,
+        "tileY": 22
+      },
+      "zoom": 2
+    },
+    "atmosphere": {
+      "hour": 19,
+      "weather": "clear"
+    },
+    "expected": {
+      "agents": 2,
+      "focalSubject": "Sonnet fabric, Terra armor, and Command materials"
+    },
+    "northStar": false,
+    "overlayCensus": false
+  },
+  "environment": {
+    "capturedAt": "2026-09-05T11:17:32.017Z",
+    "referenceMachine": "local-review",
+    "powerState": "unknown",
+    "os": {
+      "platform": "darwin",
+      "release": "25.4.0",
+      "arch": "arm64",
+      "cpuModel": "Apple M5 Pro",
+      "cpuCount": 18,
+      "totalMemoryBytes": 51539607552,
+      "loadAverage": [
+        13.05029296875,
+        12.46435546875,
+        11.04541015625
+      ]
+    },
+    "chromium": {
+      "version": "147.0.7727.15",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.7727.15 Safari/537.36",
+      "platform": "MacIntel",
+      "hardwareConcurrency": 18,
+      "deviceMemoryGiB": 32,
+      "devicePixelRatio": 1,
+      "webglVendor": "Google Inc. (Google)",
+      "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+    },
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "devicePixelRatio": 1,
+    "browserZoom": 1
+  },
+  "performance": {
+    "frames": {
+      "samples": 29,
+      "p50Ms": 50,
+      "p95Ms": 66.7,
+      "maxMs": 67.2
+    },
+    "update": {
+      "p50Ms": 0.4,
+      "p95Ms": 0.8
+    },
+    "render": {
+      "p50Ms": 3.5,
+      "p95Ms": 15.1
+    },
+    "total": {
+      "p50Ms": 4,
+      "p95Ms": 15.9
+    },
+    "renderSegments": [
+      {
+        "label": "sky",
+        "ms": 0,
+        "p50": 0,
+        "p95": 6.370000004023281
+      },
+      {
+        "label": "gpu-world",
+        "ms": 1.3999999910593033,
+        "p50": 1.300000011920929,
+        "p95": 1.5
+      },
+      {
+        "label": "drawables",
+        "ms": 0.800000011920929,
+        "p50": 0.7999999970197678,
+        "p95": 0.9550000026822087
+      },
+      {
+        "label": "post-atmosphere-effects",
+        "ms": 0.5,
+        "p50": 0.4000000059604645,
+        "p95": 0.5999999940395355
+      },
+      {
+        "label": "prelayers",
+        "ms": 0.29999999701976776,
+        "p50": 0.20000000298023224,
+        "p95": 0.29999999701976776
+      },
+      {
+        "label": "labels",
+        "ms": 0.20000000298023224,
+        "p50": 0.20000000298023224,
+        "p95": 0.29999999701976776
+      },
+      {
+        "label": "setup",
+        "ms": 0.19999998807907104,
+        "p50": 0.19999998807907104,
+        "p95": 0.20000000298023224
+      },
+      {
+        "label": "sort/cull",
+        "ms": 0,
+        "p50": 0,
+        "p95": 0.20000000298023224
+      },
+      {
+        "label": "sky-canopy",
+        "ms": 0.10000000894069672,
+        "p50": 0.09999999403953552,
+        "p95": 0.15500000566244096
+      },
+      {
+        "label": "horizon",
+        "ms": 0,
+        "p50": 0,
+        "p95": 0.10000000894069672
+      },
+      {
+        "label": "ground-atmosphere",
+        "ms": 0,
+        "p50": 0,
+        "p95": 0.10000000894069672
+      },
+      {
+        "label": "collect",
+        "ms": 0.09999999403953552,
+        "p50": 0.09999999403953552,
+        "p95": 0.10000000894069672
+      },
+      {
+        "label": "world-effects",
+        "ms": 0,
+        "p50": 0,
+        "p95": 0.10000000223517418
+      },
+      {
+        "label": "fauna",
+        "ms": 0,
+        "p50": 0,
+        "p95": 0
+      }
+    ]
+  },
+  "diagnostics": {
+    "postFx": null,
+    "postFxFeed": {
+      "builds": 46,
+      "buildFailures": 0,
+      "maskRebuilds": 7,
+      "maskReuses": 39,
+      "maskSkips": 0,
+      "maskRepaintTimeMs": 1.2000000029802322,
+      "maskLastRepaintMs": 0.10000000894069672,
+      "maskLastReason": "cache-hit",
+      "maskReasonCounts": {
+        "initial": 1,
+        "camera-pose": 5,
+        "viewport": 1,
+        "water-set": 0
+      },
+      "visibleLights": 31,
+      "visibleHaze": 8,
+      "maskRevision": 7,
+      "maskPixels": 87380,
+      "maskBytes": 349520,
+      "maskWidth": 340,
+      "maskHeight": 257
+    },
+    "trails": {
+      "capturedSamples": 4,
+      "hydratedSamples": 0,
+      "duplicateDrops": 4,
+      "malformedDrops": 0,
+      "pendingDrops": 0,
+      "compactedSamples": 0,
+      "prunedSamples": 0,
+      "pruneRuns": 1,
+      "repaintCount": 0,
+      "repaintTimeMs": 0,
+      "directDrawCount": 0,
+      "directDrawTimeMs": 0,
+      "cacheDrawCount": 0,
+      "cacheDrawTimeMs": 0,
+      "selectedOverlayDraws": 38,
+      "actionOverlayDraws": 0,
+      "highWaterSamples": 4,
+      "highWaterCachePixels": 0,
+      "oversizedCacheFallbacks": 0,
+      "cameraMotion": {
+        "stationary": {
+          "frames": 39,
+          "drawTimeMs": 0.4000000059604645,
+          "repaintCount": 0,
+          "repaintTimeMs": 0
+        },
+        "manual-pan": {
+          "frames": 1,
+          "drawTimeMs": 0,
+          "repaintCount": 0,
+          "repaintTimeMs": 0
+        },
+        "follow": {
+          "frames": 6,
+          "drawTimeMs": 0.10000000894069672,
+          "repaintCount": 0,
+          "repaintTimeMs": 0
+        },
+        "director-glide": {
+          "frames": 0,
+          "drawTimeMs": 0,
+          "repaintCount": 0,
+          "repaintTimeMs": 0
+        }
+      },
+      "totalSamples": 4,
+      "agentsWithSamples": 2,
+      "pendingSamples": 2,
+      "paused": false,
+      "loaded": true,
+      "perAgentLimit": 720,
+      "globalLimit": 12000,
+      "pendingLimit": 4000,
+      "renderPerAgentLimit": 240,
+      "renderGlobalLimit": 4000,
+      "directRenderLimit": 512,
+      "actionRenderLimit": 12,
+      "minimumDistanceTiles": 0.2,
+      "cacheSpace": "none",
+      "cacheBounds": null,
+      "cameraMotionMode": "stationary",
+      "renderPolicy": {
+        "historicalMode": "none",
+        "cacheSpace": "none",
+        "repaintOnCameraMotion": false,
+        "historicalVisibility": "hidden",
+        "selectedMode": "recent-direct-overlay",
+        "actionNeededMode": "recent-direct-overlay"
+      }
+    },
+    "canvasBudget": {
+      "budgets": {
+        "maxRendererCanvasPixels": 61000000,
+        "maxMainCanvasPixels": 7500000,
+        "maxScreenCachePixels": 7500000,
+        "maxWorldCachePixels": 7000000,
+        "maxLightCachePixels": 1250000,
+        "maxTrailCachePixels": 4000000,
+        "maxGpuResourceBytes": 134217728,
+        "maxUnifiedRendererBytes": 378217728
+      },
+      "dpr": 1,
+      "running": true,
+      "worldModeActive": true,
+      "worldResourcesSuspended": false,
+      "worldResumeInFlight": false,
+      "worldResumeFailures": 0,
+      "rafPending": true,
+      "visibleCanvasPixels": 1395360,
+      "volatile": {
+        "terrain": 6560000,
+        "sky": 2790720,
+        "trail": 0,
+        "postFxMask": 87380,
+        "atmosphere": 0,
+        "lightGradients": 0,
+        "gpuAgentAtlas": 39200,
+        "gpuAgentMaterialAtlas": 39200,
+        "gpuAgentEmissiveAtlas": 39200,
+        "gpuAgentOccluderAtlas": 39200,
+        "semanticGround": 791552,
+        "gpuAgentAtlasUpdateSlots": 156800
+      },
+      "volatilePixels": 10543252,
+      "retainedAssetPixels": 41984,
+      "domCanvasPixels": 2790720,
+      "resources": {
+        "canvas": {
+          "visible": 11162880,
+          "volatile": 42173008,
+          "retained": 167936
+        },
+        "canvasBytes": 88291368,
+        "gpu": {
+          "textures": {
+            "gpuWorld.cachedSources": 101489944
+          },
+          "attachments": {
+            "gpuWorld.sceneColor": 5581440,
+            "gpuWorld.sceneEmission": 5581440,
+            "gpuWorld.bloomA": 783360,
+            "gpuWorld.bloomB": 783360,
+            "gpuWorld.occlusion": 783360
+          },
+          "buffers": {
+            "gpuWorld.vertices": 27432
+          },
+          "groupTotals": {
+            "textures": 101489944,
+            "attachments": 13512960,
+            "buffers": 27432
+          },
+          "totalBytes": 115030336
+        },
+        "gpuBytes": 115030336,
+        "ownershipLeaves": {
+          "cpuDecodedEstimateBytes": 98979712,
+          "cpuDerivedEstimateBytes": 77128488,
+          "canvasVisibleEstimateBytes": 11162880,
+          "gpuOwnedBytes": 115030336
+        },
+        "totalBytes": 302301416,
+        "budgetBytes": 378217728
+      },
+      "cacheCounts": {
+        "lightGradients": 0,
+        "lightFadeColors": 239,
+        "lightColorRgb": 123,
+        "fantasyForestTrees": 3
+      },
+      "cacheStats": {
+        "assets": {
+          "bitmaps": 136,
+          "bitmapPixels": 2884192,
+          "masks": 9,
+          "maskBytes": 649216,
+          "outlines": 9,
+          "outlinePixels": 649216,
+          "companions": 31,
+          "companionPixels": 5084544,
+          "atlasImages": 4,
+          "atlasPixels": 16777216,
+          "atlasMetadata": 1,
+          "materialTextureBytes": 87447040,
+          "missing": 0,
+          "optionalMissing": 0,
+          "decodedLoaded": true,
+          "materialAssetsEnabled": true,
+          "materialDecodedLoaded": true,
+          "suspended": false,
+          "loadInFlight": false,
+          "decodePasses": 1
+        },
+        "compositor": {
+          "entries": 2,
+          "pixels": 1354240,
+          "entryLimit": 24,
+          "pixelLimit": 12500000
+        },
+        "agentSprites": {
+          "processedSpriteSheets": 0,
+          "processedSpritePixels": 0,
+          "processedSpriteEntryLimit": 24,
+          "processedSpritePixelLimit": 12500000,
+          "codexEquipmentAssets": 2,
+          "codexEquipmentPixels": 83446,
+          "codexEquipmentEstimateBytes": 333784,
+          "gpuEquippedSheets": 1,
+          "gpuEquippedSheetPixels": 6272000,
+          "gpuEquippedSheetEstimateBytes": 25088000,
+          "gpuEquippedAlbedoEstimateBytes": 6272000,
+          "gpuEquippedMaterialEstimateBytes": 6272000,
+          "gpuEquippedEmissiveEstimateBytes": 6272000,
+          "gpuEquippedSheetPixelLimit": 48000000,
+          "tintedSelectionRings": 1,
+          "tintedSelectionRingPixels": 4096,
+          "tintedSelectionRingEstimateBytes": 16384,
+          "processedSpriteEstimateBytes": 0,
+          "compositorEstimateBytes": 5416960,
+          "privateDerivedEstimateBytes": 368640,
+          "gpuAgentMaterialAtlasEstimateBytes": 156800,
+          "gpuAgentEmissiveAtlasEstimateBytes": 156800,
+          "cpuDerivedEstimateBytes": 31537368,
+          "ownership": {
+            "compositorSpriteSheets": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 5416960
+            },
+            "processedSpriteSheets": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 0
+            },
+            "codexEquipmentCanvases": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 333784
+            },
+            "gpuEquippedAlbedoSheets": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 6272000
+            },
+            "gpuEquippedMaterialSheets": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 6272000
+            },
+            "gpuEquippedEmissiveSheets": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 6272000
+            },
+            "tintedSelectionRings": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 16384
+            },
+            "perSpriteEffectCells": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 368640
+            },
+            "gpuAgentMaterialAtlas": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 156800
+            },
+            "gpuAgentEmissiveAtlas": {
+              "ownershipClass": "CPU-derived",
+              "estimateBytes": 156800
+            }
+          },
+          "activeProfileKeys": [
+            "agent.claude.sonnet|claude|0|_|_|raw|_",
+            "agent.codex.gpt56terra|codex|1|_|earthbreaker|raw|_"
+          ],
+          "selectedProfilePins": [
+            "agent.codex.gpt56terra|codex|1|_|earthbreaker|raw|_"
+          ],
+          "primaryProfilePins": [
+            "agent.codex.gpt56terra|codex|1|_|earthbreaker|raw|_"
+          ],
+          "sharedDerivedHighWaterEstimateBytes": 201326592,
+          "toolClassifications": 0
+        }
+      },
+      "gpu": {
+        "supported": true,
+        "active": true,
+        "contextHealthy": true,
+        "suspended": false,
+        "width": 1360,
+        "height": 1026,
+        "frames": 46,
+        "records": 60,
+        "batches": 47,
+        "lights": 4,
+        "localLightPhase": 0.7452000000000001,
+        "uploads": 138,
+        "uploadBytes": 273046688,
+        "uploadMs": 1.4533845860460493,
+        "cpuMs": 1.7296692282998731,
+        "shaderCpuMs": 0.2762846422538233,
+        "gpuMs": null,
+        "gpuTimerSupported": false,
+        "gpuTimerExtension": null,
+        "gpuTimerPendingQueries": 0,
+        "gpuTimerErrors": 0,
+        "qualityTimingSource": "cpu-fallback",
+        "frameGapMs": 54.590744754656086,
+        "textureBytes": 115002904,
+        "residentTextureBytes": 115002904,
+        "cachedTextureBytes": 101489944,
+        "cachedTextureCapBytes": 50331648,
+        "cachedTextureCapExceeded": true,
+        "cachedTextures": 46,
+        "textureEvictions": 29,
+        "maxCachedTextureBytes": 50331648,
+        "maxCachedTextures": 512,
+        "materialAttachments": 2,
+        "occlusionScale": 0.375,
+        "bloomScale": 0.375,
+        "qualityLevel": 3,
+        "qualityReason": "minimal-resident:frameGapMs",
+        "qualityDegradationReason": "sustained-frameGapMs",
+        "qualityTransitionAtMs": 1779.6000000089407,
+        "qualityTransitionMetrics": {
+          "score": 24.200000002980232,
+          "driver": "frameGapMs",
+          "uploadMs": 0.9000000059604645,
+          "auxUploadMs": 0,
+          "setupCpuMs": 0,
+          "shaderCpuMs": 0.19999998807907104,
+          "gpuMs": 0,
+          "frameGapPenaltyMs": 24.200000002980232
+        },
+        "resources": {
+          "textures": {
+            "cachedSources": 101489944
+          },
+          "attachments": {
+            "sceneColor": 5581440,
+            "sceneEmission": 5581440,
+            "bloomA": 783360,
+            "bloomB": 783360,
+            "occlusion": 783360
+          },
+          "buffers": {
+            "vertices": 27432
+          }
+        },
+        "atlasRecords": 14,
+        "individualRecords": 46,
+        "sourceBatchCount": 47,
+        "sourceUploadBytes": 269880480
+      },
+      "terrainCache": {
+        "strategy": "single-surface",
+        "mapSize": 40,
+        "chunkSize": 16,
+        "chunksX": 3,
+        "chunksY": 3,
+        "chunkCount": 9,
+        "singleSurfacePixels": 6560000,
+        "maxSingleSurfacePixels": 7000000,
+        "singleSurfaceWithinBudget": true,
+        "retainedPixels": 6560000
+      },
+      "runtime": {
+        "frameFailures": {
+          "total": 0,
+          "consecutive": 0,
+          "lastStage": null,
+          "lastMessage": null,
+          "lastAt": 0,
+          "lastReportedAt": null,
+          "byStage": {},
+          "paused": false,
+          "reportIntervalMs": 5000,
+          "maxConsecutive": 3
+        },
+        "boundedState": {
+          "lightFadeColors": 239,
+          "lightFadeColorLimit": 1024,
+          "lightFadeColorEvictions": 0,
+          "lightColorRgbEntries": 123,
+          "lightColorRgbLimit": 256,
+          "lightColorRgbEvictions": 0,
+          "crowdBumpCooldowns": 0,
+          "crowdBumpCooldownLimit": 512,
+          "nicknames": 1,
+          "nicknameLimit": 256,
+          "liveSpriteCanvases": 2,
+          "liveSpriteCanvasPixels": 1354240
+        },
+        "waterDescriptors": {
+          "total": 714,
+          "currentEligible": 674
+        },
+        "harbor": {
+          "stateVersion": 1,
+          "stateReductions": 1,
+          "unchangedReconciliations": 8,
+          "sourceNormalizations": 1,
+          "sourceCacheHits": 8,
+          "animationAdvances": 46,
+          "semanticReconciliations": 9,
+          "rawEventCount": 0,
+          "normalizedEventCount": 0,
+          "seenEventIds": 0,
+          "maxSeenEventIds": 2048,
+          "pushEvents": 0,
+          "maxPushEvents": 1024,
+          "ships": 0,
+          "maxShips": 2048,
+          "batches": 0,
+          "maxBatches": 512,
+          "repoQuays": 0,
+          "maxRepoQuays": 512,
+          "eventTombstones": 0,
+          "maxEventTombstones": 4096,
+          "commitReplayFloors": 0,
+          "maxCommitReplayFloors": 1024,
+          "overflowDockCounts": 0,
+          "maxOverflowDockCounts": 512,
+          "overflowDockedCommits": 0,
+          "harborCrates": 0,
+          "storageTransfers": 0,
+          "activeRepoAnchorages": 1,
+          "repoFirstSeen": 1,
+          "maxRepoFirstSeen": 512,
+          "profileCache": 1,
+          "profileCacheLimit": 256,
+          "cleanLabelCache": 0,
+          "cleanLabelCacheLimit": 512
+        },
+        "trails": {
+          "capturedSamples": 4,
+          "hydratedSamples": 0,
+          "duplicateDrops": 4,
+          "malformedDrops": 0,
+          "pendingDrops": 0,
+          "compactedSamples": 0,
+          "prunedSamples": 0,
+          "pruneRuns": 1,
+          "repaintCount": 0,
+          "repaintTimeMs": 0,
+          "directDrawCount": 0,
+          "directDrawTimeMs": 0,
+          "cacheDrawCount": 0,
+          "cacheDrawTimeMs": 0,
+          "selectedOverlayDraws": 38,
+          "actionOverlayDraws": 0,
+          "highWaterSamples": 4,
+          "highWaterCachePixels": 0,
+          "oversizedCacheFallbacks": 0,
+          "cameraMotion": {
+            "stationary": {
+              "frames": 39,
+              "drawTimeMs": 0.4000000059604645,
+              "repaintCount": 0,
+              "repaintTimeMs": 0
+            },
+            "manual-pan": {
+              "frames": 1,
+              "drawTimeMs": 0,
+              "repaintCount": 0,
+              "repaintTimeMs": 0
+            },
+            "follow": {
+              "frames": 6,
+              "drawTimeMs": 0.10000000894069672,
+              "repaintCount": 0,
+              "repaintTimeMs": 0
+            },
+            "director-glide": {
+              "frames": 0,
+              "drawTimeMs": 0,
+              "repaintCount": 0,
+              "repaintTimeMs": 0
+            }
+          },
+          "totalSamples": 4,
+          "agentsWithSamples": 2,
+          "pendingSamples": 2,
+          "paused": false,
+          "loaded": true,
+          "perAgentLimit": 720,
+          "globalLimit": 12000,
+          "pendingLimit": 4000,
+          "renderPerAgentLimit": 240,
+          "renderGlobalLimit": 4000,
+          "directRenderLimit": 512,
+          "actionRenderLimit": 12,
+          "minimumDistanceTiles": 0.2,
+          "cacheSpace": "none",
+          "cacheBounds": null,
+          "cameraMotionMode": "stationary",
+          "renderPolicy": {
+            "historicalMode": "none",
+            "cacheSpace": "none",
+            "repaintOnCameraMotion": false,
+            "historicalVisibility": "hidden",
+            "selectedMode": "recent-direct-overlay",
+            "actionNeededMode": "recent-direct-overlay"
+          }
+        },
+        "events": {
+          "snapshots": 2,
+          "chatPairs": 0,
+          "emittedToolKeys": 0,
+          "emittedToolAgents": 0,
+          "maxEmittedToolKeysPerAgent": 32,
+          "maxEmittedToolKeysTotal": 2048
+        },
+        "landmarks": {
+          "items": 0,
+          "seenSnapshots": 0,
+          "previousTokenTotals": 2,
+          "lastForgeAgents": 0,
+          "archiveReadKeys": 2,
+          "retainedAgentSprites": 2,
+          "disposed": false
+        },
+        "monuments": {
+          "records": 0,
+          "seenCommitIds": 0,
+          "planterSeen": 0,
+          "christenedRepos": 1,
+          "activeFireworks": 0,
+          "activeBanners": 1,
+          "disposed": false
+        },
+        "visits": {
+          "agents": 2,
+          "intents": 2,
+          "tokenSnapshots": 2,
+          "seenGitEvents": 0,
+          "seenGitEventLimit": 600,
+          "lastForgeAgents": 0,
+          "lastToolAgents": 2,
+          "throttleAgents": 0,
+          "pendingGathers": 0,
+          "pendingGatherLimit": 64,
+          "disposed": false,
+          "gitReplayCacheHits": 9,
+          "gitReplayCacheMisses": 1,
+          "gitReplayNormalized": 0,
+          "gitReplayRawDuplicates": 0
+        },
+        "allocator": {
+          "buildings": 9,
+          "retainedAgentSprites": 2,
+          "reservations": 2,
+          "reservationAgents": 2,
+          "agentMeta": 2,
+          "relatedCache": 0,
+          "occupancyEntries": 2,
+          "occupancyBuckets": 2,
+          "disposed": false
+        },
+        "relationships": {
+          "parents": 0,
+          "children": 0,
+          "teams": 0,
+          "recentArrivals": 0,
+          "recentDepartures": 0,
+          "chatPairs": 0,
+          "advisorPairs": 0,
+          "rememberedSpriteTiles": 2,
+          "rememberedMemberships": 2,
+          "disposed": false
+        },
+        "council": {
+          "teamGatherCooldowns": 0,
+          "cooldownMs": 300000
+        },
+        "pathfinder": {
+          "cacheEntries": 5,
+          "cacheLimit": 256,
+          "cacheHits": 1,
+          "cacheMisses": 5
+        },
+        "gpuWorld": {
+          "supported": true,
+          "active": true,
+          "contextHealthy": true,
+          "suspended": false,
+          "width": 1360,
+          "height": 1026,
+          "frames": 46,
+          "records": 60,
+          "batches": 47,
+          "lights": 4,
+          "localLightPhase": 0.7452000000000001,
+          "uploads": 138,
+          "uploadBytes": 273046688,
+          "uploadMs": 1.4533845860460493,
+          "cpuMs": 1.7296692282998731,
+          "shaderCpuMs": 0.2762846422538233,
+          "gpuMs": null,
+          "gpuTimerSupported": false,
+          "gpuTimerExtension": null,
+          "gpuTimerPendingQueries": 0,
+          "gpuTimerErrors": 0,
+          "qualityTimingSource": "cpu-fallback",
+          "frameGapMs": 54.590744754656086,
+          "textureBytes": 115002904,
+          "residentTextureBytes": 115002904,
+          "cachedTextureBytes": 101489944,
+          "cachedTextureCapBytes": 50331648,
+          "cachedTextureCapExceeded": true,
+          "cachedTextures": 46,
+          "textureEvictions": 29,
+          "maxCachedTextureBytes": 50331648,
+          "maxCachedTextures": 512,
+          "materialAttachments": 2,
+          "occlusionScale": 0.375,
+          "bloomScale": 0.375,
+          "qualityLevel": 3,
+          "qualityReason": "minimal-resident:frameGapMs",
+          "qualityDegradationReason": "sustained-frameGapMs",
+          "qualityTransitionAtMs": 1779.6000000089407,
+          "qualityTransitionMetrics": {
+            "score": 24.200000002980232,
+            "driver": "frameGapMs",
+            "uploadMs": 0.9000000059604645,
+            "auxUploadMs": 0,
+            "setupCpuMs": 0,
+            "shaderCpuMs": 0.19999998807907104,
+            "gpuMs": 0,
+            "frameGapPenaltyMs": 24.200000002980232
+          },
+          "resources": {
+            "textures": {
+              "cachedSources": 101489944
+            },
+            "attachments": {
+              "sceneColor": 5581440,
+              "sceneEmission": 5581440,
+              "bloomA": 783360,
+              "bloomB": 783360,
+              "occlusion": 783360
+            },
+            "buffers": {
+              "vertices": 27432
+            }
+          },
+          "atlasRecords": 14,
+          "individualRecords": 46,
+          "sourceBatchCount": 47,
+          "sourceUploadBytes": 269880480
+        },
+        "worldRendererMode": "webgl"
+      }
+    },
+    "frameFailures": {
+      "total": 0,
+      "consecutive": 0,
+      "lastStage": null,
+      "lastMessage": null,
+      "lastAt": 0,
+      "lastReportedAt": null,
+      "byStage": {},
+      "paused": false,
+      "reportIntervalMs": 5000,
+      "maxConsecutive": 3
+    },
+    "renderStats": {
+      "timings": {
+        "totalMs": 3.5999999940395355,
+        "totalP50": 0,
+        "totalP95": 0,
+        "segments": [
+          {
+            "label": "setup",
+            "ms": 0.19999998807907104,
+            "p95": 0
+          },
+          {
+            "label": "sky",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "horizon",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "ground-atmosphere",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "sky-canopy",
+            "ms": 0.10000000894069672,
+            "p95": 0
+          },
+          {
+            "label": "fauna",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "prelayers",
+            "ms": 0.29999999701976776,
+            "p95": 0
+          },
+          {
+            "label": "collect",
+            "ms": 0.09999999403953552,
+            "p95": 0
+          },
+          {
+            "label": "sort/cull",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "drawables",
+            "ms": 0.800000011920929,
+            "p95": 0
+          },
+          {
+            "label": "world-effects",
+            "ms": 0,
+            "p95": 0
+          },
+          {
+            "label": "gpu-world",
+            "ms": 1.3999999910593033,
+            "p95": 0
+          },
+          {
+            "label": "post-atmosphere-effects",
+            "ms": 0.5,
+            "p95": 0
+          },
+          {
+            "label": "labels",
+            "ms": 0.20000000298023224,
+            "p95": 0
+          }
+        ]
+      }
+    },
+    "overlayLevelStability": {
+      "adaptive": {
+        "primaryAgents": 1,
+        "visiblePrimaryLabels": 1,
+        "visiblePrimaryBubbles": 1,
+        "overlayVisible": true,
+        "overlayWidth": 1360,
+        "overlayHeight": 1026,
+        "semanticSummary": "Village: 2 agents. 0 need you, 0 errored, 0 quota-limited, 0 waiting, 2 working. Selected Terra."
+      },
+      "capture": {
+        "primaryAgents": 1,
+        "visiblePrimaryLabels": 1,
+        "visiblePrimaryBubbles": 1,
+        "overlayVisible": true,
+        "overlayWidth": 1360,
+        "overlayHeight": 1026,
+        "semanticSummary": "Village: 2 agents. 0 need you, 0 errored, 0 quota-limited, 0 waiting, 2 working. Selected Terra."
+      },
+      "primaryAgentsStable": true,
+      "primaryLabelsStable": true,
+      "overlayVisible": true
+    }
+  },
+  "actual": {
+    "agents": 2,
+    "camera": {
+      "x": 468,
+      "y": -383.5,
+      "zoom": 2,
+      "owner": "follow"
+    },
+    "atmosphere": {
+      "phase": "dusk",
+      "hour": null,
+      "weather": "clear",
+      "reducedMotion": false
+    },
+    "adaptivePostFxLevel": null,
+    "captureLevelOverride": null,
+    "overlayCensus": null
+  },
+  "artifacts": {
+    "screenshot": "/tmp/astra-material-approved/material-pilot-dusk--webgl.png",
+    "metadata": "/tmp/astra-material-approved/material-pilot-dusk--webgl.json"
+  }
+}

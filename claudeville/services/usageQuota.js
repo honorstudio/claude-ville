@@ -1,11 +1,11 @@
 /**
- * usageQuota.js - Claude 사용량 데이터 수집 & 캐싱 모듈
+ * usageQuota.js - Claude usage data collection and caching module
  *
- * 데이터 소스:
+ * Data source:
  *   A) ~/.claude/.credentials.json → subscriptionType, rateLimitTier
- *   B) ~/.claude/stats-cache.json → 일별 활동 (messageCount, sessionCount, toolCallCount)
- *   C) claude auth status (서버 시작 시 1회) → email
- *   D) api.anthropic.com/api/oauth/usage → 5h/7d quota (현재 불가, 주기적 재시도)
+ *   B) ~/.claude/stats-cache.json → daily activity (messageCount, sessionCount, toolCallCount)
+ *   C) claude auth status (once at server startup) → email
+ *   D) api.anthropic.com/api/oauth/usage → 5h/7d quota utilization (refreshed every QUOTA_API_TTL)
  */
 
 const fs = require('fs');
@@ -18,22 +18,109 @@ const CREDENTIALS_PATH = path.join(CLAUDE_HOME, '.credentials.json');
 const STATS_CACHE_PATH = path.join(CLAUDE_HOME, 'stats-cache.json');
 const HISTORY_PATH = path.join(CLAUDE_HOME, 'history.jsonl');
 
-// 캐시 TTL
-const CREDENTIALS_TTL = 30_000;   // 30초
-const STATS_TTL = 30_000;         // 30초
-const QUOTA_API_TTL = 5 * 60_000; // 5분
+// Cache TTL
+const CREDENTIALS_TTL = 30_000;   // 30 seconds
+const STATS_TTL = 30_000;         // 30 seconds
+const QUOTA_API_TTL = 5 * 60_000; // 5 minutes
+const QUOTA_MAX_STALE_MS = 30 * 60_000; // stop trusting a frozen snapshot after 30 minutes of failures
+const QUOTA_RESPONSE_MAX_BYTES = 256 * 1024;
+const HISTORY_TAIL_CHUNK_BYTES = 64 * 1024;
+const HISTORY_MAX_LINE_BYTES = 4 * 1024 * 1024;
 
-// 캐시 저장소
+// Cache store
 const cache = {
   credentials: { data: null, ts: 0 },
   stats: { data: null, ts: 0 },
   email: null,
-  quota: { data: null, ts: 0, available: false },
+  quota: { data: null, ts: 0, available: false, lastSuccessTs: 0 },
 };
 
-// ─── 자격 증명 (구독 정보만 추출) ────────────────────────────
+function aggregateHistoryFile(filePath, todayStart, weekStart) {
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const stat = fs.fstatSync(fd);
+    let todayMessages = 0;
+    let weekMessages = 0;
+    const todaySessions = new Set();
+    const weekSessions = new Set();
+    let position = stat.size;
+    let carry = Buffer.alloc(0);
+    let skippingOversizedLine = false;
+    let reachedBoundary = false;
 
-function readCredentials() {
+    const consumeLine = (line) => {
+      if (line.length === 0 || line.length > HISTORY_MAX_LINE_BYTES) return true;
+      try {
+        const entry = JSON.parse(line.toString('utf8'));
+        const rawTimestamp = entry.timestamp;
+        const timestamp = Number.isFinite(Number(rawTimestamp))
+          ? Number(rawTimestamp)
+          : Date.parse(rawTimestamp);
+        if (!Number.isFinite(timestamp)) return true;
+        if (timestamp < weekStart) {
+          reachedBoundary = true;
+          return false;
+        }
+        weekMessages++;
+        if (entry.sessionId) weekSessions.add(entry.sessionId);
+        if (timestamp >= todayStart) {
+          todayMessages++;
+          if (entry.sessionId) todaySessions.add(entry.sessionId);
+        }
+      } catch { /* ignore malformed lines */ }
+      return true;
+    };
+
+    while (position > 0 && !reachedBoundary) {
+      const bytesToRead = Math.min(HISTORY_TAIL_CHUNK_BYTES, position);
+      position -= bytesToRead;
+      const buffer = Buffer.allocUnsafe(bytesToRead);
+      const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, position);
+      if (bytesRead <= 0) break;
+
+      let combined = buffer.subarray(0, bytesRead);
+      if (skippingOversizedLine) {
+        const boundary = combined.lastIndexOf(0x0a);
+        if (boundary === -1) continue;
+        combined = combined.subarray(0, boundary);
+        skippingOversizedLine = false;
+      } else if (carry.length > 0) {
+        combined = Buffer.concat([combined, carry], combined.length + carry.length);
+      }
+
+      let lineEnd = combined.length;
+      for (let index = combined.length - 1; index >= 0; index--) {
+        if (combined[index] !== 0x0a) continue;
+        if (!consumeLine(combined.subarray(index + 1, lineEnd))) break;
+        lineEnd = index;
+      }
+      if (reachedBoundary) break;
+
+      const fragment = combined.subarray(0, lineEnd);
+      if (fragment.length > HISTORY_MAX_LINE_BYTES) {
+        carry = Buffer.alloc(0);
+        skippingOversizedLine = true;
+      } else {
+        carry = Buffer.from(fragment);
+      }
+    }
+
+    if (!reachedBoundary && position === 0 && !skippingOversizedLine && carry.length > 0) {
+      consumeLine(carry);
+    }
+
+    return {
+      today: { messages: todayMessages, sessions: todaySessions.size },
+      thisWeek: { messages: weekMessages, sessions: weekSessions.size },
+    };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+// ─── Credentials (extract subscription information only) ────────────────────────────
+
+function readClaudeOauthCredentials() {
   const now = Date.now();
   if (cache.credentials.data && now - cache.credentials.ts < CREDENTIALS_TTL) {
     return cache.credentials.data;
@@ -45,29 +132,49 @@ function readCredentials() {
     const result = {
       subscriptionType: oauth.subscriptionType || null,
       rateLimitTier: oauth.rateLimitTier || null,
+      accessToken: oauth.accessToken || null,
     };
     cache.credentials = { data: result, ts: now };
     return result;
   } catch {
-    return { subscriptionType: null, rateLimitTier: null };
+    return { subscriptionType: null, rateLimitTier: null, accessToken: null };
   }
 }
 
-// ─── 이메일 (서버 시작 시 1회) ───────────────────────────────
+function readCredentials() {
+  const oauth = readClaudeOauthCredentials();
+  return {
+    subscriptionType: oauth.subscriptionType,
+    rateLimitTier: oauth.rateLimitTier,
+  };
+}
+
+// ─── Email (once at server startup) ───────────────────────────────
 
 function fetchEmail() {
   return new Promise((resolve) => {
     execFile('claude', ['auth', 'status'], { timeout: 10_000 }, (err, stdout) => {
       if (err) { resolve(null); return; }
-      // "Logged in as user@example.com" 패턴 추출
-      const match = stdout.match(/(?:as|email[:\s]+)\s*([^\s]+@[^\s]+)/i);
-      cache.email = match ? match[1] : null;
+      // Current CLI emits JSON ({"loggedIn":true,...,"email":"..."}); older builds
+      // printed a plaintext "Logged in as user@example.com" line, so fall back to
+      // the legacy regex when the output is not JSON.
+      let email = null;
+      try {
+        const parsed = JSON.parse(stdout);
+        if (parsed && typeof parsed.email === 'string' && parsed.email.trim()) {
+          email = parsed.email.trim();
+        }
+      } catch {
+        const match = stdout.match(/(?:as|email[:\s]+)\s*([^\s]+@[^\s]+)/i);
+        email = match ? match[1] : null;
+      }
+      cache.email = email;
       resolve(cache.email);
     });
   });
 }
 
-// ─── history.jsonl 실시간 파싱 + stats-cache.json 병합 ────────
+// ─── Real-time history.jsonl parsing plus stats-cache.json merge ────────
 
 function readStats() {
   const now = Date.now();
@@ -75,17 +182,17 @@ function readStats() {
     return cache.stats.data;
   }
 
-  // history.jsonl에서 오늘/이번주 활동 직접 계산 (실시간)
+  // Calculate today/this-week activity directly from history.jsonl (real time)
   const live = readHistoryLive();
 
-  // stats-cache.json에서 누적 totals 읽기
+  // Read accumulated totals from stats-cache.json
   let totalSessions = 0, totalMessages = 0;
   try {
     const raw = fs.readFileSync(STATS_CACHE_PATH, 'utf-8');
     const json = JSON.parse(raw);
     totalSessions = json.totalSessions || 0;
     totalMessages = json.totalMessages || 0;
-  } catch { /* 무시 */ }
+  } catch { /* ignore */ }
 
   const result = {
     today: live.today,
@@ -99,8 +206,8 @@ function readStats() {
 }
 
 /**
- * history.jsonl에서 오늘/이번주 메시지·세션 수를 직접 계산
- * 파일을 뒤에서부터 읽어서 날짜 범위 밖이면 중단 (성능 최적화)
+ * Calculate today/this-week message and session counts directly from history.jsonl
+ * Read the file from the end and stop outside the date range (performance optimization)
  */
 function readHistoryLive() {
   const empty = {
@@ -112,10 +219,11 @@ function readHistoryLive() {
     if (!fs.existsSync(HISTORY_PATH)) return empty;
 
     const nowDate = new Date();
-    const todayStr = nowDate.toISOString().slice(0, 10);
-    const todayStart = new Date(todayStr + 'T00:00:00').getTime();
+    const today = new Date(nowDate);
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.getTime();
 
-    // 이번 주 월요일 00:00
+    // This Monday at 00:00
     const dayOfWeek = nowDate.getDay();
     const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const monday = new Date(nowDate);
@@ -123,60 +231,63 @@ function readHistoryLive() {
     monday.setHours(0, 0, 0, 0);
     const weekStart = monday.getTime();
 
-    // 파일을 뒤에서부터 읽기 (최신 데이터가 뒤에 있음)
-    const content = fs.readFileSync(HISTORY_PATH, 'utf-8');
-    const lines = content.trim().split('\n');
-
-    let todayMsgs = 0, weekMsgs = 0;
-    const todaySessions = new Set();
-    const weekSessions = new Set();
-
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const entry = JSON.parse(lines[i]);
-        const ts = entry.timestamp;
-        if (!ts) continue;
-
-        // 이번 주보다 이전이면 중단
-        if (ts < weekStart) break;
-
-        weekMsgs++;
-        if (entry.sessionId) weekSessions.add(entry.sessionId);
-
-        if (ts >= todayStart) {
-          todayMsgs++;
-          if (entry.sessionId) todaySessions.add(entry.sessionId);
-        }
-      } catch { /* 파싱 실패 줄 무시 */ }
-    }
-
-    return {
-      today: { messages: todayMsgs, sessions: todaySessions.size },
-      thisWeek: { messages: weekMsgs, sessions: weekSessions.size },
-    };
+    return aggregateHistoryFile(HISTORY_PATH, todayStart, weekStart);
   } catch {
     return empty;
   }
 }
 
-// ─── Quota API (현재 불가, 나중에 활성화) ────────────────────
+// ─── Quota API ──────────────────────────────────────────────────
+
+/**
+ * Convert one quota window from the OAuth usage response into a 0-1 ratio.
+ * The API reports `utilization` as a 0-100 percentage; all frontend
+ * consumers expect a 0-1 ratio.
+ */
+function quotaRatio(window) {
+  const utilization = Number(window?.utilization);
+  if (!Number.isFinite(utilization)) return null;
+  return Math.min(1, Math.max(0, utilization / 100));
+}
+
+function consumeQuotaResponse(res, onJson, { maxBytes = QUOTA_RESPONSE_MAX_BYTES } = {}) {
+  if (res.statusCode !== 200) {
+    // Error pages are not useful quota data; drain without retaining them.
+    res.resume();
+    return;
+  }
+
+  let body = '';
+  let bodyBytes = 0;
+  let overflowed = false;
+  res.on('data', chunk => {
+    if (overflowed) return;
+    bodyBytes += Buffer.byteLength(chunk);
+    if (bodyBytes > maxBytes) {
+      overflowed = true;
+      body = '';
+      res.destroy();
+      return;
+    }
+    body += chunk;
+  });
+  res.on('end', () => {
+    if (overflowed) return;
+    try {
+      onJson(JSON.parse(body));
+    } catch { /* parse failed; retry on the next cycle */ }
+  });
+}
 
 function tryFetchQuota() {
   const now = Date.now();
   if (now - cache.quota.ts < QUOTA_API_TTL) return;
   cache.quota.ts = now;
 
-  const creds = readCredentials();
+  const creds = readClaudeOauthCredentials();
   if (!creds.subscriptionType) return;
 
-  // credentials에서 accessToken 읽기
-  let accessToken;
-  try {
-    const raw = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
-    const json = JSON.parse(raw);
-    accessToken = json.claudeAiOauth?.accessToken;
-  } catch { return; }
-
+  const accessToken = creds.accessToken;
   if (!accessToken) return;
 
   const options = {
@@ -191,45 +302,46 @@ function tryFetchQuota() {
   };
 
   const req = https.request(options, (res) => {
-    let body = '';
-    res.on('data', chunk => { body += chunk; });
-    res.on('end', () => {
-      if (res.statusCode === 200) {
-        try {
-          const data = JSON.parse(body);
-          cache.quota.data = {
-            fiveHour: data.fiveHourPercent ?? data.five_hour_percent ?? null,
-            sevenDay: data.sevenDayPercent ?? data.seven_day_percent ?? null,
-          };
-          cache.quota.available = true;
-          console.log('[Usage] Quota API 활성화!');
-        } catch { /* 파싱 실패 */ }
-      }
-      // 실패 시 조용히 무시 (다음 주기에 재시도)
+    consumeQuotaResponse(res, data => {
+      // Response shape: { five_hour: { utilization, resets_at },
+      //                   seven_day: { utilization, resets_at }, ... }
+      const fiveHour = quotaRatio(data.five_hour);
+      const sevenDay = quotaRatio(data.seven_day);
+      if (fiveHour === null && sevenDay === null) return;
+      cache.quota.data = { provider: 'claude', fiveHour, sevenDay };
+      cache.quota.lastSuccessTs = Date.now();
+      if (!cache.quota.available) console.log('[Usage] Quota API available');
+      cache.quota.available = true;
     });
   });
 
-  req.on('error', () => { /* 네트워크 에러 무시 */ });
+  req.on('error', () => { /* ignore network errors */ });
   req.on('timeout', () => { req.destroy(); });
   req.end();
 }
 
-// ─── 공개 API ────────────────────────────────────────────────
+// ─── Public API ────────────────────────────────────────────────
 
 function fetchUsage() {
   const credentials = readCredentials();
   const stats = readStats();
 
-  // 비동기적으로 quota API 시도 (결과는 캐시에 저장)
+  // Try the quota API asynchronously (store results in the cache)
   tryFetchQuota();
 
+  // A snapshot that has not refreshed in QUOTA_MAX_STALE_MS is treated as
+  // unavailable so consumers fall back cleanly instead of trusting frozen numbers.
+  const quotaFresh = cache.quota.available
+    && (Date.now() - cache.quota.lastSuccessTs) <= QUOTA_MAX_STALE_MS;
+
   return {
+    provider: 'claude',
     account: {
       subscriptionType: credentials.subscriptionType,
       rateLimitTier: credentials.rateLimitTier,
       email: cache.email,
     },
-    quota: cache.quota.available
+    quota: quotaFresh
       ? cache.quota.data
       : { fiveHour: null, sevenDay: null },
     activity: {
@@ -240,19 +352,26 @@ function fetchUsage() {
       sessions: stats.totalSessions,
       messages: stats.totalMessages,
     },
-    quotaAvailable: cache.quota.available,
+    quotaAvailable: quotaFresh,
   };
 }
 
 function init() {
-  // 서버 시작 시 이메일 가져오기 (비동기)
+  // Fetch email at server startup (async)
   fetchEmail().then(email => {
-    if (email) console.log(`[Usage] 계정: ${email}`);
-    else console.log('[Usage] 이메일 조회 실패 (claude auth status)');
+    if (email) console.log(`[Usage] Account: ${email}`);
+    else console.log('[Usage] Failed to fetch email (claude auth status)');
   });
 
-  // 최초 quota API 시도
+  // Initial quota API attempt
   tryFetchQuota();
 }
 
-module.exports = { fetchUsage, init };
+module.exports = {
+  fetchUsage,
+  init,
+  _test: {
+    consumeQuotaResponse,
+    QUOTA_RESPONSE_MAX_BYTES,
+  },
+};

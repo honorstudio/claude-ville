@@ -1,0 +1,799 @@
+{
+  "errors": [],
+  "selected": "codex-dense-01",
+  "mode": "compact",
+  "crowd": {
+    "agentCount": 100,
+    "visibleAgents": 100,
+    "movingAgents": 30,
+    "clusterCellSize": 4,
+    "minClusterSize": 6,
+    "denseClusterCount": 6,
+    "maxClusterSize": 18,
+    "congestedAgents": 58,
+    "clusters": [
+      {
+        "id": "6,7",
+        "tileX": 25.55621732598202,
+        "tileY": 30.068141215794224,
+        "count": 18,
+        "moving": 5,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 18
+        },
+        "dominantProvider": "claude",
+        "teamCount": 5
+      },
+      {
+        "id": "7,7",
+        "tileX": 29.374934921938856,
+        "tileY": 29.991236737363536,
+        "count": 12,
+        "moving": 1,
+        "dominantStatus": "working",
+        "statuses": {
+          "waiting_on_user": 1,
+          "working": 11
+        },
+        "dominantProvider": "claude",
+        "teamCount": 3
+      },
+      {
+        "id": "5,4",
+        "tileX": 21,
+        "tileY": 17.5,
+        "count": 8,
+        "moving": 0,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 8
+        },
+        "dominantProvider": "claude",
+        "teamCount": 5
+      },
+      {
+        "id": "2,4",
+        "tileX": 8.571428571428571,
+        "tileY": 17.857142857142858,
+        "count": 7,
+        "moving": 0,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 7
+        },
+        "dominantProvider": "claude",
+        "teamCount": 5
+      },
+      {
+        "id": "4,5",
+        "tileX": 18.1858311632607,
+        "tileY": 21.796255664429346,
+        "count": 7,
+        "moving": 3,
+        "dominantStatus": "idle",
+        "statuses": {
+          "idle": 6,
+          "working": 1
+        },
+        "dominantProvider": "claude",
+        "teamCount": 3
+      },
+      {
+        "id": "3,4",
+        "tileX": 12.012238092474087,
+        "tileY": 18.044791448658746,
+        "count": 6,
+        "moving": 1,
+        "dominantStatus": "working",
+        "statuses": {
+          "working": 6
+        },
+        "dominantProvider": "claude",
+        "teamCount": 3
+      }
+    ]
+  },
+  "census": [
+    {
+      "id": "codex-dense-01",
+      "status": "idle",
+      "selected": true,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-02",
+      "status": "waiting_on_user",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-03",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "codex-dense-04",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-05",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-06",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "codex-dense-07",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-08",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-09",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "codex-dense-10",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-11",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 3
+    },
+    {
+      "id": "claude-dense-12",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-13",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-14",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-15",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-16",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "claude-dense-17",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-18",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-19",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-20",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-21",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-22",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-23",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-24",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-25",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-26",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-27",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-28",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-29",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-30",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 3
+    },
+    {
+      "id": "codex-dense-31",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 3
+    },
+    {
+      "id": "claude-dense-32",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-33",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-34",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-35",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-36",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-37",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-38",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-39",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-40",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-41",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-42",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-43",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-44",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "claude-dense-45",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-46",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-47",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-48",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-49",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-50",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-51",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "codex-dense-52",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-53",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-54",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "codex-dense-55",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-56",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 3
+    },
+    {
+      "id": "claude-dense-57",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-58",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-59",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-60",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-61",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-62",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-63",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-64",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-65",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-66",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "codex-dense-67",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-68",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-69",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "codex-dense-70",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-71",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-72",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-73",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-74",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-75",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-76",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-77",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "claude-dense-78",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 1
+    },
+    {
+      "id": "codex-dense-79",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-80",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-81",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "codex-dense-82",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-83",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-84",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-85",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-86",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-87",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-88",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-89",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-90",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-91",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": 2
+    },
+    {
+      "id": "claude-dense-92",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-93",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-94",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 3
+    },
+    {
+      "id": "claude-dense-95",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-96",
+      "status": "idle",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "codex-dense-97",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "claude-dense-98",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    },
+    {
+      "id": "claude-dense-99",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": 0
+    },
+    {
+      "id": "codex-dense-100",
+      "status": "working",
+      "selected": false,
+      "folded": false,
+      "slot": null
+    }
+  ]
+}

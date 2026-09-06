@@ -1,0 +1,2114 @@
+style:
+  assetVersion: "2026-09-06-action-strip-roster"
+  anchor: "epic high-fantasy pixel art, dramatic lighting, painterly palette, crisp pixel edges, no anti-aliasing, heroic silhouettes, faint magical glow on landmarks"
+
+# Optional semantic channels. Canvas mode keeps loading the original albedo
+# paths; GPU consumers opt into this contract and use deterministic defaults
+# whenever an individual sidecar is absent.
+materialContract:
+  version: 1
+  sampling: nearest
+  keyLight: warm-upper-left
+  responseBands: [0.72, 0.86, 1.0, 1.12]
+  channels: [albedo, material, emissive, occluder]
+
+atlases:
+  - id: world-pilot
+    maxWidth: 2048
+    padding: 2
+    powerOfTwo: true
+    metadata: assets/sprites/atlases/world-pilot.json
+    channels:
+      albedo: assets/sprites/atlases/world-pilot.albedo.png
+      material: assets/sprites/atlases/world-pilot.material.png
+      emissive: assets/sprites/atlases/world-pilot.emissive.png
+      occluder: assets/sprites/atlases/world-pilot.occluder.png
+    ids:
+      - agent.claude.opus
+      - agent.codex.gpt56sol
+      - building.command
+      - building.watchtower
+      - building.harbor
+      - building.observatory
+      - building.portal
+      - building.forge
+      - building.mine
+      - building.taskboard
+      - building.archive
+      - prop.lantern
+      - prop.runeBrazier
+      - terrain.shore-shallow
+      - terrain.shallow-deep
+      - atmosphere.light.lighthouse-beam
+      - atmosphere.light.fire-glow
+      - atmosphere.light.lantern-glow
+
+# ─── CHARACTERS ──────────────────────────────────────────────────────────────
+# Character sheets are 8 direction columns by 10 animation rows:
+# 6 walk rows followed by 4 breathing-idle rows, with 92px square cells.
+# Optional `required_equipment` entries are validated in every walk and idle
+# cell for baked-equipment characters. Prefer runtime equipment overlays when
+# pose consistency matters across generated animation frames.
+# Optional `paletteSource` pins the per-sheet robe/pants/trim pixel colors the
+# Compositor's palette swap keys on (sampled from the actual PNG; up to two
+# garment families per role). Entries without it fall back to the palette
+# family's first ramp color.
+characters:
+  # Pro mode fixed cross-direction consistency (standard mode produced
+  # different outfits per angle). Avoid ambiguous color language like
+  # "shifting violet to gold" — it caused per-angle palette flips.
+  - id: agent.claude.fable
+    tool: create_character
+    prompt: "Claude Fable transcendent mythweaver sovereign, legendary female storyteller-archmage who outranks all other arcane masters, floor-length ivory and royal crimson ceremonial robe with ornate gold filigree, deep violet starfield cloak with gold constellation embroidery hanging from her shoulders, long flowing platinum starlit hair, radiant golden star-crown resting firmly on her head, glowing ancient storybook clasped at her chest, luminous quill-tipped staff held upright close to her body, soft golden constellation motes near her shoulders, compact majestic old-school RPG sorceress, identical outfit and colors from every viewing angle, no wings, no horns, no revealing outfit"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 28, y: 9, w: 34, h: 30 }
+    provenance: { characterId: 3cef2064-b3dd-4f17-ab8a-ff35ed2ee379 }
+    palette_layer: claude
+    # Sampled from sheet.png (plan 0.5): crimson gown + gold filigree; the
+    # declared claude sources match nothing on this sheet.
+    paletteSource: { robe: ['#8a1d34', '#20143e'], trim: '#dfc18a' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.claude.fable.constellations, kind: rune, geometry: sidecar, strength: 0.1 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.claude.opus
+    tool: create_character
+    prompt: "Claude Opus female accomplished arcane master, long silver-white hair, ivory and midnight-blue ceremonial robe, ornate gold and copper arcane trim, rune-embroidered mantle, wide celestial archmage hat, crystal-topped staff held close to body, subtle luminous aura and floating motes near shoulders, regal old-school RPG master sorceress silhouette, no wings, no horns, no tail, no demon, no succubus, no revealing outfit"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 8, w: 34, h: 32 }
+    provenance: { characterId: f8a273d6-1b74-4192-ba60-c9854d8e2683 }
+    palette_layer: claude
+    # Sampled from sheet.png (plan 0.5): midnight-blue robe, ivory hem, dusty
+    # rose trim; the declared claude sources are inert here.
+    paletteSource: { robe: ['#1b1b32', '#2f3251'], pants: '#eee4c1', trim: '#ab8a81' }
+    anchor: [46, 80]
+    materialClass: fabric
+    atlasFrame: { atlas: world-pilot, keyPrefix: agent.claude.opus }
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0.45
+      sources:
+        - { id: emissive.agent.claude.opus.crystal, kind: rune, geometry: sidecar-required, strength: 0.45 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.claude.sonnet
+    tool: create_character
+    prompt: "Claude Sonnet female mid-tier wizard, deep violet and cobalt robes with silver rune trim, shorter pointed wizard hat below top margin, star-lined cloak, crystal-topped staff held tight inside silhouette, chained spellbook at belt, controlled blue-violet hand runes, robe hem fully visible above bottom margin, no pixels touching canvas edge, no wings, no angel armor, no warrior plate armor, no revealing outfit, elegant seasoned mage stance"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.claude.sonnet/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 28414b93-f0b6-4060-a9bf-cf471a26a7d9, animationGroupId: cbe22634-af4c-4e77-a104-72ac68c96446, generationSize: 144 }
+    portraitCrop: { x: 29, y: 6, w: 34, h: 32 }
+    provenance: { characterId: 28414b93-f0b6-4060-a9bf-cf471a26a7d9 }
+    palette_layer: claude
+    # Sampled from sheet.png (plan 0.5): dark violet robe + cobalt cloak; the
+    # declared claude sources are inert here.
+    paletteSource: { robe: ['#34184f', '#522c6b'], pants: '#2a4791' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.claude.sonnet.runes, kind: rune, geometry: sidecar, strength: 0.12 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.claude.haiku
+    tool: create_character
+    prompt: "Claude Haiku female lightest model magician apprentice, green dominant palette with moss green hood, emerald short apprentice robe, pale mint scarf, bronze rune clasp, leather satchel of scrolls, tiny spellbook at belt, short wooden wand held close to body with small green magic spark, compact humble novice sorcerer silhouette, no wings, no crown, no heavy armor, no revealing outfit"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 5, w: 32, h: 30 }
+    provenance: { characterId: b55ca52b-eaf5-48cc-a45b-3f0c067bf020 }
+    palette_layer: claude
+    # Sampled from sheet.png (plan 0.5): mint scarf (robe role) + bronze clasp;
+    # declared pants source already matches the moss-green lower robe.
+    paletteSource: { robe: ['#c0e9c3', '#78894d'], pants: '#0e8c44', trim: '#a49159' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt55
+    tool: create_character
+    prompt: "Codex GPT-5.5 apex techno-paladin base, navy under-armor with gold trim, simple consistent commander helm, teal energy core on breastplate, compact shoulder pauldrons, full body centered with clear transparent margin, empty open hands visible near torso, no sword, no blade, no spear, no staff, no sidearm, no shield, no cape, runtime weapon overlay added separately, commanding upright stance, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt55/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 2d64b6cc-f4e4-4f71-ac1a-dc025a5e8650, animationGroupId: 3e3da200-19e1-4c35-9f7b-349b70c5b2f0, generationSize: 116 }
+    portraitCrop: { x: 28, y: 15, w: 36, h: 30 }
+    provenance: { characterId: 2d64b6cc-f4e4-4f71-ac1a-dc025a5e8650 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): navy armor + steel-blue limbs + teal
+    # core glow; the declared codex sources are inert here.
+    paletteSource: { robe: ['#222945', '#333c5c'], pants: '#404b6d', trim: '#55a6a0' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.codex.gpt55.reactor, kind: rune, geometry: sidecar, strength: 0.16 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt55.high
+    tool: create_character
+    prompt: "Codex GPT-5.5 high reasoning techno-paladin, navy and steel heavy plate armor baked onto body, broad gold-trimmed shoulder pauldrons, closed angular commander helmet with cyan visor, short dark violet cape behind shoulders, teal energy core on breastplate, empty visible hands held near torso for gripping runtime greatsword, no held weapon, no shield, no polearm, no sword, no staff, heroic old-school RPG pixel art, 8-direction character sprite"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 27, y: 9, w: 38, h: 32 }
+    provenance: { characterId: c005d237-9365-4544-8c85-54bb9d29ba1a }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): indigo plate + steel-blue pauldrons +
+    # pale teal visor; the declared codex sources are inert here.
+    paletteSource: { robe: ['#1f1d36', '#2d3a54'], pants: '#495c77', trim: '#79aabb' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.codex.gpt55.high.visor, kind: rune, geometry: sidecar, strength: 0.14 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt55.xhigh
+    tool: create_character
+    prompt: "Codex GPT-5.5 extra-high reasoning arcane warlord paladin, massive navy and steel rune plate armor baked onto body, oversized gold-trimmed pauldrons, crested angular helmet with cyan visor, dramatic dark violet cape trailing behind, bright teal reactor core on chest, empty visible hands held near torso for gripping runtime polearm, no held weapon, no shield, no polearm, no sword, no staff, apex old-school RPG pixel art, 8-direction character sprite"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt55.xhigh/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c591af5b-a4e7-494b-a289-e5f9f7f6caf6, animationGroupId: 79807e50-1d42-4c2a-b54b-042d51db52de, generationSize: 140 }
+    portraitCrop: { x: 28, y: 13, w: 38, h: 32 }
+    provenance: { characterId: c591af5b-a4e7-494b-a289-e5f9f7f6caf6 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): near-black navy plate + violet cape;
+    # the declared trim source already matches the teal reactor glow.
+    paletteSource: { robe: ['#191c2a', '#202a45'], pants: '#4a2868' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.codex.gpt55.xhigh.reactor, kind: rune, geometry: sidecar, strength: 0.18 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt6astra
+    tool: create_character
+    prompt: "Codex GPT-6 Astra celestial star-knight, heroic compact old-school RPG proportions, polished silver full plate armor over deep violet undersuit, four-point diamond star on breastplate, angular silver helmet with small four-point star crest and luminous pale cyan visor, broad silver pauldrons, short deep violet cape with tiny silver constellation embroidery, silver gauntlets and boots, identical outfit and colors from every viewing angle, empty visible hands near torso for runtime weapons, no held weapon, no sword, no shield, no staff, no floating particles, crisp readable 8-direction pixel art character"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt6astra/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 1cc02eeb-7fff-448a-96bc-ae4de0c6bc48, animationGroupId: 76053945-7415-4790-8abb-e0faf812bc60, generationSize: 76 }
+    portraitCrop: { x: 28, y: 14, w: 36, h: 36 }
+    provenance: { characterId: 1cc02eeb-7fff-448a-96bc-ae4de0c6bc48 }
+    palette_layer: codex
+    anchor: [46, 80]
+    materialClass: metal
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  # GPT-5.6 celestial warrior triad (Sol/Terra/Luna). Base sprites are
+  # empty-handed; signature weapons are runtime
+  # overlays (dawnblade / earthbreaker / crescentSaber).
+  - id: agent.codex.gpt56sol
+    tool: create_character
+    prompt: "Codex GPT-5.6 Sol radiant sun-warlord supreme commander, ornate navy and gold full plate armor baked onto body, molten gold sun reactor core blazing on breastplate, gold crest helmet with short solar ray spikes and cyan visor, broad gold-trimmed pauldrons, white-gold cape behind shoulders, identical outfit and colors from every viewing angle, empty visible hands held near torso for gripping runtime greatblade, no held weapon, no sword, no shield, no polearm, no staff, apex old-school RPG pixel art, 8-direction character sprite"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56sol/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c3424b1d-2a37-47db-bc9a-dfb88bf53885, animationGroupId: b9ee8a17-e595-4302-b0a2-a721331d163b, generationSize: 128 }
+    portraitCrop: { x: 26, y: 13, w: 40, h: 34 }
+    provenance: { characterId: c3424b1d-2a37-47db-bc9a-dfb88bf53885 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): navy plate only — the signature gold
+    # armor stays untouched so Sol keeps his radiant identity on every variant.
+    paletteSource: { robe: '#2d2f41' }
+    anchor: [46, 80]
+    materialClass: metal
+    atlasFrame: { atlas: world-pilot, keyPrefix: agent.codex.gpt56sol }
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0.7
+      sources:
+        - { id: emissive.agent.codex.gpt56sol.reactor, kind: rune, geometry: sidecar-required, strength: 0.7 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt56terra
+    tool: create_character
+    prompt: "Codex GPT-5.6 Terra earth sentinel knight, sturdy navy and bronze full plate armor baked onto body, squared copper-trimmed pauldrons, closed rounded knight helmet with cyan visor, moss-green sash at waist, amber earth-core gem on breastplate, grounded steadfast stance, identical outfit and colors from every viewing angle, empty visible hands held near torso for gripping runtime warhammer, no held weapon, no hammer, no sword, no shield, no staff, heroic old-school RPG pixel art, 8-direction character sprite"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56terra/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c4799a67-269a-42e3-bd30-030d5c01bc3f, animationGroupId: c693a6b6-9f16-47a8-8378-a33c14585b63, generationSize: 116 }
+    portraitCrop: { x: 28, y: 14, w: 36, h: 32 }
+    provenance: { characterId: c4799a67-269a-42e3-bd30-030d5c01bc3f }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): navy plate + moss-green sash; the
+    # declared codex sources are inert here.
+    paletteSource: { robe: ['#32384a', '#292f42'], pants: '#697b59' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.codex.gpt56terra.earth-core, kind: rune, geometry: sidecar, strength: 0.14 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt56luna
+    tool: create_character
+    prompt: "Codex GPT-5.6 Luna moonlit skirmisher, sleek silver and pale blue light armor over dark navy under-suit, slim crescent-moon crest on a light open-face helm, short silver-blue scarf, lean agile duelist stance, identical outfit and colors from every viewing angle, empty visible hands held near torso for gripping runtime saber, no held weapon, no sword, no dagger, no shield, no staff, swift readable old-school RPG pixel art, 8-direction character sprite"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56luna/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 4c14cc02-74fc-48bc-8968-d4594c2ae150, animationGroupId: c4039946-9cc6-47e0-9f09-393c0c33572c, generationSize: 120 }
+    portraitCrop: { x: 29, y: 14, w: 34, h: 36 }
+    provenance: { characterId: 4c14cc02-74fc-48bc-8968-d4594c2ae150 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): silver-blue light armor + navy
+    # under-suit + steel accent; the declared codex sources are inert here.
+    paletteSource: { robe: ['#bdd2e3', '#a6b8cd'], pants: '#24263e', trim: '#8c9bb5' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt54
+    tool: create_character
+    prompt: "Codex GPT-5.4 senior battle-engineer, deep teal half-plate with brass utility belt, brass goggles on helmet, mechanical bronze gauntlet on left forearm, sturdy readable body height inside the frame, short backpack nub antenna attached to backpack only, open hands visible, no handheld tool, no staff, no rod, no rifle, no wrench in base sprite, runtime wrench overlay added separately, sturdy grounded stance, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt54/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: a3960653-9e68-42f3-9569-82b7974477b3, animationGroupId: d22e1092-ad71-497d-8fa5-d2df4f1b08ec, generationSize: 116 }
+    portraitCrop: { x: 30, y: 16, w: 34, h: 30 }
+    provenance: { characterId: a3960653-9e68-42f3-9569-82b7974477b3 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): deep teal half-plate; declared pants
+    # source already matches, and the cyan visor is too small to key trim on.
+    paletteSource: { robe: ['#22575d', '#1e4651'] }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.gpt53spark
+    tool: create_character
+    prompt: "Codex GPT-5.3 Spark scout technician, light teal leather armor with yellow lightning sash, backwards visor helm with cyan lens, runner boots, readable compact body height, open hands visible, folded belt gadget only, no blade, no weapon, no handheld multitool, no sword, no spear, agile alert stance, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt53spark/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: fbc5f021-cf8a-45de-8fc0-bf2b3497c134, animationGroupId: baaa42f9-f2a6-4b14-a294-5840dacf0060, generationSize: 108 }
+    portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
+    provenance: { characterId: fbc5f021-cf8a-45de-8fc0-bf2b3497c134 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): light teal armor, darker teal limbs,
+    # muted cyan lens; the declared codex sources are inert here.
+    paletteSource: { robe: '#7bb9b0', pants: '#3d676f', trim: '#73ada8' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.claude.base
+    tool: create_character
+    prompt: "Claude base humanoid mage scholar, warm amber layered robes with gold trim, readable face under amber hood, glowing rune sigil on chest, layered robe folds, small belt satchel and scroll case, compact readable RPG silhouette, no block body, no floating square prop, no staff, no weapon, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.claude.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f38d99a1-4cf7-4cca-aaaf-120737e6fdee, animationGroupId: f67f8ca1-def9-4f36-b0ed-81792870ad21, generationSize: 112 }
+    portraitCrop: { x: 30, y: 13, w: 34, h: 34 }
+    provenance: { characterId: f38d99a1-4cf7-4cca-aaaf-120737e6fdee }
+    palette_layer: claude
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.codex.base
+    tool: create_character
+    prompt: "Codex base humanoid arcane engineer, deep teal coat over visible arms and legs, circuit-glow trim, compact rogue mask, visible tool belt only, leather boots, readable RPG silhouette, no staff, no cube body, no handheld weapon, no wrench in hand, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 5791ece8-3708-4431-86a4-31c5d5314777, animationGroupId: 73e38688-610a-47c5-b4bc-d7d1f04b0588, generationSize: 104 }
+    portraitCrop: { x: 30, y: 19, w: 32, h: 32 }
+    provenance: { characterId: 5791ece8-3708-4431-86a4-31c5d5314777 }
+    palette_layer: codex
+    # Sampled from sheet.png (plan 0.5): brown leather boots/belt + circuit-teal
+    # glow; the declared robe source already matches the deep teal coat.
+    paletteSource: { pants: '#7f5e4f', trim: '#55c3b6' }
+    anchor: [46, 80]
+    materialClass: metal
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.codex.base.circuit-trim, kind: rune, geometry: sidecar, strength: 0.14 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.gemini.base
+    tool: create_character
+    prompt: "Gemini base humanoid celestial oracle, deep violet robe folds with starlight trim, translucent constellation veil around head and shoulders, readable face silhouette, small star charm at belt, compact readable RPG silhouette, no crown block, no floating cube, no handheld staff, no weapon, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 15, w: 32, h: 32 }
+    provenance: { characterId: 33e0d69e-2f4f-411e-91cc-163c216017c8 }
+    palette_layer: gemini
+    # Sampled from sheet.png (plan 0.5): violet robe + steel-indigo starlight
+    # trim; the declared pants source already matches the deep indigo folds.
+    paletteSource: { robe: ['#52337d', '#362361'], trim: '#8692c3' }
+    anchor: [46, 80]
+    materialClass: glass-rune
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.gemini.base.starlight, kind: rune, geometry: sidecar, strength: 0.1 }
+    occluder: { mode: alpha-silhouette, strength: 0.92 }
+
+  - id: agent.kimi.base
+    tool: create_character
+    prompt: "Kimi lunar celestial oracle, flowing ivory ceremonial robe with rose-pink sash and cloak tails, ornate gold filigree trim, single silver crescent-moon circlet on the forehead, soft platinum hair, serene readable face, gentle moonlight glow at the shoulders, heroic high-fantasy RPG silhouette, compact readable character, no horns, no mask, no demon, no handheld staff, no handheld weapon, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 92 # generation size unverified — inherited default
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.kimi.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: d52fcc0a-ff5d-4435-9b53-271fb3d72ff1, animationGroupId: fe969744-d2e6-43a5-bc4d-da3ae48a7c1a, generationSize: 108 }
+    portraitCrop: { x: 31, y: 17, w: 32, h: 32 }
+    provenance: { characterId: d52fcc0a-ff5d-4435-9b53-271fb3d72ff1 }
+    palette_layer: kimi
+    # Sampled from sheet.png (plan 0.5): dusty-rose sash/filigree accent; the
+    # declared robe and pants sources already match the ivory robe and wrap.
+    paletteSource: { trim: '#c47774' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  # DeepSeek rogue/archer class: ranged-heavy -> melee-light ladder, distinct
+  # from Codex warriors and Claude mages.
+  - id: agent.deepseek.reasoner
+    tool: create_character
+    prompt: "DeepSeek Reasoner master longbow ranger, deep forest-green layered leather armor with ornate bronze trim, hooded cloak with glowing teal rune edging, large ornate recurve longbow slung across back, full arrow quiver at hip, leather bracers, dark green leggings and boots, commanding seasoned ranger stance, glowing teal accents, heroic high-fantasy RPG silhouette, no mage robe, no wizard hat, no staff, no plate armor, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.reasoner/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 52c6aee3-fdf6-42a4-b5f5-8851b0145094, animationGroupId: 08784557-f6ca-4c25-bbd3-34dd605b4ad1, generationSize: 140 }
+    portraitCrop: { x: 30, y: 12, w: 34, h: 30 }
+    provenance: { characterId: 52c6aee3-fdf6-42a4-b5f5-8851b0145094 }
+    palette_layer: deepseek
+    # Sampled from sheet.png (plan 0.5): dark forest-green leathers + teal rune
+    # edging; the declared pants source already matches the leggings.
+    paletteSource: { robe: ['#162620', '#2e4735'], trim: '#459883' }
+    anchor: [46, 80]
+    materialClass: earth
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.deepseek.reasoner.rune-edging, kind: rune, geometry: sidecar, strength: 0.12 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.deepseek.pro
+    tool: create_character
+    prompt: "DeepSeek Pro hooded dagger assassin, deep forest-green leather armor with teal-glowing trim, deep pointed hood and face wrap, twin curved daggers sheathed at belt and thigh, leather bracers and belt pouches, dark green leggings and soft boots, agile balanced stance, glowing teal accents, readable high-fantasy RPG rogue silhouette, no mage robe, no wizard hat, no staff, no bow, no plate armor, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.pro/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: b43a2e2e-8e6e-40a0-ba6c-b9d4514ffb57, animationGroupId: 0157e4c7-afb9-45df-a655-dcde185657c0, generationSize: 136 }
+    portraitCrop: { x: 29, y: 12, w: 34, h: 32 }
+    provenance: { characterId: b43a2e2e-8e6e-40a0-ba6c-b9d4514ffb57 }
+    palette_layer: deepseek
+    # Sampled from sheet.png (plan 0.5): near-black hood/wrap + muted teal trim;
+    # the declared pants source already matches the dark leggings.
+    paletteSource: { robe: '#171f1f', trim: '#4d7762' }
+    anchor: [46, 80]
+    materialClass: earth
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.deepseek.pro.rune-trim, kind: rune, geometry: sidecar, strength: 0.1 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.deepseek.flash
+    tool: create_character
+    prompt: "DeepSeek Flash light scout rogue, minimal forest-green leather vest and green headband, single curved dagger sheathed at hip, light bracers, dark green leggings and light boots, lean fast agile runner stance, glowing teal accent trim, compact readable high-fantasy RPG silhouette, no mage robe, no wizard hat, no staff, no bow, no plate armor, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.flash/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 8bc97f0f-9d7f-4801-92a3-2191cd60fc4b, animationGroupId: b930b023-8b4e-4c4a-88b9-282d5e0ed671, generationSize: 112 }
+    portraitCrop: { x: 31, y: 15, w: 32, h: 32 }
+    provenance: { characterId: 8bc97f0f-9d7f-4801-92a3-2191cd60fc4b }
+    palette_layer: deepseek
+    # Sampled from sheet.png (plan 0.5): dark green vest/leggings; the declared
+    # pants source already matches and no confident trim cluster exists.
+    paletteSource: { robe: '#17251d' }
+    anchor: [46, 80]
+    materialClass: earth
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.deepseek.flash.accent-trim, kind: rune, geometry: sidecar, strength: 0.08 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  # Grok cosmic truthseeker class: void-black + electric cyan, distinct from
+  # Codex warriors, Claude mages, and DeepSeek rogues.
+  # character_ids: base=831e8a22-50bc-4e45-985d-8c32b8e81f6b
+  #                composer=f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2
+  # Reassemble: node scripts/sprites/generate-character-mcp.mjs --id=<id> --zip=...
+  # Fallback procedural baker: npm run sprites:generate-grok
+  - id: agent.grok.base
+    tool: create_character
+    prompt: "Grok cosmic truthseeker herald, deep void-black traveler coat with glowing electric cyan constellation embroidery, short navy starfield cloak dusted with tiny white stars, confident irreverent smirk on a readable face, silver-white swept hair with one cyan lightning streak, small cyan star mote orbiting near the shoulder, brown leather satchel of cosmic charts at the hip, dark boots, open empty hands, lean upright heroic explorer stance, strong cyan rim light for a crisp readable silhouette, identical outfit and colors from every viewing angle, isolated character on transparent background, no scenery, no ground tile, no plate armor, no wizard hat, no staff, no bow, no daggers, no mask, no horns, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 14, w: 32, h: 30 }
+    provenance: { characterId: 831e8a22-50bc-4e45-985d-8c32b8e81f6b, generationSize: 76, generationMode: pro }
+    palette_layer: grok
+    # Sampled from sheet.png (plan 0.5): electric cyan constellation embroidery;
+    # declared robe/pants sources already match the void-black coat.
+    paletteSource: { trim: '#64a9c8' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.grok.base.constellation-embroidery, kind: rune, geometry: sidecar, strength: 0.14 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.grok.composer
+    tool: create_character
+    prompt: "Grok Composer swift star-messenger scout, fitted void-charcoal courier jacket with bright electric cyan trim and small glowing star clasps, cyan headband with short trailing tails, silver-white short hair, wry grin on a readable face, small star charm at the belt, dark leggings, light swift boots, lean agile runner stance, cyan rim light for a crisp readable silhouette, identical outfit and colors from every viewing angle, isolated character on transparent background, no scenery, no ground tile, no plate armor, no wizard hat, no staff, no bow, no daggers, no heavy cloak, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.grok.composer/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, animationGroupId: 9f508b8c-456c-428f-a931-f64cfb3a213a, generationSize: 116 }
+    portraitCrop: { x: 30, y: 15, w: 32, h: 30 }
+    provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, generationSize: 76, generationMode: pro }
+    palette_layer: grok
+    # Sampled from sheet.png (plan 0.5): bright cyan trim/headband glow;
+    # declared robe/pants sources already match the void-charcoal jacket.
+    paletteSource: { trim: '#86bbcb' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.grok.composer.star-clasps, kind: rune, geometry: sidecar, strength: 0.12 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  # z.AI GLM warrior-monk class: vermilion martial robes + peach meridian glow,
+  # open-hand stance — distinct from Claude mages (staff/hat), Codex warriors
+  # (plate/weapons), DeepSeek rogues (daggers/bow), and Grok truthseekers (coat).
+  # character_ids: glm=f64e33dc-6476-4c03-aac3-722e32a82088
+  #                flash=f2b37456-ed34-4c67-84bf-f1ab93cf6f68
+  # Reassemble: node scripts/sprites/generate-character-mcp.mjs --id=<id> --zip=...
+  - id: agent.zai.glm
+    tool: create_character
+    prompt: "GLM warrior-monk grandmaster, flowing vermilion-crimson martial robe with wide sleeves and a broad pale-peach sash knotted at the waist, shaved head with faint glowing peach meridian tattoo lines on the temples, jade prayer-bead necklace, cloth-wrapped forearms and fists, dark crimson trousers, cloth-wrapped feet, calm centered open-hand ready stance, serene disciplined face, peach rim light for a crisp readable silhouette, identical outfit and colors from every viewing angle, isolated character on transparent background, no scenery, no ground tile, no weapon, no staff, no wizard hat, no plate armor, no bow, no daggers, no hood, no cloak, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.zai.glm/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, animationGroupId: c470a518-e4fd-4ec0-92f9-af78e82a53cf, generationSize: 76 }
+    portraitCrop: { x: 30, y: 17, w: 32, h: 32 }
+    provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, generationSize: 76, generationMode: pro }
+    palette_layer: zai
+    # Sampled from sheet.png: vermilion robe + shade; the peach sash shares the
+    # skin ramp so only the jade prayer beads form a confident trim cluster.
+    paletteSource: { robe: ['#b7362f', '#88242e'], trim: '#73b493' }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive:
+      strength: 0
+      sources:
+        - { id: emissive.agent.zai.glm.jade-beads, kind: rune, geometry: sidecar, strength: 0.12 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+  - id: agent.zai.flash
+    tool: create_character
+    prompt: "GLM Flash swift acolyte monk, sleeveless vermilion-crimson martial tunic with a short pale-peach sash, peach headband with two short trailing tails, short dark hair, cloth-wrapped forearms, dark crimson leggings, light cloth-wrapped boots, lean agile sprinter stance with fists raised, bright eager face, peach rim light for a crisp readable silhouette, identical outfit and colors from every viewing angle, isolated character on transparent background, no scenery, no ground tile, no weapon, no staff, no wizard hat, no plate armor, no bow, no daggers, no hood, no cloak, 8-direction pixel art"
+    n_directions: 8
+    size: 92
+    generationSize: 76
+    generationMode: pro
+    animations: [walk, breathing-idle]
+    animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.zai.flash/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, animationGroupId: 3d89ced6-3563-47c8-863a-45f4777376eb, generationSize: 76 }
+    portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
+    provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, generationSize: 76, generationMode: pro }
+    palette_layer: zai
+    # Sampled from sheet.png: vermilion tunic + shade; the peach headband and
+    # sash share the skin ramp, so no confident trim cluster exists.
+    paletteSource: { robe: ['#b83f41', '#a52d3b'] }
+    anchor: [46, 80]
+    materialClass: fabric
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 80, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+
+# ─── PALETTES ────────────────────────────────────────────────────────────────
+# Canonical palette definitions. claudeville/assets/sprites/palettes.yaml mirrors
+# this block for standalone tooling — keep both in sync if you edit either.
+palettes:
+  claude:
+    robe: ['#8f4f21', '#a85f24', '#7b3f1c']
+    pants: ['#3b2418', '#4b2c1a', '#33231a']
+    trim: ['#f2d36b', '#e9b85f', '#ffd98a']
+  codex:
+    robe: ['#116466', '#167d86', '#1f6f8b']
+    pants: ['#102f3a', '#12353b', '#18334a']
+    trim: ['#7be3d7', '#55c7f0', '#8ee88e']
+  gemini:
+    robe: ['#4f46a5', '#5d65c8', '#44528e']
+    pants: ['#201c43', '#27244d', '#1f2d55']
+    trim: ['#b7ccff', '#d6b7ff', '#7bdff2']
+  kimi:
+    robe: ['#f2e4df', '#fff2ee', '#e8d6d2']
+    pants: ['#8f4150', '#6f2f42', '#4d1f24']
+    trim: ['#f5c36a', '#ff8da8', '#ffeff3']
+  deepseek:
+    robe: ['#2f7d5b', '#3a9e72', '#276547']
+    pants: ['#1c3a2e', '#243f33', '#18302a']
+    trim: ['#7cf4c8', '#45dca8', '#c8fff0']
+  grok:
+    robe: ['#14141f', '#1c1c2e', '#0a0a14']
+    pants: ['#101018', '#181822', '#0c0c14']
+    trim: ['#7df9ff', '#22d3ee', '#e8f7ff']
+  zai:
+    robe: ['#b8382c', '#d24a3b', '#8e2a21']
+    pants: ['#3a1c18', '#48231f', '#2b1311']
+    trim: ['#ffb28c', '#ff8c5f', '#ffe0cf']
+
+# ─── EQUIPMENT ───────────────────────────────────────────────────────────────
+# Runtime-held Codex weapons. Anchors mark the grip point used by AgentSprite,
+# not a bottom-center map anchor.
+equipment:
+  - id: equipment.codex.runeblade
+    tool: create_map_object
+    prompt: "legendary Codex runeblade longsword, broad angular icy steel blade with cyan glowing rune inlays, gold crossguard, dark navy hilt, teal crystal pommel, transparent background"
+    width: 96
+    height: 96
+    anchor: [31, 70]
+
+  - id: equipment.codex.greatsword
+    tool: create_map_object
+    prompt: "legendary Codex greatsword, oversized broad icy steel blade with angular split facets, cyan glowing rune channel down the blade, gold and dark navy crossguard, teal crystal core, transparent background"
+    width: 112
+    height: 112
+    anchor: [36, 82]
+
+  - id: equipment.codex.polearm
+    tool: create_map_object
+    prompt: "legendary Codex rune polearm glaive, long dark metal shaft, crescent icy steel blade with cyan glowing rune inlays, gold collars, teal crystal socket near blade, transparent background"
+    width: 112
+    height: 112
+    anchor: [44, 74]
+
+  - id: equipment.codex.engineerWrench
+    tool: create_map_object
+    prompt: "legendary Codex battle-engineer wrench hammer, heavy bronze crescent wrench head with steel jaws, cyan glowing rune core, dark metal handle with gold collars and teal crystal pommel, transparent background"
+    width: 96
+    height: 96
+    anchor: [34, 70]
+
+  # GPT-5.6 signature weapons (Sol/Terra/Luna).
+  - id: equipment.codex.dawnblade
+    tool: create_map_object
+    prompt: "legendary Codex dawn greatblade, oversized broad radiant steel blade with molten gold glowing rune channel, sunburst gold crossguard, dark navy hilt, amber crystal core, transparent background"
+    width: 112
+    height: 112
+    anchor: [36, 82]
+
+  - id: equipment.codex.earthbreaker
+    tool: create_map_object
+    prompt: "legendary Codex earthbreaker warhammer, massive squared bronze and stone hammer head with cyan glowing rune seams, dark metal handle with gold collars, teal crystal pommel, transparent background"
+    width: 96
+    height: 96
+    anchor: [34, 70]
+
+  - id: equipment.codex.crescentSaber
+    tool: create_map_object
+    prompt: "legendary Codex crescent moon saber, slender curved silver blade with pale blue glowing rune edge, crescent moon guard, dark navy grip, moonstone pommel, transparent background"
+    width: 96
+    height: 96
+    anchor: [31, 70]
+
+# ─── ACCESSORIES ─────────────────────────────────────────────────────────────
+accessories:
+  - id: overlay.accessory.effortXhigh
+    tool: isometric_tile
+    prompt: "small upright gold reasoning crest head accessory, open single crown ring with three short vertical rays, narrow laurel base, cyan crystal, readable at 32 pixels, transparent background, no purple, no wings, no saucer, no floor ring, no pedestal"
+    size: 32
+    n_directions: 8
+    anchor: [16, 18]
+
+  - id: overlay.accessory.effortMax
+    tool: isometric_tile
+    prompt: "tall narrow gold triple-pillar star crown head accessory, three vertical star-tipped spires rising from a small laurel base, cyan gems, distinct from a halo ring, readable at 32 pixels, transparent background, no altar, no pedestal, no cross, no floor tile"
+    size: 32
+    n_directions: 8
+    anchor: [16, 20]
+
+  - id: overlay.accessory.effortUltra
+    tool: isometric_tile
+    prompt: "radiant gold and white blazing star crest head accessory, ringed sun-star with four long vertical rays rising from a small gold laurel base, cyan gem center, taller and brighter than a triple-pillar crown, readable at 32 pixels, transparent background, no floor ring, no pedestal, no altar, no cross, no floor tile"
+    size: 32
+    n_directions: 8
+    anchor: [16, 20]
+
+# ─── STATUS OVERLAYS ─────────────────────────────────────────────────────────
+statusOverlays:
+  - id: overlay.status.selected
+    tool: isometric_tile
+    prompt: "magical selection ring at feet, glowing golden runes, faint pulse, transparent background"
+    size: 64
+    animation: pulse
+
+  - id: overlay.status.effortLow
+    tool: isometric_tile
+    prompt: "flat ground decal viewed from directly above: ONE single thin bronze metal band forming an open elliptical ring, hollow transparent center, faint amber pixel glow along the band, low reasoning effort marker, thin tile, ring only, no objects, no structures, no buildings, no arch, no doorway, no floor tile, no filled disk"
+    size: 64
+    anchor: [32, 36]
+
+  - id: overlay.status.effortMedium
+    tool: isometric_tile
+    prompt: "flat ground decal viewed from directly above: TWO concentric polished silver-steel metal bands forming open elliptical rings, hollow transparent center, gentle pale blue-white glow, medium reasoning effort marker, thin tile, rings only, no objects, no structures, no buildings, no arch, no doorway, no floor tile, no filled disk"
+    size: 64
+    anchor: [32, 36]
+
+  - id: overlay.status.effortHigh
+    tool: isometric_tile
+    prompt: "flat ground decal viewed from directly above: THREE concentric ornate gold metal bands forming open elliptical rings with tiny glowing amber rune ticks on the bands, hollow transparent center, high reasoning effort marker, thin tile, rings only, no objects, no structures, no buildings, no medallion, no filled center, no floor tile, no filled disk"
+    size: 64
+    anchor: [32, 36]
+
+# ─── BUILDINGS ───────────────────────────────────────────────────────────────
+# All buildings are single-image PNGs (buildings/<id>/base.png) per the building
+# style contract (docs/building-style-contract.md): true 2:1 iso, slate-blue roofs,
+# structure-only land art or a named structural platform exception, ≤400px.
+# Terrain aprons are baked into the static world cache. Overlay layers
+# (watchfire/banner/beacon/portalGlow) sit beside base.png.
+
+buildings:
+  # ── HERO: Command Center ── (single-image; was composeGrid [3,2], converted losslessly)
+  - id: building.command
+    tool: map_object
+    prompt: "epic command center castle keep, grand stone walls with arched gates, dual dragon banners on parapets, golden flame torches, imposing isometric fortress with a flat irregular cobble threshold broken by grass intrusions; no raised slab, plinth, retaining lip, complete perimeter, or baked cast shadow"
+    width: 312
+    height: 208
+    anchor: [156, 182]
+    materialClass: stone
+    materialSidecar: true
+    atlasFrame: { atlas: world-pilot, key: building.command }
+    elevation: { base: 0, top: 208, unit: sprite-px }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.command.windows, kind: windows, geometry: registry.windowRects, strength: 0.72 }
+        - { id: emissive.command.watchfire, kind: fire, geometry: layer.watchfire, strength: 1 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 130 }
+    splitForOcclusion: true
+    horizonY: 130
+    # 0.1 (visual-quality plan): the banner layer was a block-cube mis-generation
+    # (the magenta box beside the keep); base.png already has banners baked in,
+    # so the layer is retired rather than rebaked.
+    layers:
+      watchfire:
+        tool: isometric_tile
+        prompt: "isolated roaring golden watchfire flame in a small stone brazier bowl, dancing amber-orange pixel flames with warm ember sparks, thin tile, transparent background only, no ground tile, no square base, no platform, no cube block, empty transparent corners"
+        size: 64
+        anchor: [40, 52]
+        animation: pulse
+        materialClass: fire
+        emissive:
+          strength: 1
+          sources:
+            - { id: emissive.command.watchfire, kind: fire, geometry: authored-albedo, strength: 1 }
+        occluder: { mode: alpha-silhouette, strength: 0.65 }
+      # 4.1 — inspection aperture (plan claudeville-frontier-visual-plan §4.1).
+      # Hand-authored at the base's own 312x208 pixel scale and clipped to the
+      # east wing's right-facing wall cut. BuildingSprite draws these three
+      # itself, only while Command is the explicitly selected building at
+      # resting zoom >= 2, in the fixed order aperture -> occupants ->
+      # interior -> slot marks -> foreground; the generic manifest-layer pass
+      # skips them, so they never appear on the default frame.
+      aperture:
+        tool: hand-authored
+        prompt: "sectional cut through the Command east wing wall: sawn masonry edge with exposed wall thickness, stone back wall with course lines, a single wall sconce, cool stone floor; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: stone
+      interior:
+        tool: hand-authored
+        prompt: "Command inspection interior dressing composed from the prop.interior kit: reading desk, planning table, archive shelf, pinned parchment; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: timber
+      foreground:
+        tool: hand-authored
+        prompt: "near frame of the Command aperture: sill course and jamb pillar that occlude the presented occupant; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: stone
+    emitters:
+      torch: [64, 28]
+      torch2: [176, 28]
+      torch3: [64, 140]
+      torch4: [176, 140]
+      sparkle: [120, 18]
+      sparkle2: [200, 18]
+    # Phase 2.5.5: light-reflection compositing reads these to additively
+    # tint nearby water tiles. Anchor is sprite-local pixels.
+    lightSource: [120, 30]
+    lightColor: '#ffcc66'
+    lightRadius: 80
+
+  # ── HERO: Harbor Lighthouse (watchtower) ──
+  # Single-image (was composeGrid [4,3]); narrow/tall Pharos per the building
+  # style contract. Beacon flame is the procedural _drawWatchtowerFire +
+  # beacon.png overlay anchored at the dark lantern crown (144,68).
+  - id: building.watchtower
+    tool: map_object
+    prompt: "Pharos Lighthouse — tall narrow heroic cool-grey stone lighthouse tower with strong light-to-shadow contrast, tapering stacked circular stages, small arched windows, bronze lantern crown with the flame area left dark for the beacon overlay, lower structural stone quay with a connected short stair and localized wet water-contact edge. Narrow vertical silhouette, much taller than wide. No generic square ground tile, no unsupported platform, no pale pastel, no modern beam."
+    width: 288
+    height: 384
+    anchor: [144, 320]
+    materialClass: stone
+    atlasFrame: { atlas: world-pilot, key: building.watchtower }
+    elevation: { base: 0, top: 384, unit: sprite-px }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.watchtower.windows, kind: windows, geometry: registry.windowRects, strength: 0.68 }
+        - { id: emissive.watchtower.beacon, kind: fire, geometry: layer.beacon, strength: 1 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 300 }
+    splitForOcclusion: true
+    horizonY: 300
+    layers:
+      beacon:
+        tool: map_object
+        prompt: "isolated warm lantern flame for a lighthouse crown, orange amber pixel fire with a bright golden core and soft warm halo, thin tile, transparent background only, no ground tile, no square base, no platform, no cube block, no modern beam, empty transparent corners"
+        size: 64
+        anchor: [144, 68]
+        animation: pulse
+        materialClass: fire
+        emissive:
+          strength: 1
+          sources:
+            - { id: emissive.watchtower.beacon, kind: fire, geometry: authored-albedo, strength: 1 }
+        occluder: { mode: alpha-silhouette, strength: 0.35 }
+    emitters:
+      torch: [144, 68]
+    # Phase 2.5.5: light-reflection compositing reads these to additively
+    # tint nearby water tiles. Anchor is sprite-local pixels.
+    lightSource: [144, 68]
+    lightColor: '#ffb347'
+    lightRadius: 96
+    lightOverlay: 'atmosphere.light.lighthouse-beam'
+
+  # ── STANDARD: Harbor Master (commit ships / push departures) ──
+  - id: building.harbor
+    tool: map_object
+    prompt: "Grand compact high-fantasy steampunk Harbor Masters Guild landmark, designed as a wide readable isometric RPG sprite. A stacked three-level half-timbered guildhall rises directly from a structural timber quay and stone tide-gate pilings, with blue-black slate roofs, warm amber windows, dark oak galleries, stone lower arches, copper steam pipes, narrow smokestacks, brass pressure gauges, gear housings, iron catwalks, and one large ornate clockwork loading crane with chain hoist and suspended cargo crate. Several dock fingers, mooring posts, rope coils, cargo barrels, and visible supports terminate directly in the water. Strong asymmetrical crane-and-chimney silhouette, intricate but readable pixel clusters, medieval fantasy architecture fused with functional Victorian steam machinery. Structure and attached quay only, transparent empty space around and between pilings; no filled water tile, ship, airship, surrounding city, ground slab, cast shadow, text, letters, logo, or watermark."
+    width: 352
+    height: 232
+    anchor: [176, 204]
+    materialClass: timber
+    atlasFrame: { atlas: world-pilot, key: building.harbor }
+    elevation: { base: 0, top: 232, unit: sprite-px }
+    emissive:
+      strength: 0.82
+      sources:
+        - { id: emissive.harbor.windows, kind: windows, geometry: registry.windowRects, strength: 0.66 }
+        - { id: emissive.harbor.lantern, kind: lantern, geometry: lightSource, strength: 0.82 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 164 }
+    splitForOcclusion: true
+    horizonY: 164
+    emitters:
+      torch: [145, 96]
+      signal: [208, 38]
+    lightSource: [181, 156]
+    lightColor: '#ffd37a'
+    lightRadius: 96
+    lightOverlay: 'atmosphere.light.lantern-glow'
+
+  # ── HERO: Clock Observatory ── (single-image; was composeGrid [3,2])
+  # Blank clock dial on the sprite; the animated hands are drawn procedurally
+  # by _drawObservatoryClock at BUILDING_VISUAL_REGISTRY.observatory clockFace.
+  - id: building.observatory
+    tool: map_object
+    prompt: "Broad stocky grey-stone astronomical observatory whose masonry walls end directly at their footings, a large blue-slate dome with an open viewing aperture, and one enormous ornate brass telescope projecting far upward-right. One blank circular astrolabe dial centered above the arched front door, warm gold windows, copper trim, heavy buttresses, attached stone doorstep and stairs, compact proportions, and a strong asymmetric telescope silhouette. Structure only with empty transparent space around every footing; no lawn, grass, terrain, base platform, cast shadow, text, numbers, logo, or clock hands."
+    width: 256
+    height: 288
+    anchor: [128, 252]
+    materialClass: stone
+    atlasFrame: { atlas: world-pilot, key: building.observatory }
+    elevation: { base: 0, top: 288, unit: sprite-px }
+    emissive:
+      strength: 0.78
+      sources:
+        - { id: emissive.observatory.windows, kind: windows, geometry: registry.windowRects, strength: 0.62 }
+        - { id: emissive.observatory.dome, kind: rune, geometry: registry.effectAnchors.domeAperture, strength: 0.78 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 235 }
+    splitForOcclusion: true
+    horizonY: 235
+    emitters:
+      sparkle: [211, 57]
+    # Phase 2.5.5: light-reflection compositing reads these to additively
+    # tint nearby water tiles. Anchor is sprite-local pixels.
+    lightSource: [149, 107]
+    lightColor: '#9fd1ff'
+    lightRadius: 58
+
+  # ── HERO: Portal Gate ── (single-image; was composeGrid [3,2], converted losslessly)
+  - id: building.portal
+    tool: map_object
+    prompt: "epic portal gate archway, ancient stone arch with swirling arcane energy, violet and gold runes, massive scale, isometric, on an intentional structural dark-stone dais with connected stairs; no larger generic ground tile, no unsupported plinth, no baked cast shadow"
+    width: 312
+    height: 208
+    anchor: [156, 182]
+    materialClass: glass-rune
+    atlasFrame: { atlas: world-pilot, key: building.portal }
+    elevation: { base: 0, top: 208, unit: sprite-px }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.portal.vortex, kind: rune, geometry: layer.portalGlow, strength: 1 }
+    occluder: { mode: alpha-silhouette, strength: 0.92, horizonY: 130 }
+    splitForOcclusion: true
+    horizonY: 130
+    layers:
+      portalGlow:
+        tool: isometric_tile
+        prompt: "isolated swirling violet portal vortex flame, arcane purple energy spiral with magenta core and faint gold rune sparks, thin tile, transparent background only, no ground tile, no square base, no platform, no cube block, empty transparent corners"
+        size: 64
+        anchor: [144, 60]
+        animation: pulse
+        materialClass: glass-rune
+        emissive:
+          strength: 1
+          sources:
+            - { id: emissive.portal.vortex, kind: rune, geometry: authored-albedo, strength: 1 }
+        occluder: { mode: none, strength: 0 }
+    emitters:
+      sparkle: [144, 60]
+      sparkle2: [120, 80]
+    # Phase 2.5.5: light-reflection compositing reads these to additively
+    # tint nearby water tiles. Anchor is sprite-local pixels.
+    lightSource: [144, 60]
+    lightColor: '#cc99ff'
+    lightRadius: 70
+
+  # ── STANDARD: Code Forge ──
+  - id: building.forge
+    tool: map_object
+    prompt: "Code Forge — compact medieval stone blacksmith's forge landmark, soot-darkened cool-grey stone walls, oversized glowing orange arched furnace mouth spilling warm firelight, tall dark iron chimney with a crown wisping smoke, dark slate-grey tiled roof, rune anvil and blacksmith tools beside the wall, molten sparks, true wall footings only. Transparent ground around the structure; no lawn tile, raised slab, plinth, retaining lip, complete perimeter, or baked cast shadow. Bold readable landmark, no terracotta-red roof, no plain cottage."
+    width: 256
+    height: 232
+    anchor: [128, 203]
+    materialClass: stone
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    atlasFrame: { atlas: world-pilot, key: building.forge }
+    elevation: { base: 0, top: 232, unit: sprite-px }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.forge.furnace, kind: fire, geometry: registry.windowRects, strength: 1 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+    emitters:
+      smoke: [185, 35]
+      forgeEmber: [72, 150]
+      forgeSpark: [78, 132]
+      sparkle: [210, 160]
+    lightSource: [72, 150]
+    lightColor: '#ff8a33'
+    lightRadius: 80
+    lightOverlay: 'atmosphere.light.fire-glow'
+    layers:
+      # 4.6 — the hearth fire is baked into base.png, so the sleeping-town rest
+      # state needs an authored mask: this restates exactly those pixels as
+      # stepped charcoal over one ember course. BuildingSprite draws it only on
+      # canonical VillagePhase.READY_EMPTY; the generic manifest-layer pass
+      # skips it.
+      banked:
+        tool: hand-authored
+        prompt: "banked forge hearth mask: the authored furnace fire restated as stepped charcoal with a single ember course at the bed; authored, not generated"
+        width: 256
+        height: 232
+        anchor: [128, 203]
+        materialClass: stone
+
+  # ── STANDARD: Token Mine ──
+  - id: building.mine
+    tool: map_object
+    prompt: "Token Mine — craggy cool grey-blue mountain mine-gate landmark with deep but not black shadows, heavy timber headframe with a pulley wheel over an amber-lit arched cave mouth, a small mine cart on rails emerging, glowing cyan crystal token-ore veins and clusters, hanging iron lanterns with warm glow, irregular embedded rock footings and loose rubble only. Transparent ground around the structure; no lawn tile, raised slab, plinth, retaining lip, complete perimeter, or baked cast shadow. Bold readable landmark, no hexagonal base, no pure-black rock, no sci-fi pod."
+    width: 256
+    height: 232
+    anchor: [128, 203]
+    materialClass: stone
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    atlasFrame: { atlas: world-pilot, key: building.mine }
+    elevation: { base: 0, top: 232, unit: sprite-px }
+    emissive:
+      strength: 0.82
+      sources:
+        - { id: emissive.mine.cave, kind: lantern, geometry: lightSource, strength: 0.82 }
+        - { id: emissive.mine.crystals, kind: rune, geometry: emitters.sparkle, strength: 0.62 }
+    occluder: { mode: alpha-silhouette, strength: 1 }
+    emitters:
+      sparkle: [90, 95]
+      sparkle2: [60, 120]
+      mining: [138, 165]
+    lightSource: [188, 115]
+    lightColor: '#ffb84d'
+    lightRadius: 80
+    lightOverlay: 'atmosphere.light.lantern-glow'
+
+  # ── HERO: Task Board (Town Quest Board) ──
+  - id: building.taskboard
+    tool: map_object
+    prompt: "Quest Notice Board — grand open-air timber quest board landmark, weathered grey-brown oak frame with crossed support beams, the board face a flat empty dark green-grey slate chalkboard panel with straight clean edges, completely blank and free of pinned parchment, notices, paper, or wax seals, a small slate-blue tiled roof cap, carved corner posts topped with crimson-and-gold guild pennants, two hanging iron lanterns with warm amber glow, individual stone post footings only. Transparent ground between and around the posts; no lawn tile, raised slab, plinth, retaining lip, complete perimeter, or baked cast shadow. Bold readable landmark, taller than wide, no enclosed house, no walls, no door."
+    width: 256
+    height: 232
+    anchor: [128, 203]
+    materialClass: timber
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    atlasFrame: { atlas: world-pilot, key: building.taskboard }
+    elevation: { base: 0, top: 232, unit: sprite-px }
+    emissive:
+      strength: 0.76
+      sources:
+        - { id: emissive.taskboard.lanterns, kind: lantern, geometry: registry.windowRects, strength: 0.76 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 150 }
+    splitForOcclusion: true
+    horizonY: 150
+    emitters:
+      torch: [55, 80]
+      torch2: [200, 80]
+      sparkle: [128, 90]
+      sparkle2: [128, 70]
+    # Phase 2.5.5: light-reflection compositing reads these to additively
+    # tint nearby water tiles. Anchor is sprite-local pixels.
+    lightSource: [128, 95]
+    lightColor: '#ffb347'
+    lightRadius: 80
+    lightOverlay: 'atmosphere.light.fire-glow'
+
+  # ── STANDARD: Lore Archive ──
+  - id: building.archive
+    tool: isometric_tile
+    prompt: "old-school 16-bit fantasy RPG grand lore archive exterior, monumental stone fortress-library keep with two short bookend towers, tall central stained-glass arched window glowing gold-green, blue slate roof, carved open-book crest above entrance, scroll banners, broad attached stone steps, side buttresses, true wall footings only, transparent ground around the structure; no flagstone apron, raised slab, plinth, retaining lip, complete perimeter, or baked cast shadow; no exposed interior wall, no giant bookshelf cutaway"
+    width: 336
+    height: 224
+    anchor: [168, 196]
+    materialClass: stone
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    atlasFrame: { atlas: world-pilot, key: building.archive }
+    elevation: { base: 0, top: 224, unit: sprite-px }
+    emissive:
+      strength: 0.74
+      sources:
+        - { id: emissive.archive.windows, kind: windows, geometry: registry.windowRects, strength: 0.68 }
+        - { id: emissive.archive.door-spill, kind: lantern, geometry: lightSource, strength: 0.74 }
+    occluder: { mode: alpha-silhouette, strength: 1, horizonY: 145 }
+    splitForOcclusion: true
+    horizonY: 145
+    emitters:
+      sparkle: [168, 82]
+      sparkle2: [142, 128]
+      sparkle3: [194, 128]
+    lightSource: [168, 88]
+    lightColor: '#b3d68c'
+    lightRadius: 108
+    lightOverlay: 'atmosphere.light.lantern-glow'
+
+# ─── PROPS ───────────────────────────────────────────────────────────────────
+# Prop ids match the camelCase `type` field in IsometricRenderer.js
+# AMBIENT_GROUND_PROPS so renderer lookup stays one-to-one.
+props:
+  # 4.1 — six-piece inspection interior kit (asset note P5). PixelLab pixflux
+  # REST, 32 px isometric, 6 generations, edge-keyed with key-out-bg. Baked
+  # into buildings/building.command/interior.png for the Command pilot and
+  # reusable for the next building aperture.
+  - id: prop.interior.readingDesk
+    tool: map_object
+    prompt: "small slanted reading desk with an open book and a lit candle stub, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.anvilBench
+    tool: map_object
+    prompt: "low smith work bench with a small iron anvil and a hammer laid across it, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.planningTable
+    tool: map_object
+    prompt: "small square planning table with an unrolled parchment map and two markers, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.archiveShelf
+    tool: map_object
+    prompt: "narrow two-shelf bookcase packed with leather ledgers and rolled scrolls, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.instrumentStand
+    tool: map_object
+    prompt: "slim wooden stand holding a brass astrolabe instrument, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.cargoBench
+    tool: map_object
+    prompt: "low timber cargo bench with two stacked crates and a coil of rope, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.lantern
+    tool: isometric_tile
+    prompt: "iron street lantern on post, warm amber candlelight glow, isometric"
+    size: 32
+    anchor: [16, 28]
+    materialClass: metal
+    atlasFrame: { atlas: world-pilot, key: prop.lantern }
+    elevation: { base: 0, top: 28, unit: sprite-px }
+    emissive:
+      strength: 0.9
+      sources:
+        - { id: emissive.prop.lantern.flame, kind: lantern, geometry: authored-albedo, strength: 0.9 }
+    occluder: { mode: alpha-silhouette, strength: 0.85 }
+
+  - id: prop.villageGate
+    tool: map_object
+    prompt: "isolated open fantasy RPG city gatehouse, two tall square stone-and-timber towers with teal slate roofs, massive central stone archway, wide open black tunnel, raised iron portcullis, warm torches, small red pennants, mossy stone footings, transparent background, no foreground fence, no courtyard, no enclosed yard, no platform, no drawbridge, no text, no characters"
+    width: 384
+    height: 280
+    anchor: [192, 260]
+
+  - id: prop.villageGateTower
+    tool: map_object
+    prompt: "isolated square fortified village gate tower, cool-grey mortared stone lower story with narrow archer slit, dark walnut timber-framed upper guard room, warm amber windows, steep slate-blue tiled roof, tiny crimson pennant, mossy grounded footing, transparent background, no attached wall, no courtyard, no text, no characters"
+    width: 160
+    height: 240
+    anchor: [80, 224]
+
+  - id: prop.villageGateArch
+    tool: map_object
+    prompt: "isolated vertical medieval fortified gateway architrave, long raised cool-grey stone connector between two guard towers, broad shallow arch opening, dark timber underside, empty inset burgundy civic inscription band with no lettering, slate-blue coping, transparent background, no doors, no ground, no characters, no text"
+    width: 96
+    height: 96
+    anchor: [48, 88]
+
+  - id: prop.villageWallSeaTower
+    tool: map_object
+    prompt: "wooden sea watchtower at the end of a fantasy village wall, square timber tower over rocky shoreline, dark wooden legs and cross braces, covered lookout platform with teal slate roof, palisade wall socket on left side, rope ladder, amber lantern, crimson pennant, mossy stone footings, transparent background, no text, no characters, no water tile, no ground tile"
+    width: 192
+    height: 260
+    anchor: [96, 244]
+
+  - id: prop.signpost
+    tool: isometric_tile
+    prompt: "weathered wooden signpost, carved directional arrows, guild rune mark, isometric"
+    size: 32
+    anchor: [16, 28]
+
+  - id: prop.runestone
+    tool: isometric_tile
+    prompt: "ancient runestone monolith, weathered cool grey stone slab with glowing cyan-blue inscribed runes, mossy foot, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 42]
+
+  - id: prop.scrollCrates
+    tool: isometric_tile
+    prompt: "small stack of weathered oak wooden crates with parchment scroll tubes, rope-bound, red wax seals, warm wood and gold trim, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 36]
+
+  - id: prop.oreCart
+    tool: isometric_tile
+    prompt: "small mine ore cart, worn dark iron tub on short rails, filled with glowing cyan crystal ore chunks, rusty iron wheels, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 36]
+
+  - id: prop.well
+    tool: isometric_tile
+    prompt: "stone village well, cool grey cobble ring wall, small slate-blue pitched roof on wooden posts, wooden bucket on rope, ivy touch, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 36]
+
+  - id: prop.marketStall
+    tool: isometric_tile
+    prompt: "market stall with striped canvas awning, goods laid out on table, lantern hung at corner, isometric"
+    size: 64
+    anchor: [32, 40]
+
+  - id: prop.flowerCart
+    tool: isometric_tile
+    prompt: "wooden flower cart with bright blooms, painted wheels, isometric"
+    size: 64
+    displaySize: 32
+    anchor: [16, 24]
+
+  - id: prop.noticePillar
+    tool: isometric_tile
+    prompt: "carved cool grey stone notice pillar, parchment quest notices pinned all around, small iron crown top, warm gold trim, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 45]
+
+  - id: prop.harborBoat
+    tool: isometric_tile
+    prompt: "commit cargo boat marker, dark hull, bright white sail with gold branch sigil, glowing sealed cargo crate, transparent background, isometric"
+    size: 64
+    anchor: [32, 32]
+
+  - id: prop.harborShip.skiff
+    tool: generated
+    prompt: "tiny old-school fantasy harbor skiff, one cream sail, dark wood hull, transparent background"
+    size: 64
+    anchor: [32, 50]
+
+  - id: prop.harborShip.cutter
+    tool: generated
+    prompt: "fantasy cutter ship, larger single mast, cream sail, dark wood hull, transparent background"
+    size: 72
+    anchor: [36, 56]
+
+  - id: prop.harborShip.sloop
+    tool: generated
+    prompt: "old-school sailing sloop, two cream sails, polished wood hull, transparent background"
+    size: 84
+    anchor: [42, 66]
+
+  - id: prop.harborShip.brigantine
+    tool: generated
+    prompt: "fantasy merchant brigantine, multiple cream sails, stern cabin, transparent background"
+    size: 96
+    anchor: [48, 74]
+
+  - id: prop.harborShip.galleon
+    tool: generated
+    prompt: "grand fantasy galleon, ornate hull, many sails, gold trim, transparent background"
+    size: 112
+    anchor: [56, 86]
+
+  - id: prop.harborShip.dreadnought
+    tool: generated
+    prompt: "epic fantasy dreadnought sailing ship, dark hull, many sails, glowing trim, transparent background"
+    size: 128
+    anchor: [64, 98]
+
+  - id: prop.harborShip.flagship
+    tool: generated
+    prompt: "mythic flagship fantasy galleon, colossal sails, ornate prow, magical lanterns, transparent background"
+    size: 144
+    anchor: [72, 110]
+
+  - id: prop.harborShip.stack5
+    tool: map_object
+    prompt: "compact isometric stack of about five tiny fantasy harbor commit cargo boats lashed together, dark wood hulls, cream triangular sails, gold branch sigils, a few glowing sealed cargo crates, transparent background, no text, no numbers"
+    size: 104
+    anchor: [52, 80]
+
+  - id: prop.harborShip.stack10
+    tool: map_object
+    prompt: "large isometric stack of about ten fantasy harbor commit cargo boats packed into one broad flotilla marker, dark wood hulls, staggered cream sails, gold branch sigils, transparent background, no text, no numbers"
+    size: 132
+    anchor: [66, 102]
+
+  - id: prop.harborShip.stack30
+    tool: map_object
+    prompt: "heavy isometric fleet-stack marker for about twenty to thirty fantasy harbor commit cargo boats, central flagship hull with smaller dark wood boats around it, dense staggered cream sails, gold branch sigils, transparent background, no text, no numbers"
+    size: 168
+    anchor: [84, 130]
+
+  - id: prop.harborShip.stack40
+    tool: map_object
+    # NOTE: baked via REST pixflux with seed=11 (the manifest-hash seed keeps
+    # returning a hull sitting on an opaque water diamond).
+    prompt: "titan-class isometric fleet-stack marker for about forty fantasy harbor commit cargo boats, colossal dark wood treasure galleon with towering stacked cream sails and a cluster of small cargo boats lashed to its hull, gold branch sigils, glowing sealed cargo crates on deck, transparent background, no text, no numbers"
+    size: 184
+    anchor: [92, 142]
+
+  - id: prop.harborShip.stack50
+    tool: map_object
+    prompt: "titan-class isometric fleet-stack marker for about fifty fantasy harbor commit cargo boats, mythic leviathan-sized dark wood ark with five towering masts of cream sails, ornate gold prow, magical lanterns, dense flotilla of tiny cargo boats moored around its hull, gold branch sigils, transparent background, no text, no numbers"
+    size: 200
+    anchor: [100, 156]
+
+  - id: prop.harborCrates
+    tool: isometric_tile
+    prompt: "harbor cargo crates stacked, weathered oak planks with stencilled dark guild marks, rope nets and iron bands, warm wood tones, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 36]
+
+  - id: prop.harborCrane
+    tool: isometric_tile
+    prompt: "harbor loading crane, timber A-frame, pulley and rope, iron hook, isometric"
+    size: 64
+    anchor: [32, 56]
+
+  - id: prop.runeBrazier
+    tool: isometric_tile
+    prompt: "ancient stone rune brazier, blue-gold magical flame, carved dragon feet, heroic fantasy RPG prop, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 38]
+    materialClass: fire
+    atlasFrame: { atlas: world-pilot, key: prop.runeBrazier }
+    elevation: { base: 0, top: 38, unit: sprite-px }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.prop.runeBrazier.flame, kind: fire, geometry: authored-albedo, strength: 1 }
+    occluder: { mode: alpha-silhouette, strength: 0.72 }
+
+  - id: prop.fishSchoolTeal
+    tool: isometric_tile
+    prompt: "small school of bright teal fish silhouettes just below clear tropical water surface, subtle sparkle, transparent background only, no water tile, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.fishSchoolKoi
+    tool: isometric_tile
+    prompt: "small school of orange and white koi fish silhouettes just below clear tropical water surface, subtle sparkle, transparent background only, no water tile, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.gullFlight
+    tool: map_object
+    prompt: "tiny white seagull in flight, wings level fully spread gliding pose, dark wing tips, tiny amber beak, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no water tile, no square base, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.gullFlight.up
+    tool: map_object
+    prompt: "tiny white seagull in flight, wings raised high upward flap pose, dark wing tips, tiny amber beak, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no water tile, no square base, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.gullFlight.level
+    tool: map_object
+    prompt: "tiny white seagull in flight, wings level fully spread gliding pose, dark wing tips, tiny amber beak, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no water tile, no square base, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+    # Duplicate-frame dedupe (visual-quality plan cross-cutting): the level-glide
+    # frame was byte-identical to prop.gullFlight.png, so it now aliases that
+    # PNG instead of shipping a second file. Code references to this id are
+    # untouched; the alias keeps them loading the same art.
+    assetPath: assets/sprites/props/prop.gullFlight.png
+
+  - id: prop.gullFlight.down
+    tool: map_object
+    prompt: "tiny white seagull in flight, wings swept downward flap pose, dark wing tips, tiny amber beak, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no water tile, no square base, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.gullFlight.bank
+    tool: map_object
+    prompt: "tiny white seagull banking turn in flight, one wing high one wing low, dark wing tips, tiny amber beak, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no water tile, no square base, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  # Birdsong & Bloom (v0.16): land + water fauna.
+  - id: prop.songbird
+    tool: map_object
+    prompt: "tiny songbird in flight, warm orange and brown plumage, wings level spread gliding, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no branch, no perch, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 16]
+
+  - id: prop.songbird.up
+    tool: map_object
+    prompt: "tiny songbird in flight, warm orange and brown plumage, wings raised high upward flap, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no branch, no perch, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 16]
+
+  - id: prop.songbird.down
+    tool: map_object
+    prompt: "tiny songbird in flight, warm orange and brown plumage, wings swept downward flap, readable 32 pixel fantasy sprite silhouette, transparent background only, no sky, no branch, no perch, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 16]
+
+  - id: prop.duck
+    tool: map_object
+    prompt: "small mallard duck floating on calm water, green head and brown body, gentle wake, readable 32 pixel fantasy sprite, transparent background only, no water tile, no square base, empty transparent corners"
+    size: 32
+    anchor: [16, 18]
+
+  - id: prop.heron
+    tool: map_object
+    prompt: "tall slender grey heron wading, long thin legs, curved neck, folded wings, readable fantasy sprite, transparent background only, no water tile, no ground tile, no square base, empty transparent corners"
+    width: 32
+    height: 48
+    anchor: [16, 42]
+
+  - id: prop.runeFountain
+    tool: isometric_tile
+    prompt: "small ancient stone fountain basin, glowing blue rune water, mossy carved rim, heroic fantasy RPG town prop, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 48]
+
+  - id: prop.harborBeaconBuoy
+    tool: isometric_tile
+    prompt: "fantasy harbor beacon buoy, brass cage lantern, red pennant, rope knots, barnacled float, transparent background only, isolated sprite, no water tile, no square base, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 24]
+
+  - id: prop.netRack
+    tool: isometric_tile
+    prompt: "shore fishing net rack with cork floats, rope bundles, weathered posts, fantasy harbor prop, transparent background only, isolated sprite, no ground tile, no square base, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 28]
+
+  - id: prop.bridgeLanternPost
+    tool: map_object
+    prompt: "epic fantasy RPG bridge lantern post, carved dark wood and mossy stone base, tiny blue rune lantern glow, transparent background only, isolated pixel art sprite, no ground tile, no square base, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 28]
+
+  - id: prop.bridgeBannerRune
+    tool: map_object
+    prompt: "small epic fantasy bridge banner pennant on short carved post, deep red cloth with gold rune trim, weathered wood, transparent background only, isolated pixel art sprite, no ground tile, no square base, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 28]
+
+  - id: prop.lakeShrine
+    tool: map_object
+    prompt: "weathered fantasy stone shrine on a small mossy mid-lake island, a low altar with a small offering bowl, a glowing carved rune at its base, two short standing stones beside it, soft amber lantern glow, no platform, no large base, transparent background, isometric"
+    size: 64
+    anchor: [32, 56]
+
+  - id: prop.mangroveRoot.twisted
+    tool: map_object
+    prompt: "tropical mangrove tree exposed root cluster, dark twisted woody fingers rising from shallow water at the shore, wet bark highlights, small barnacles, transparent background, no water tile, no platform, isometric"
+    size: 32
+    anchor: [16, 26]
+
+  - id: prop.mangroveRoot.arch
+    tool: map_object
+    prompt: "tropical mangrove archway shoreline root, twin twisted woody arches rising from shallow water with hanging vines, wet bark, glistening highlights, transparent background, no water tile, no platform, isometric"
+    size: 48
+    anchor: [24, 40]
+
+  - id: prop.driftwood.log
+    tool: map_object
+    prompt: "weathered driftwood log washed up at lagoon shore, bleached pale wood with cracked bark, half-submerged in shallow water, small barnacles and a single small green sprout growing from one end, transparent background, no water tile, no platform, isometric"
+    size: 48
+    anchor: [24, 30]
+
+  # ── CHRONICLE MONUMENTS (plan 6.1) ─────────────────────────────────────────
+  # Release-history monuments drawn by ChronicleMonuments (vector fallback when
+  # a sprite is missing). Ids intentionally use the `monument.*` namespace; the
+  # generic path mapper has no monument prefix, so each entry pins `assetPath`.
+  # Baked on the building style contract (cool grey stone ramp, gold trim,
+  # painterly 3-4 tone steps, warm key from upper-left). The major obelisk's
+  # gem socket is left dark — the renderer composites the kind-colored glow.
+  - id: monument.minor
+    tool: map_object
+    prompt: "small fantasy cairn of three stacked weathered fieldstones, cool grey stone with warm highlights and a moss touch, tiny gold rune pebble on top, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 42]
+    assetPath: assets/sprites/props/monument.minor.png
+
+  - id: monument.medium
+    tool: map_object
+    prompt: "fantasy standing stone marker, single upright cool grey granite stele with a chiseled gold rune near the top, weathered edges, small moss at the foot, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 44]
+    assetPath: assets/sprites/props/monument.medium.png
+
+  - id: monument.major
+    tool: map_object
+    prompt: "tall fantasy rune obelisk monument, tapered cool grey stone pillar with gold trim bands, one dark unlit gem socket inset near the top, carved base steps, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no glow, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 58]
+    assetPath: assets/sprites/props/monument.major.png
+
+  - id: monument.founding
+    tool: map_object
+    prompt: "founding monument of three weathered granite standing stones side by side, plain rectangular slabs with rounded tops and staggered heights, the middle one tallest, cool grey stone with faint gold chisel marks, small moss at the feet, thin tile, transparent background only, isolated sprite, no swords, no blades, no crosses, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 58]
+    assetPath: assets/sprites/props/monument.founding.png
+
+# ─── VEGETATION ──────────────────────────────────────────────────────────────
+vegetation:
+  - id: veg.root.arch
+    tool: isometric_tile
+    prompt: "ancient twisted tree-root arch, moss, hanging amber charms, readable elderwood fantasy silhouette, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 58]
+
+  - id: veg.standingStone.mossy
+    tool: isometric_tile
+    prompt: "mossy standing stone menhir, carved faint blue runes, small ferns at base, ancient elderwood fantasy prop, transparent background only, isolated sprite, no ground tile, no square base, no baked shadow, empty transparent corners"
+    size: 48
+    anchor: [24, 40]
+
+  - id: veg.tree.oak.large
+    tool: isometric_tile
+    prompt: "ancient oak tree, dense wide deep-green canopy, thick twisted trunk with exposed roots gripping bare ground, mossy bark, isolated tree sprite, thin tile, transparent background only, no ground tile, no square base, no grass diamond, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 80]
+
+  - id: veg.tree.oak.small
+    tool: isometric_tile
+    prompt: "young oak tree, modest deep-green canopy over a slender smooth-bark trunk, natural tree silhouette, isolated tree sprite, thin tile, transparent background only, no ground tile, no square base, no grass diamond, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 40]
+
+  - id: veg.tree.pine.large
+    tool: isometric_tile
+    prompt: "tall pine tree, layered conical dark green needle boughs stepping down a straight brown trunk, roots on bare transparency, natural conifer silhouette, isolated tree sprite, thin tile, transparent background only, no ground tile, no square base, no soil, no dirt patch, no grass fringe, no crate shape, no cube block, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 80]
+
+  - id: veg.tree.pine.small
+    tool: isometric_tile
+    prompt: "small pine tree, compact cone shape, bright needle clusters with snow-free tips, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 40]
+
+  - id: veg.tree.willow.large
+    tool: isometric_tile
+    prompt: "weeping willow tree, long trailing pale-green branches hanging to the ground from a domed canopy, gnarled trunk, isolated tree sprite, thin tile, transparent background only, no ground tile, no square base, no dirt diamond, no water tile, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 80]
+
+  - id: veg.tree.willow.small
+    tool: isometric_tile
+    prompt: "young weeping willow, dense curtain of slender bright-green trailing branches hanging to the ground from a small domed canopy, slim trunk, isolated tree sprite, thin tile, transparent background only, no ground tile, no square base, no dirt diamond, no wooden plank, no log, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 40]
+
+  - id: veg.boulder.mossy.large
+    tool: isometric_tile
+    prompt: "large mossy granite boulder, rounded weathered grey stone with moss patches and lichens resting on bare transparency, natural rock silhouette, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no soil, no grass fringe, no ferns at the foot, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 40]
+
+  - id: veg.boulder.mossy.small
+    tool: isometric_tile
+    prompt: "small mossy stone, rounded grey pebble-rock with patches of green lichen, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.boulder.granite.large
+    tool: isometric_tile
+    prompt: "large bare granite boulder, angular cracked grey rock faces with warm highlights, natural asymmetrical boulder silhouette, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no cube block, no dice shape, no platform, no baked shadow, empty transparent corners"
+    size: 64
+    anchor: [32, 40]
+
+  - id: veg.boulder.granite.small
+    tool: isometric_tile
+    prompt: "small bare granite rock, angular grey facets with warm highlight, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no cube block, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.bush.a
+    tool: isometric_tile
+    prompt: "dense round shrub, lush deep-green leaf clusters in one solid bushy mass, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no dirt mound, no soil patch, no grass fringe, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.bush.b
+    tool: isometric_tile
+    prompt: "wild briar bush, tangled thorned dark branches with small red flowers, loose scraggly silhouette, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no grass fringe, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.bush.c
+    tool: isometric_tile
+    prompt: "flowering hedge bush, soft rounded green dome covered in tiny white blossoms, leafy shrub growing from bare transparency, thin tile, transparent background only, isolated sprite, no pot, no planter, no urn, no ground tile, no square base, no dirt mound, no grass fringe, no platform, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.grassTuft.a
+    tool: isometric_tile
+    prompt: "clump of long wild grass, bright green blades with wind-bent pale tips, soft leafy tuft, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no black spikes, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 16]
+
+  - id: veg.grassTuft.b
+    tool: isometric_tile
+    prompt: "sparse dry grass tuft, yellowed straw blades with green base growing from bare transparency, soft leafy tuft, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no soil, no dirt clod, no grass square, no black spikes, no platform, empty transparent corners"
+    size: 32
+    anchor: [16, 16]
+
+  - id: veg.reed.a
+    tool: isometric_tile
+    prompt: "single small clump of tall reeds, brown seed-heads, slender green blades, plant only, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no water tile, no sky, no sun, no landscape, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 24]
+
+  - id: veg.reed.b
+    tool: isometric_tile
+    prompt: "sparse slender green reed stalks with fine leaves, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no water tile, no baked shadow, empty transparent corners"
+    size: 32
+    anchor: [16, 24]
+
+  - id: veg.lilypad
+    tool: map_object
+    prompt: "small floating lily pad cluster, three round flat dark green pads on calm water, one with a tiny pink lotus bud, transparent background, no water tile, no square base, soft pixel art shadow on the underside"
+    size: 32
+    anchor: [16, 18]
+
+  # Birdsong & Bloom (v0.16): living-ground flower scatter + cultivated plants.
+  - id: veg.flower.a
+    tool: isometric_tile
+    prompt: "small clump of wild garden flowers, mixed red and gold blooms on bright green stems, isometric"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.flower.b
+    tool: isometric_tile
+    prompt: "cluster of blue and white wildflowers with green foliage, isometric"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.flower.c
+    tool: isometric_tile
+    prompt: "patch of pink and violet meadow flowers, soft petals and green leaves, isometric"
+    size: 32
+    anchor: [16, 20]
+
+  - id: veg.flowerBed
+    tool: map_object
+    prompt: "tended garden flower bed, loose dark soil mound edged with a few small stones, rows of bright red yellow and pink blooms with green stems, thin tile, transparent background only, isolated sprite, no ground tile, no square base, no dirt square, no platform, no baked shadow, empty transparent corners"
+    width: 48
+    height: 40
+    anchor: [24, 30]
+
+  - id: veg.planter
+    tool: isometric_tile
+    prompt: "wooden planter box overflowing with colorful flowers and trailing green vines, isometric"
+    size: 32
+    anchor: [16, 24]
+
+  - id: veg.hedge
+    tool: isometric_tile
+    prompt: "neatly trimmed dense green garden hedge, flat top, tiny berries, isometric"
+    size: 32
+    anchor: [16, 22]
+
+# ─── TERRAIN ─────────────────────────────────────────────────────────────────
+# Wang 4-bit tilesets — each produces 16 adjacency variants.
+terrain:
+  - id: terrain.grass-dirt
+    tool: tileset
+    lower: "ancient forest grass, painterly hand-textured blades, scattered wildflowers and moss clumps, soft dappled color variation, rich olive-green ground"
+    upper: "rich loam dirt path, warm packed earth with pebble specks and wheel-worn texture"
+    size: 32
+    materialClass: earth
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+  - id: terrain.grass-cobble
+    tool: tileset
+    lower: "ancient forest grass, painterly hand-textured blades, scattered wildflowers and moss clumps, soft dappled color variation, rich olive-green ground"
+    upper: "weathered cobblestone road, varied grey-blue stones with worn edges, carved guild marks, moss in the cracks"
+    size: 32
+    materialClass: cobble
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+  - id: terrain.grass-shore
+    tool: tileset
+    lower: "ancient forest grass, painterly hand-textured blades, scattered wildflowers and moss clumps, soft dappled color variation, rich olive-green ground"
+    upper: "warm sandy shore, pebbles and shell flecks, lace of dried sea foam, wet-to-dry gradient"
+    size: 32
+    materialClass: foliage
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+  - id: terrain.shore-shallow
+    tool: tileset
+    lower: "pale limestone harbor shore, glossy wet sand band, pebbles, broken sea foam lace"
+    upper: "clear turquoise shallow harbor water, sunlit sandy bed visible through ripple highlights, small baked wavelets"
+    size: 32
+    materialClass: water
+    atlasFrame: { atlas: world-pilot, keyPrefix: terrain.shore-shallow }
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+  - id: terrain.shallow-deep
+    tool: tileset
+    lower: "clear turquoise shallow harbor water, foam flecks and sunlit ripple highlights over a sandy bed"
+    upper: "deep cobalt open sea water, darker current streaks, subtle wave-crest glints, painterly depth"
+    size: 32
+    materialClass: water
+    atlasFrame: { atlas: world-pilot, keyPrefix: terrain.shallow-deep }
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+  - id: terrain.cobble-square
+    tool: tileset
+    lower: "weathered cobblestone road, varied grey-blue stones with worn edges, carved guild marks, moss in the cracks"
+    upper: "polished town square flagstone, worn smooth with warm sanded joints and subtle chisel marks"
+    size: 32
+    materialClass: cobble
+    materialSidecar: true
+    emissiveSidecar: true
+    occluderSidecar: true
+    elevation: { base: 0, top: 0, unit: sprite-px }
+    emissive: { strength: 0, sources: [] }
+    occluder: { mode: none, strength: 0 }
+
+# ─── ATMOSPHERE ──────────────────────────────────────────────────────────────
+atmosphere:
+  # atmosphere.deep-sea retired to output/attic (visual-quality plan
+  # dead-inventory sweep): zero code references — the deep-sea reads are painted
+  # procedurally by IsometricRenderer.
+  - id: atmosphere.light.lighthouse-beam
+    tool: isometric_tile
+    prompt: "warm golden light reflection on water, soft shimmering caustics, transparent background"
+    size: 64
+    materialClass: fire
+    atlasFrame: { atlas: world-pilot, key: atmosphere.light.lighthouse-beam }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.atmosphere.lighthouse-beam, kind: beacon, geometry: authored-albedo, strength: 1 }
+    occluder: { mode: none, strength: 0 }
+
+  - id: atmosphere.light.fire-glow
+    tool: isometric_tile
+    prompt: "orange-amber fire glow on ground, flickering radiant light pool, transparent background"
+    size: 64
+    materialClass: fire
+    atlasFrame: { atlas: world-pilot, key: atmosphere.light.fire-glow }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.atmosphere.fire-glow, kind: fire, geometry: authored-albedo, strength: 1 }
+    occluder: { mode: none, strength: 0 }
+
+  - id: atmosphere.light.lantern-glow
+    tool: isometric_tile
+    prompt: "soft warm lantern light pool on stone, gentle amber halo, transparent background"
+    size: 64
+    materialClass: fire
+    atlasFrame: { atlas: world-pilot, key: atmosphere.light.lantern-glow }
+    emissive:
+      strength: 1
+      sources:
+        - { id: emissive.atmosphere.lantern-glow, kind: lantern, geometry: authored-albedo, strength: 1 }
+    occluder: { mode: none, strength: 0 }
+
+  - id: atmosphere.cloud.cumulus
+    tool: map_object
+    prompt: "low-poly pixel-art fantasy cloud silhouette, warm rust and burnt-umber tones edged with amber rim light, fluffy stratocumulus shape, painterly RPG sky, transparent background"
+    size: 64
+
+  - id: atmosphere.cloud.wisp
+    tool: map_object
+    prompt: "thin pixel-art cirrus wisp, pale ember and dusky rose, drawn-out streak shape, warm twilight sky, transparent background"
+    size: 64
+
+  - id: atmosphere.moon.crescent
+    tool: map_object
+    prompt: "pixel-art crescent moon, warm gold rim with darker amber inner shadow, no face, painterly RPG night sky, transparent background"
+    size: 64
+
+  - id: atmosphere.cloud.cumulus.day
+    tool: map_object
+    prompt: "soft white daytime cumulus cloud, cool pale blue shadow, subtle sunlit rim, fluffy readable silhouette, transparent background, pixel art"
+    size: 64
+
+  - id: atmosphere.cloud.wisp.day
+    tool: map_object
+    prompt: "thin pale daytime cloud wisp, cool blue underside, long airy horizontal shape, transparent background, pixel art"
+    size: 64
+
+  - id: atmosphere.cloud.overcast-bank
+    tool: map_object
+    prompt: "broad overcast gray-blue cloud bank, layered storm cloud silhouette, soft underside shadow, transparent background, pixel art"
+    width: 96
+    height: 64
+
+  - id: atmosphere.cloud.storm-shelf
+    tool: map_object
+    prompt: "epic high-fantasy pixel art storm shelf cloud, dramatic layered dark blue gray thunderhead bank with cool cyan underside and faint silver rim light, transparent background"
+    width: 128
+    height: 80
+
+  - id: atmosphere.moon.crescent.cool
+    tool: map_object
+    prompt: "cool silver crescent moon, pale blue rim light, dark navy inner shadow, no face, transparent background, pixel art"
+    size: 64
+
+  - id: atmosphere.moon.half.cool
+    tool: map_object
+    prompt: "cool silver half moon, pale blue rim light, dark navy shadow side, no face, transparent background, pixel art"
+    size: 64
+
+  - id: atmosphere.moon.gibbous.cool
+    tool: map_object
+    prompt: "cool silver gibbous moon, mostly illuminated disk with dark navy crescent shadow, pale blue rim light, no face, transparent background, pixel art"
+    size: 64
+
+  # 5.3 — authored pixel-art sun (plan claudeville-visual-quality-plan), baked
+  # over the wave-1 procedural placeholder. `no rays` — the renderer draws
+  # procedural rays behind the body; SkyRenderer falls back to its stepped-disc
+  # stamp if this PNG ever goes missing.
+  - id: atmosphere.sun
+    tool: map_object
+    prompt: "warm golden pixel art sun disc, flat stepped dithered circle with crisp stair-stepped edge, bright yellow core with warm orange rim band, no face, no rays, no glow halo, no soft gradient, isolated object, transparent background"
+    size: 64
+
+  - id: atmosphere.fog.wisp.low
+    tool: map_object
+    prompt: "low horizontal fantasy pixel art fog wisp, pale blue white translucent mist ribbon, soft broken edges, water surface haze, transparent background"
+    width: 128
+    height: 48
+
+  - id: atmosphere.rain.splash
+    tool: map_object
+    prompt: "small pixel art rain splash crown, pale blue white droplets and tiny impact ripples, transparent background"
+    width: 48
+    height: 32
+
+  - id: atmosphere.water.ripple.rain
+    tool: map_object
+    prompt: "thin oval pixel art rain ripple on turquoise harbor water, pale cyan ring highlights, transparent background"
+    width: 64
+    height: 32
+
+  - id: atmosphere.water.foam.corner
+    tool: map_object
+    prompt: "diagonal shoreline foam streak pixel art, pale seafoam white and cyan broken wave froth, transparent background"
+    width: 64
+    height: 32
+
+  - id: atmosphere.water.harbor.wake
+    tool: map_object
+    prompt: "V shaped harbor boat wake pixel art, pale cyan and white foam trails with transparent center, low top-down, transparent background"
+    width: 96
+    height: 48
+
+  # optional — include for polish pass
+  # - id: atmosphere.aurora
+  #   tool: isometric_tile
+  #   prompt: "northern aurora borealis shimmer, green and violet ribbons, transparent background"
+  #   size: 64
+
+# ─── BRIDGES ─────────────────────────────────────────────────────────────────
+bridges:
+  # Central river footbridge (BRIDGE_HINTS central-river-bridge). Drawn at
+  # native 1x with `anchor` on the deck midpoint's ground-plane point (the
+  # hint tile, 18,24); the deck runs upper-right -> lower-left (NS) and the
+  # stone abutments land on the bank tiles 22 and 26. REST pixflux returns this on a
+  # flat grey card, so key the exact card colour (tight tolerance) rather than
+  # the shared 85-per-channel flood fill, which eats the dark outlines.
+  - id: bridge.landmark.civic.ns
+    tool: map_object
+    prompt: "isolated village footbridge centered in the frame with empty margins on every side, gently arched warm oak plank deck with curved timber handrails and carved corner posts, resting on mossy grey fieldstone abutments with rounded boulders and small wildflower clumps at both ends, two small brass lanterns with soft amber glow on the end posts, the bridge runs diagonally from upper-right to lower-left, wide enough for two people, no water, no ground tile, no square base, no baked cast shadow, no text, no characters, a single low grey stone arch beneath the wooden deck"
+    width: 256
+    height: 208
+    anchor: [132, 124]
+
+  - id: bridge.ew
+    tool: isometric_tile
+    # Referenced by scenery.js PLANK_BRIDGES command-pond-plank and drawn
+    # through IsometricRenderer's dynamic `bridge.${orientation}` path.
+    prompt: "weathered wooden bridge, plank deck, rope rails, east-west orientation, isometric"
+    size: 64
+    anchor: [32, 32]
+
+  - id: bridge.ns
+    tool: isometric_tile
+    prompt: "weathered wooden bridge, plank deck, rope rails, north-south orientation, isometric"
+    size: 64
+    anchor: [32, 32]
+
+  # dock.ew / dock.ns retired to output/attic (visual-quality plan dead-inventory
+  # sweep): HARBOR_DOCK_TILES are all style 'causeway', which draws the procedural
+  # _drawHarborCausewayTile — the per-tile dock sprite path is unreachable today.
+
+# ─── LOOKUP TABLES ───────────────────────────────────────────────────────────
+# Hand-authored, nearest-sampled palette tables. Not generated art: a LUT is a
+# data image and carries no silhouette, anchor meaning, or material response.
+# `lut.<name>` maps to `luts/<name>.png`.
+luts:
+  # 3.5 — Command light ramp. X = material class id in MATERIAL_CLASS_NAMES
+  # order (0..10), Y = light course (0 barely lit, 1 mid, 2 light). RGB is a
+  # tint multiplier encoded as texel*2 (128 ~ x1.0); A is an authored additive
+  # lift scaled by 0.25. Absent entry keeps today's additive light response.
+  - id: lut.light-ramp.command
+    tool: hand-authored
+    width: 11
+    height: 3
+    anchor: [0, 0]
+    materialClass: unlit

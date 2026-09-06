@@ -1,0 +1,126 @@
+{
+  "provider": "codex",
+  "id": "codex-sim3",
+  "samples": [
+    {
+      "direction": 4,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 4,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 4,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Read",
+      "lagged": false
+    },
+    {
+      "direction": 4,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 4,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 4,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 2,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 6,
+      "tool": "Edit",
+      "lagged": false
+    },
+    {
+      "direction": 0,
+      "tool": "Edit",
+      "lagged": false
+    }
+  ]
+}

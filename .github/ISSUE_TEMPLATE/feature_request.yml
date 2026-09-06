@@ -1,0 +1,39 @@
+name: Feature Request
+description: Propose a focused ClaudeVille improvement.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Broad ideas and new provider proposals usually work better in Discussions first.
+  - type: textarea
+    id: workflow
+    attributes:
+      label: User workflow
+      description: What should a ClaudeVille user be able to do?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Why this matters
+      description: Who benefits and what decision or glance does this improve?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Primary surface
+      options:
+        - World mode
+        - Dashboard mode
+        - Provider adapter
+        - Server or API
+        - Documentation
+        - Other
+  - type: textarea
+    id: maintenance
+    attributes:
+      label: Maintenance notes
+      description: Mention provider format risk, privacy boundaries, screenshots, or fixture needs.
