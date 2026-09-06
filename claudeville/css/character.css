@@ -195,6 +195,11 @@ body.cv-panel-open .world-grammar {
 .world-read { touch-action: none; user-select: none; white-space: nowrap; }
 .world-read kbd { font: var(--fs-data)/1 var(--font-body); color: #bda472; }
 .world-read[aria-pressed="true"] { color: #ffe58d; background: #543c22; border-color: #f2d36b; }
+/* 5.1 — the Ambient camera control. One chip, three honest states: available,
+   broadcasting (the shared --on treatment), and handed back to the operator,
+   where it waits as RESUME AMBIENT and never re-takes the frame on its own. */
+.world-ambient { user-select: none; white-space: nowrap; }
+.world-ambient[data-state="resume"] { color: #f2d36b; border-color: rgba(242,211,107,.5); }
 .world-semantic-summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .boot-status {

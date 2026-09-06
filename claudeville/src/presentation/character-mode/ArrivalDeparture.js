@@ -1,4 +1,5 @@
 import { tileToWorld } from './Projection.js';
+import { agentSignature, drawAgentSignature, getModelVisualIdentity, providerPaletteKey } from '../shared/ModelVisualIdentity.js';
 
 const ARRIVAL_MS = 3000;
 const DISPATCH_MS = 600;
@@ -11,6 +12,11 @@ const REDUCED_COMPLETION_MS = 3600;
 const MAX_SIGILS = 6;
 const MAX_COMPLETION_CUES = 8;
 const MAX_ORPHAN_RETURNS = 6;
+// 2.5 — snapshot pixels of a child's idle row travel with its dispatch and its
+// return. Bounded so the cache can never grow with the session: 24 crops of at
+// most 14 px stay far under the 64 KiB the proposal budgeted.
+const MINIATURE_PX = 14;
+const MAX_MINIATURES = 24;
 
 const PROVIDER_COLORS = {
     claude: '#a78bfa',
@@ -60,6 +66,41 @@ function providerInitial(provider) {
     return PROVIDER_INITIALS[String(provider || '').toLowerCase()] || PROVIDER_INITIALS.default;
 }
 
+// 2.5 — the child's stable signature (plan 2.4) resolved from the agent record
+// alone, so a return still identifies its child after the sprite is disposed.
+function agentSignatureFor(agent) {
+    if (!agent?.id) return null;
+    const identity = getModelVisualIdentity(agent.model, agent.effort, agent.provider);
+    const family = identity.spriteId || `agent.${providerPaletteKey(agent)}.base`;
+    return agentSignature(agent.id, family);
+}
+
+// One miniature: the snapshot crop when one was captured while the child was
+// alive, always the signature plate, and an exact count when a burst folded.
+function drawChildMiniature(ctx, { miniature = null, signature = null, accent = '#f2d36b', count = 1 }) {
+    const canvas = miniature?.canvas || null;
+    const mark = miniature?.signature || signature || null;
+    const tone = miniature?.accent || accent;
+    if (canvas) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(canvas, Math.round(-canvas.width / 2), Math.round(-canvas.height), canvas.width, canvas.height);
+    }
+    if (mark) drawAgentSignature(ctx, mark, { x: 0, y: canvas ? 4 : 0, pixel: 1, accent: tone });
+    if (count > 1) {
+        // Exact child count, never a percentage. Dark backing so the number
+        // survives foliage and night grade at overview distance.
+        const text = `x${count}`;
+        const y = canvas ? -2 : 0;
+        ctx.fillStyle = 'rgba(12, 9, 7, 0.86)';
+        ctx.fillRect(6, y - 6, 6 + text.length * 6, 12);
+        ctx.fillStyle = '#f4e7c8';
+        ctx.font = 'bold 7px "Press Start 2P", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 9, y + 0.5);
+    }
+}
+
 function easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
 }
@@ -104,6 +145,9 @@ export class ArrivalDepartureController {
         this.sigils = [];
         this.completionCues = [];
         this.orphanReturns = [];
+        // 2.5 — snapshot crops keyed by child id, captured while the child is
+        // alive and reused by its merge or completion return.
+        this.miniatures = new Map();
     }
 
     setMotionScale(scale) {
@@ -160,8 +204,29 @@ export class ArrivalDepartureController {
             startedAt: now,
             duration: DISPATCH_MS,
             color: providerColor(childSprite.agent?.provider),
+            // The wisp core is the child itself: snapshot pixels plus its 2.4
+            // signature. Capture can fail before the sheet loads; update()
+            // retries while the dispatch is in flight.
+            miniature: this.rememberMiniature(childSprite),
+            signature: agentSignatureFor(childSprite.agent),
         });
         return this.dispatches.get(childId);
+    }
+
+    // Snapshot and cache one child's miniature. Returns the cached crop when it
+    // exists; a failed capture is never cached, so the next frame retries.
+    rememberMiniature(sprite) {
+        const id = sprite?.agent?.id;
+        if (!id) return null;
+        const cached = this.miniatures.get(id);
+        if (cached) return cached;
+        const captured = sprite.captureMiniature?.(MINIATURE_PX) || null;
+        if (!captured) return null;
+        if (this.miniatures.size >= MAX_MINIATURES) {
+            this.miniatures.delete(this.miniatures.keys().next().value);
+        }
+        this.miniatures.set(id, captured);
+        return captured;
     }
 
     beginSubagentMerge(childAgent, childPoint, parentSprite, { now = nowMs() } = {}) {
@@ -170,11 +235,16 @@ export class ArrivalDepartureController {
 
         this.merges.set(childAgent.id, {
             id: childAgent.id,
+            parentSprite,
             start: { x: childPoint.x, y: childPoint.y - 20 },
             end: { x: parentSprite.x, y: parentSprite.y - 34 },
             startedAt: now,
             duration: MERGE_MS,
             color: providerColor(childAgent.provider),
+            // The same miniature that left returns; the parent takes its static
+            // receive beat when the path lands (update()).
+            miniature: this.miniatures.get(childAgent.id) || null,
+            signature: agentSignatureFor(childAgent),
         });
         return this.merges.get(childAgent.id);
     }
@@ -184,18 +254,38 @@ export class ArrivalDepartureController {
         const anchor = childPoint && Number.isFinite(childPoint.x) && Number.isFinite(childPoint.y)
             ? { x: childPoint.x, y: childPoint.y - 20 }
             : { x: parentSprite.x, y: parentSprite.y - 34 };
+        const parentId = parentSprite.agent?.id || null;
+        const duration = this.motionScale === 0 ? REDUCED_COMPLETION_MS : SUBAGENT_COMPLETION_MS;
+        parentSprite.setReceiveBeat?.();
+        // A burst folds onto the receiving parent: one returning miniature and
+        // an exact child count, never eight portraits stacked on one body.
+        const open = parentId
+            ? this.completionCues.find(entry => entry.parentId === parentId && now - entry.startedAt < entry.duration)
+            : null;
+        if (open) {
+            open.count += 1;
+            open.agentId = childAgent.id || open.agentId;
+            open.startedAt = now;
+            open.duration = duration;
+            open.miniature = this.miniatures.get(childAgent.id) || open.miniature;
+            open.signature = agentSignatureFor(childAgent) || open.signature;
+            open.color = providerColor(childAgent.provider);
+            return open;
+        }
         const cue = {
             id: `${childAgent.id || 'subagent'}:${Math.round(now)}`,
             agentId: childAgent.id || null,
-            parentId: parentSprite.agent?.id || null,
+            parentId,
             start: anchor,
             end: { x: parentSprite.x, y: parentSprite.y - 34 },
             x: parentSprite.x,
             y: parentSprite.y - 34,
             startedAt: now,
-            duration: this.motionScale === 0 ? REDUCED_COMPLETION_MS : SUBAGENT_COMPLETION_MS,
+            duration,
             color: providerColor(childAgent.provider),
-            initial: providerInitial(childAgent.provider),
+            count: 1,
+            miniature: this.miniatures.get(childAgent.id) || null,
+            signature: agentSignatureFor(childAgent),
         };
         this.completionCues.push(cue);
         if (this.completionCues.length > MAX_COMPLETION_CUES) {
@@ -262,14 +352,22 @@ export class ArrivalDepartureController {
             }
         }
         for (const [id, dispatch] of this.dispatches.entries()) {
+            // The character sheet may still be loading when a child is
+            // dispatched; keep trying until it leaves as itself.
+            if (!dispatch.miniature) dispatch.miniature = this.rememberMiniature(dispatch.childSprite);
             const progress = this.motionScale === 0 ? 1 : (now - dispatch.startedAt) / dispatch.duration;
             if (progress >= 1) {
                 dispatch.childSprite.setArrivalState?.('visible');
+                this.rememberMiniature(dispatch.childSprite);
                 this.dispatches.delete(id);
             }
         }
         for (const [id, merge] of this.merges.entries()) {
-            if ((now - merge.startedAt) / merge.duration >= 1) this.merges.delete(id);
+            if ((now - merge.startedAt) / merge.duration < 1) continue;
+            // The return has landed: the parent holds one static receive beat.
+            merge.parentSprite?.setReceiveBeat?.();
+            this.miniatures.delete(id);
+            this.merges.delete(id);
         }
         this.sigils = this.sigils.filter(sigil => now - sigil.startedAt <= sigil.duration);
         this.completionCues = this.completionCues.filter(cue => now - cue.startedAt <= cue.duration);
@@ -362,11 +460,17 @@ export class ArrivalDepartureController {
         ctx.save();
         ctx.translate(point.x, point.y);
         ctx.scale(1 / (zoom || 1), 1 / (zoom || 1));
-        ctx.globalAlpha = Math.min(1, 0.74 * lightBoost * fade);
-        ctx.fillStyle = item.color;
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = Math.min(1, 0.9 * lightBoost * fade);
+        if (item.miniature || item.signature) {
+            // 2.5 — the traveller is the child: its own pixels and its stable
+            // signature, not an anonymous dot.
+            drawChildMiniature(ctx, { miniature: item.miniature, signature: item.signature, accent: item.color });
+        } else {
+            ctx.fillStyle = item.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
         ctx.globalAlpha = 0.42 * fade;
         ctx.strokeStyle = item.color;
         ctx.lineWidth = 1;
@@ -415,25 +519,26 @@ export function drawSubagentCompletionCue(ctx, cue, {
     ctx.translate(point.x, point.y);
     ctx.scale(scale, scale);
     ctx.globalAlpha = Math.min(1, alpha * lightBoost);
-    ctx.fillStyle = cue.color;
-    ctx.beginPath();
-    ctx.arc(0, 0, 9, 0, Math.PI * 2);
-    ctx.fill();
+    // 2.5 — the returning child, not a provider letter: its snapshot pixels and
+    // its stable signature, with an exact count when several returned at once.
+    // Neutral vocabulary throughout: a child returned, which is not a claim
+    // that it succeeded.
+    drawChildMiniature(ctx, {
+        miniature: cue.miniature,
+        signature: cue.signature,
+        accent: cue.color,
+        count: Number(cue.count) || 1,
+    });
     ctx.globalAlpha = Math.min(1, (alpha + 0.12) * lightBoost);
     ctx.strokeStyle = '#fff3bf';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, -13);
-    ctx.lineTo(10, -2);
-    ctx.lineTo(0, 9);
-    ctx.lineTo(-10, -2);
+    ctx.moveTo(0, -16);
+    ctx.lineTo(12, -3);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-12, -3);
     ctx.closePath();
     ctx.stroke();
-    ctx.fillStyle = '#21160f';
-    ctx.font = 'bold 7px "Press Start 2P", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(cue.initial || '?', 0, -1);
     ctx.restore();
 }
 

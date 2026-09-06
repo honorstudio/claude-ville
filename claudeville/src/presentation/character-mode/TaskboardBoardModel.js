@@ -67,6 +67,54 @@ export function resolveTaskboardAgent({
     return fallback;
 }
 
+/**
+ * 4.7 — one compact summary per concurrent plan owner, for the slate's frame
+ * tabs. A task list is one session's plan, never a verified project backlog,
+ * so summaries are never merged across owners even when two subjects match.
+ *
+ * Ordering is explicit-first (selected, then pinned, in the order the caller
+ * passed them) and then by agent id, so a tab keeps its place while sessions
+ * come and go instead of churning with activity.
+ */
+export function taskboardPlanSummaries({ candidates, agentSprites } = {}) {
+    const preferred = [];
+    const seen = new Set();
+    for (const candidate of Array.isArray(candidates) ? candidates : []) {
+        const id = typeof candidate === 'string' ? candidate.trim() : '';
+        if (id && !seen.has(id)) {
+            seen.add(id);
+            preferred.push(id);
+        }
+    }
+    const byId = new Map();
+    for (const sprite of agentSpritesList(agentSprites)) {
+        const agent = sprite?.agent || null;
+        if (!hasTodos(agent) || byId.has(agent.id)) continue;
+        let done = 0;
+        for (const todo of agent.todos) {
+            if (todo?.status === 'completed') done += 1;
+        }
+        byId.set(agent.id, {
+            agentId: agent.id,
+            name: String(agent.displayName || agent.name || agent.id),
+            done,
+            total: agent.todos.length,
+            project: String(agent.projectPath || agent.project || agent.teamName || agent.provider || '').trim(),
+        });
+    }
+    const ordered = [];
+    for (const id of preferred) {
+        const summary = byId.get(id);
+        if (summary) {
+            ordered.push({ ...summary, preferred: true });
+            byId.delete(id);
+        }
+    }
+    const rest = [...byId.values()].sort((a, b) => String(a.agentId).localeCompare(String(b.agentId)));
+    for (const summary of rest) ordered.push({ ...summary, preferred: false });
+    return ordered;
+}
+
 export class TaskboardBoardModel {
     constructor({ now = Date.now } = {}) {
         this._now = now;
@@ -101,6 +149,10 @@ export class TaskboardBoardModel {
             agentSprites,
             todosUpdatedAt: this.todosUpdatedAt,
         });
+    }
+
+    summaries({ candidates, agentSprites } = {}) {
+        return taskboardPlanSummaries({ candidates, agentSprites });
     }
 
     signatureFor(agentId) {

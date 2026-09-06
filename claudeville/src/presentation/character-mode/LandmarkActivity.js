@@ -3,6 +3,7 @@ import { WORLD_BODY_FONT } from '../../config/theme.js';
 import { tileToWorld, worldToTile } from './Projection.js';
 import { compactToolLabel, isCommandToolName, isTaskCommandInput } from '../../domain/services/ToolIdentity.js';
 import { providerColor } from './ArrivalDeparture.js';
+import { resolveObservation } from './ObservationCertainty.js';
 
 const MAX_ITEMS_PER_KIND = 10;
 const SNAPSHOT_TTL_MS = 18000;
@@ -26,6 +27,39 @@ const PRESENCE_DORMANT_THRESHOLD = 0.1;
 const ARCHIVE_READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS']);
 const ARCHIVE_READ_DECAY_HALFLIFE_S = 120;
 const ARCHIVE_READ_FULL_INTENSITY_COUNT = 6;
+
+// 4.3 — the assay bench's rolling memory. Sixty one-second buckets, filled
+// only from positive, non-reset deltas between two consecutive *observations*
+// of the same session, so the trays measure what was seen in the last minute
+// rather than a share of a lifetime pile.
+const ASSAY_BUCKETS = 60;
+// 4.3 — spend is only ever a difference between two fresh observations that
+// agree on provenance. A source flip, a pricing-revision change or a negative
+// delta ends the window and is disclosed as a gap; it never becomes a spike.
+// Providers that report no usage split at all (Grok is context-only) never
+// reach these buckets: `tokens.availability === 'unavailable'` excludes them.
+const ASSAY_COST_STAMP_LIMIT = 6;
+// 4.4 — the Forge workload. Deduplicated `tool:invoked` events that the
+// canonical classifier routed to the Forge *and* whose reason is a file
+// mutation. These are observed edit *calls*: not successful edits, not lines
+// changed, not productivity.
+const FORGE_WORKLOAD_BUCKETS = 60;
+const FORGE_EDIT_REASONS = new Set([
+    'edit-file',
+    'write-file',
+    'patch-file',
+    'edit-notebook',
+    'modify-files',
+]);
+// Documented billet thresholds: one billet for any observed call in the
+// window, two from four, three from ten. The exact count is one inspection
+// away, so the tiers never have to carry it.
+const FORGE_BILLET_THRESHOLDS = [1, 4, 10];
+// 4.4 — a long idle banks the hearth. Measured from the last observed Forge
+// edit call, and only once this reducer has been watching for at least as
+// long: a fresh page has observed nothing, which is not the same as an idle
+// workshop.
+const FORGE_BANK_IDLE_MS = 600000;
 
 const BUILDING_OFFSETS = {
     command: [
@@ -118,6 +152,68 @@ function formatTokenCount(value) {
     return String(Math.round(count));
 }
 
+// Exact counts, grouped for reading. The assay bench states quantities; it
+// never states a share.
+function formatExactCount(value) {
+    const count = Math.max(0, Math.round(Number(value) || 0));
+    return String(count).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// A measured window of spend, never a rate extrapolated past what was seen.
+function formatWindowUsd(value) {
+    const usd = Math.max(0, Number(value) || 0);
+    if (usd > 0 && usd < 0.01) return '< $0.01';
+    return `~$${usd.toFixed(2)}`;
+}
+
+function createRing(size) {
+    return { slots: new Array(size).fill(0), stamps: new Array(size).fill(-1) };
+}
+
+// One bucket per wall-clock second, so a bucket that falls out of the window
+// is recognised by its stamp instead of being shifted.
+function ringAdd(ring, now, value) {
+    const amount = Number(value) || 0;
+    if (amount <= 0) return;
+    const size = ring.slots.length;
+    const second = Math.floor(now / 1000);
+    const index = ((second % size) + size) % size;
+    if (ring.stamps[index] !== second) {
+        ring.stamps[index] = second;
+        ring.slots[index] = 0;
+    }
+    ring.slots[index] += amount;
+}
+
+function ringSum(ring, now) {
+    const size = ring.slots.length;
+    const oldest = Math.floor(now / 1000) - (size - 1);
+    let total = 0;
+    for (let index = 0; index < size; index++) {
+        if (ring.stamps[index] >= oldest) total += ring.slots[index];
+    }
+    return total;
+}
+
+function ringClear(ring) {
+    ring.slots.fill(0);
+    ring.stamps.fill(-1);
+}
+
+// Same project key the repo tags and the panel use, so "the selected project"
+// means one thing everywhere.
+function assayProjectKey(agent) {
+    return String(agent?.projectPath || agent?.project || agent?.teamName || agent?.provider || '').trim();
+}
+
+// Provenance identity of a cost observation. Any change here ends the window:
+// an estimate and a provider invoice are not two samples of one series, and
+// neither are two different pricing revisions.
+function costProvenanceOf(cost) {
+    if (!cost) return null;
+    return `${cost.source || 'estimate'}|${cost.rateRevision || ''}|${cost.rateMatch ?? ''}`;
+}
+
 function stableHash(input) {
     const text = String(input || '');
     let hash = 0;
@@ -189,6 +285,32 @@ export class LandmarkActivity {
         // Decay-based: each update() step multiplies count by exp(-dt / halflife).
         this._archiveReadCounter = { count: 0, lastInvocationTs: 0 };
         this._archiveReadSeen = new Set();
+        // 4.3 — per-session assay state: rolling token-class buckets, the last
+        // observed class totals, and the cost window with its provenance.
+        this._assayByAgent = new Map();
+        // The scope the bench reports. Selection is the only thing that
+        // narrows it; with nothing selected the bench states an aggregate.
+        this._selectedAgentId = null;
+        this._selectedProject = null;
+        this._onAgentSelected = (agent) => {
+            this._selectedAgentId = agent?.id || null;
+            this._selectedProject = agent ? assayProjectKey(agent) : null;
+        };
+        this._onAgentDeselected = () => {
+            this._selectedAgentId = null;
+            this._selectedProject = null;
+        };
+        eventBus.on('agent:selected', this._onAgentSelected);
+        eventBus.on('agent:deselected', this._onAgentDeselected);
+        // 4.4 — Forge workload: one bucket per second of deduplicated edit
+        // calls, plus the last one observed and when this reducer started
+        // watching (an unobserved workshop is not an idle one).
+        this._forgeEditRing = createRing(FORGE_WORKLOAD_BUCKETS);
+        this._forgeEditSeen = new Set();
+        this._lastForgeEditAt = 0;
+        this._forgeObservingSince = Date.now();
+        this._onToolInvoked = (event) => this._observeForgeEditCall(event);
+        eventBus.on('tool:invoked', this._onToolInvoked);
         this.agentSprites = [];
         this._kindIds = new Map();
         this._recencyByType = new Map();
@@ -225,6 +347,7 @@ export class LandmarkActivity {
 
         for (const agent of agentList) {
             this._observeTokens(agent, now);
+            this._observeAssay(agent, now);
             this._observeToolActivity(agent, now);
             this._observeArchiveReadActivity(agent, now);
         }
@@ -243,6 +366,9 @@ export class LandmarkActivity {
         for (const agentId of this.previousTokenClassTotals.keys()) {
             if (!liveIds.has(agentId)) this.previousTokenClassTotals.delete(agentId);
         }
+        for (const agentId of this._assayByAgent.keys()) {
+            if (!liveIds.has(agentId)) this._assayByAgent.delete(agentId);
+        }
         for (const [agentId, forge] of this.lastForgeByAgent) {
             if (!liveIds.has(agentId) || now - Number(forge?.at || 0) > FORGE_HANDOFF_WINDOW_MS) {
                 this.lastForgeByAgent.delete(agentId);
@@ -258,6 +384,8 @@ export class LandmarkActivity {
             previousTokenClassTotals: this.previousTokenClassTotals.size,
             lastForgeAgents: this.lastForgeByAgent.size,
             archiveReadKeys: this._archiveReadSeen.size,
+            assaySessions: this._assayByAgent.size,
+            forgeEditKeys: this._forgeEditSeen.size,
             retainedAgentSprites: this.agentSprites.length,
             disposed: this._disposed,
         };
@@ -273,6 +401,12 @@ export class LandmarkActivity {
         this._tokenHitEntries = [];
         this.lastForgeByAgent.clear();
         this._archiveReadSeen.clear();
+        this._assayByAgent.clear();
+        this._forgeEditSeen.clear();
+        ringClear(this._forgeEditRing);
+        eventBus.off('agent:selected', this._onAgentSelected);
+        eventBus.off('agent:deselected', this._onAgentDeselected);
+        eventBus.off('tool:invoked', this._onToolInvoked);
         this._kindIds.clear();
         this._recencyByType.clear();
         this._countByType.clear();
@@ -317,13 +451,13 @@ export class LandmarkActivity {
         return null;
     }
 
+    // Counts, never a share: the cart says how much of each class was seen in
+    // this beat, and the selected Mine's assay bench carries the 60 s ledger.
     tokenItemTooltip(item) {
         const cargo = item?.cargo;
         if (!cargo) return '';
-        const percentage = Math.round(Math.max(0, Math.min(1, cargo.ratio)) * 100);
-        const classTotal = cargo.cacheRead + cargo.input;
-        const sourceSuffix = cargo.source === 'cumulative' ? ' · session total' : '';
-        return `Cache ${percentage}% · read ${formatTokenCount(cargo.cacheRead)} / fresh ${formatTokenCount(cargo.input)} of ${formatTokenCount(classTotal)} tok${sourceSuffix}`;
+        const scope = cargo.source === 'cumulative' ? 'session total' : 'observed beat';
+        return `${formatExactCount(cargo.input)} input · ${formatExactCount(cargo.cacheRead)} cache read · ${scope}`;
     }
 
     draw(ctx, drawable, zoom = 1) {
@@ -389,6 +523,221 @@ export class LandmarkActivity {
         return Math.max(0, Math.min(1, count / ARCHIVE_READ_FULL_INTENSITY_COUNT));
     }
 
+    // ── 4.3 The Mine assay bench ────────────────────────────────────────────
+    //
+    // One bounded record per observed session. Everything here is a difference
+    // between two consecutive observations of the *same* session: a first
+    // observation is a baseline, a counter that went backwards is a reset, and
+    // a provider that reports no usage split at all never enters the window.
+    _observeAssay(agent, now) {
+        if (!agent?.id) return;
+        const classes = tokenClassTotals(agent);
+        let record = this._assayByAgent.get(agent.id);
+        if (!record) {
+            record = {
+                project: assayProjectKey(agent),
+                input: createRing(ASSAY_BUCKETS),
+                cacheRead: createRing(ASSAY_BUCKETS),
+                lastInput: null,
+                lastCacheRead: null,
+                available: classes.available,
+                coveredFrom: null,
+                cost: {
+                    ring: createRing(ASSAY_BUCKETS),
+                    lastUsd: null,
+                    provenance: null,
+                    source: null,
+                    gapAt: null,
+                    coveredFrom: null,
+                },
+            };
+            this._assayByAgent.set(agent.id, record);
+        }
+        record.project = assayProjectKey(agent);
+        record.available = classes.available;
+
+        if (!classes.available) {
+            // Unknown is not zero: the class buckets stop and the tray says so.
+            record.lastInput = null;
+            record.lastCacheRead = null;
+            record.coveredFrom = null;
+        } else if (record.lastInput === null || record.lastCacheRead === null) {
+            record.lastInput = classes.input;
+            record.lastCacheRead = classes.cacheRead;
+            record.coveredFrom = now;
+        } else {
+            const inputDelta = classes.input - record.lastInput;
+            const cacheDelta = classes.cacheRead - record.lastCacheRead;
+            if (inputDelta < 0 || cacheDelta < 0) {
+                // Counter reset: the retained buckets belong to a series that
+                // no longer exists, so coverage restarts here.
+                ringClear(record.input);
+                ringClear(record.cacheRead);
+                record.coveredFrom = now;
+            } else {
+                ringAdd(record.input, now, inputDelta);
+                ringAdd(record.cacheRead, now, cacheDelta);
+            }
+            record.lastInput = classes.input;
+            record.lastCacheRead = classes.cacheRead;
+        }
+
+        this._observeAssayCost(agent, record, now);
+    }
+
+    _observeAssayCost(agent, record, now) {
+        const cost = agent.cost || null;
+        const window = record.cost;
+        const usd = Number(cost?.usd);
+        const fresh = resolveObservation(agent, now).state === 'fresh';
+        const provenance = costProvenanceOf(cost);
+        if (!cost || cost.availability === 'unavailable' || !Number.isFinite(usd) || !fresh) {
+            // An unfresh or unpriced observation ends the series without
+            // claiming anything about the interval it covered.
+            window.lastUsd = null;
+            window.coveredFrom = null;
+            window.provenance = provenance;
+            window.source = cost?.source || null;
+            return;
+        }
+        if (window.provenance !== provenance) {
+            // Provenance or pricing revision changed: the window restarts and
+            // the discontinuity is disclosed rather than absorbed.
+            if (window.provenance !== null) window.gapAt = now;
+            ringClear(window.ring);
+            window.provenance = provenance;
+            window.lastUsd = usd;
+            window.coveredFrom = now;
+            window.source = cost.source;
+            return;
+        }
+        window.source = cost.source;
+        if (window.lastUsd === null) {
+            window.lastUsd = usd;
+            window.coveredFrom = now;
+            return;
+        }
+        const delta = usd - window.lastUsd;
+        window.lastUsd = usd;
+        if (delta < 0) {
+            ringClear(window.ring);
+            window.gapAt = now;
+            window.coveredFrom = now;
+            return;
+        }
+        ringAdd(window.ring, now, delta);
+    }
+
+    // The bench's reported state. Scope is the selected session's project when
+    // there is one, and an explicitly labelled aggregate otherwise; at a
+    // hundred sessions this stays two sums, a stamp count, and one breakdown.
+    getMineAssay(now = Date.now()) {
+        const project = this._selectedProject || null;
+        let input = 0;
+        let cacheRead = 0;
+        let covered = 0;
+        let unknown = 0;
+        let usd = 0;
+        let costCovered = 0;
+        let missing = 0;
+        let gap = false;
+        const stamps = [];
+        for (const record of this._assayByAgent.values()) {
+            if (project && record.project !== project) continue;
+            if (record.available && record.coveredFrom !== null) {
+                covered += 1;
+                input += ringSum(record.input, now);
+                cacheRead += ringSum(record.cacheRead, now);
+            } else {
+                unknown += 1;
+            }
+            const window = record.cost;
+            const windowGap = window.gapAt !== null && now - window.gapAt < ASSAY_BUCKETS * 1000;
+            if (windowGap) gap = true;
+            if (window.coveredFrom === null || windowGap) {
+                missing += 1;
+                continue;
+            }
+            costCovered += 1;
+            usd += ringSum(window.ring, now);
+            if (stamps.length < ASSAY_COST_STAMP_LIMIT) {
+                stamps.push(window.source === 'provider' ? 'provider' : 'estimate');
+            }
+        }
+        const sessions = covered + unknown;
+        const coverage = costCovered === 0 ? 'none' : (gap || missing > 0) ? 'insufficient' : 'ok';
+        return {
+            project,
+            sessions,
+            tokens: {
+                input: covered > 0 ? input : null,
+                cacheRead: covered > 0 ? cacheRead : null,
+                unknown,
+                covered,
+                label: covered > 0
+                    ? `${formatExactCount(input)} input · ${formatExactCount(cacheRead)} cache read · observed last 60s`
+                    : 'input unknown · cache read unknown · observed last 60s',
+            },
+            cost: {
+                usd: costCovered > 0 ? usd : null,
+                coverage,
+                missing,
+                covered: costCovered,
+                stamps,
+                stampOverflow: Math.max(0, costCovered - stamps.length),
+                label: costCovered > 0
+                    ? `${formatWindowUsd(usd)} / last min`
+                    : 'insufficient coverage',
+                note: missing > 0
+                    ? `${missing} session${missing === 1 ? '' : 's'} uncovered`
+                    : '',
+            },
+        };
+    }
+
+    // ── 4.4 The Forge workload ──────────────────────────────────────────────
+    //
+    // `tool:invoked` is already one event per new invocation identity; the
+    // extra key here keeps a re-emitted snapshot from counting twice. Only the
+    // canonical classifier decides what belongs to the Forge, and only its
+    // file-mutation reasons count: an inspection or a shell run is not an edit
+    // call, and an edit call is not a successful edit.
+    _observeForgeEditCall(event) {
+        if (this._disposed) return;
+        if (event?.building !== 'forge') return;
+        if (!FORGE_EDIT_REASONS.has(event?.reason)) return;
+        const at = Number(event.ts);
+        const now = Number.isFinite(at) ? at : Date.now();
+        const key = [event.agentId || 'unknown', event.tool || '', event.input || '', now].join('|');
+        if (this._forgeEditSeen.has(key)) return;
+        this._forgeEditSeen.add(key);
+        if (this._forgeEditSeen.size > 240) {
+            this._forgeEditSeen = new Set([...this._forgeEditSeen].slice(-160));
+        }
+        ringAdd(this._forgeEditRing, now, 1);
+        this._lastForgeEditAt = Math.max(this._lastForgeEditAt, now);
+        this._recencyByType.set('forge', now);
+    }
+
+    getForgeWorkload(now = Date.now()) {
+        const editCalls = Math.round(ringSum(this._forgeEditRing, now));
+        let tier = 0;
+        for (const threshold of FORGE_BILLET_THRESHOLDS) {
+            if (editCalls >= threshold) tier += 1;
+        }
+        const observedFor = Math.max(0, now - this._forgeObservingSince);
+        const idleMs = this._lastForgeEditAt ? Math.max(0, now - this._lastForgeEditAt) : observedFor;
+        return {
+            editCalls,
+            tier,
+            idleMs,
+            // Only a workshop we have actually watched fall quiet banks its
+            // hearth; an unobserved one keeps the shipped treatment.
+            banked: observedFor >= FORGE_BANK_IDLE_MS && idleMs >= FORGE_BANK_IDLE_MS,
+            label: `${formatExactCount(editCalls)} edit call${editCalls === 1 ? '' : 's'} · last 60s`,
+        };
+    }
+
     _observeTokens(agent, now) {
         if (!agent?.id) return;
         const current = tokenTotal(agent);
@@ -424,7 +773,6 @@ export class LandmarkActivity {
             expiresAt: now + TOKEN_ITEM_TTL_MS,
             delta,
             cargo,
-            cargoLabel: cargo ? `${Math.round(cargo.ratio * 100)}% CACHE` : '',
             slot: stableHash(id) % BUILDING_OFFSETS.mine.length,
             sortOffset: 4,
         });
@@ -672,6 +1020,10 @@ export class LandmarkActivity {
         // Surface Archive read intensity so BuildingSprite can tier the
         // front-window overlay and door particle spawn rate without coupling.
         eventBus.emit('building:read-intensity', { archive: this.getArchiveReadIntensity() });
+        // 4.3 / 4.4 — the two work ledgers the buildings read. Same cadence,
+        // same one-way coupling: the reducer measures, the sprite draws.
+        eventBus.emit('building:mine-assay', this.getMineAssay(now));
+        eventBus.emit('building:forge-workload', this.getForgeWorkload(now));
     }
 
     _itemPosition(item, now) {
@@ -846,16 +1198,8 @@ export class LandmarkActivity {
         ctx.fill();
         ctx.globalAlpha = item.alpha;
         if (cargo && actualZoom >= 1) this._drawTokenCargoHeap(ctx, item.x, item.y, s, ratio);
-        if (cargo && actualZoom >= 1.5) {
-            this._drawTinyLabel(
-                ctx,
-                { label: item.cargoLabel || `${Math.round(ratio * 100)}% CACHE` },
-                item.x,
-                item.y - 28 * s,
-                s,
-                CACHE_CARGO_CRYSTAL,
-            );
-        }
+        // No percentage on the Mine: the crystal/ore mix carries the class
+        // split, and the exact counts live on the selected bench (4.3).
         ctx.restore();
     }
 

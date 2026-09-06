@@ -34,14 +34,14 @@ import {
 import { CameraDirector } from './CameraDirector.js';
 import { ParticleSystem, WAKE_FOAM_COLORS } from './ParticleSystem.js';
 import { AgentSprite, drawFamiliarMotes, familiarMoteLightSources } from './AgentSprite.js';
-import { BuildingSprite } from './BuildingSprite.js';
+import { BuildingSprite, SOURCE_HALO_RADIUS_CAP } from './BuildingSprite.js';
 
 import { SceneryEngine } from './SceneryEngine.js';
 import { Pathfinder } from './Pathfinder.js';
 import { constrainSteeringToTarget, laneAxisForBridgeOrientation } from './MovementSteering.js';
 import { SpriteRenderer } from './SpriteRenderer.js';
 import { SkyRenderer } from './SkyRenderer.js';
-import { AtmosphereState } from './AtmosphereState.js';
+import { AtmosphereState, sourceEnergyFor } from './AtmosphereState.js';
 import { WeatherRenderer } from './WeatherRenderer.js';
 import { WildlifeRenderer } from './WildlifeRenderer.js';
 import { FoliageRenderer } from './FoliageRenderer.js';
@@ -90,7 +90,7 @@ import {
     GPU_ATTENTION_LIGHT_PRIORITY,
     localLightPhaseForLighting,
     resolveGpuWorldRendererMode,
-    WORLD_PHASE_GRADES,
+    worldPhaseGrade,
 } from './gpu/GpuWorldPolicy.js';
 import {
     CANVAS_BUDGET,
@@ -131,6 +131,12 @@ const WORLD_FRAME_MAX_CONSECUTIVE_FAILURES = 3;
 const DEBUG_GLOBAL_OWNERS = new WeakMap();
 const MAX_LIGHT_GRADIENT_CACHE_PIXELS = CANVAS_BUDGET.maxLightCachePixels;
 const MAX_LIGHT_GRADIENT_STAMP_PIXELS = Math.floor(MAX_LIGHT_GRADIENT_CACHE_PIXELS / 5);
+// 3.2 — Canvas/hybrid wet source reflections. FULL resident reflects eight
+// sources; the Canvas fallback keeps a hard cap of four cached stamps and
+// reaches at most two tiles down-slope from the source.
+const CANVAS_WET_REFLECTION_CAP = 4;
+const WET_REFLECTION_TILE_REACH = 2;
+const clampUnit = value => Math.max(0, Math.min(1, Number(value) || 0));
 // Viewport-size gates for the cheap sky/atmosphere/prop paths. CSS pixels, not
 // backing pixels: a sharper display is not a bigger scene.
 const FAST_ATMOSPHERE_CSS_PIXELS = 800_000;
@@ -171,8 +177,11 @@ const LOCAL_AVOIDANCE = Object.freeze({
     bucketPx: 40,
 });
 
-function phaseGradeForCanvas(phase = 'day') {
-    return WORLD_PHASE_GRADES[phase] || WORLD_PHASE_GRADES.day;
+// 3.4 — the Canvas grade uses the same night moon courses as the resident and
+// hybrid paths, so a full-moon night is one authored course lighter in every
+// backend. `moonFill` is 0 outside night.
+function phaseGradeForCanvas(phase = 'day', moonFill = 0) {
+    return worldPhaseGrade(phase, moonFill);
 }
 
 function gradeColorForCanvas(channels = []) {
@@ -3000,6 +3009,9 @@ export class IsometricRenderer {
             return;
         }
         if (event.code === 'KeyF') {
+            // C6 — an explicit frame command is a genuine operator action: it
+            // hands Ambient/replay back without touching the auto idle clock.
+            this.camera.revokeClaim?.('navigation');
             this.camera.stopFollow();
             this.frameContent();
             event.preventDefault();
@@ -3514,6 +3526,37 @@ export class IsometricRenderer {
                 clicked = sprite;
                 break;
             }
+        }
+
+        // 4.4 / 4.7 — a selectable building instrument (a Forge result tile, a
+        // task-board plan tab) selects the session it belongs to through the
+        // ordinary selection flow, so the panel opens that session's existing
+        // detail record. Agents still win: a body in front of a tile is the
+        // thing the operator clicked.
+        if (!clicked) {
+            const instrument = this.buildingRenderer?.hitTestInstrument?.(worldX, worldY) ?? null;
+            const instrumentAgent = instrument?.agentId
+                ? (this.agentSprites.get(instrument.agentId)?.agent
+                    || this.world?.agents?.get?.(instrument.agentId)
+                    || null)
+                : null;
+            if (instrumentAgent) {
+                this.selectAgentById(instrumentAgent.id);
+                if (this.onAgentSelect) this.onAgentSelect(instrumentAgent);
+                return;
+            }
+            // 4.7 — selecting a district monument opens its stone ledger. It is
+            // an inspection of the record, not a session selection.
+            const monument = this.chronicleMonuments?.hitTest?.(worldX, worldY, Date.now()) ?? null;
+            if (monument) {
+                this.chronicleMonuments.setSelectedMonument?.(monument.id);
+                for (const sprite of this.agentSprites.values()) sprite.selected = false;
+                this.selectedAgent = null;
+                if (this.onAgentSelect) this.onAgentSelect(null);
+                eventBus.emit(BUILDING_EVENTS.DESELECTED);
+                return;
+            }
+            this.chronicleMonuments?.setSelectedMonument?.(null);
         }
 
         // Deselect all
@@ -7629,6 +7672,10 @@ export class IsometricRenderer {
         ctx.globalCompositeOperation = 'screen';
         for (const mark of marks) {
             if (mark.alpha <= 0.01) continue;
+            // 3.2 — one instrument per fact: where an admitted source lays its
+            // own coloured reflection, the anonymous damp fleck steps aside
+            // instead of competing with it.
+            if (this._wetReflectionCovers(mark.x, mark.y)) continue;
             const cool = mark.material === 'dock' || mark.material === 'stone';
             ctx.fillStyle = cool
                 ? `rgba(168, 214, 224, ${mark.alpha})`
@@ -10194,7 +10241,9 @@ export class IsometricRenderer {
         if (!VILLAGE_GATE) return [];
         const leftBase = this._tileToWorld(VILLAGE_GATE.tileX - VILLAGE_GATE_TOWER_HALF_TILES, VILLAGE_GATE.tileY);
         const rightBase = this._tileToWorld(VILLAGE_GATE.tileX + VILLAGE_GATE_TOWER_HALF_TILES, VILLAGE_GATE.tileY);
-        const phaseBoost = Math.max(0.6, lighting?.lightBoost ?? 1);
+        // 3.1 — the gate braziers spend the same exposure envelope as every
+        // other motivated source; the floor keeps them lit while the sky is up.
+        const phaseBoost = Math.max(0.35, sourceEnergyFor(lighting).core);
         return [
             { id: 'left', x: leftBase.x - 9, y: leftBase.y - 13 },
             { id: 'right', x: rightBase.x + 9, y: rightBase.y - 13 },
@@ -10213,6 +10262,7 @@ export class IsometricRenderer {
     _lanternGroundLightSources(lighting = null) {
         const beaconIntensity = Math.max(0, Math.min(1, Number(lighting?.beaconIntensity) || 0));
         if (beaconIntensity <= 0.05) return [];
+        const core = sourceEnergyFor(lighting).core;
         return this._lanternGlowSources().map((source) => {
             const isBrazier = source.fixture === 'brazier';
             return normalizeLightSource({
@@ -10221,8 +10271,8 @@ export class IsometricRenderer {
                 x: source.x,
                 y: source.y + 10,
                 color: isBrazier ? '#ffb457' : '#ffd56a',
-                radius: (isBrazier ? 62 : 52) + beaconIntensity * 6,
-                intensity: (isBrazier ? 0.94 : 0.82) + beaconIntensity * 0.12,
+                radius: Math.min(isBrazier ? 62 : 52, SOURCE_HALO_RADIUS_CAP),
+                intensity: (isBrazier ? 0.94 : 0.82) * core,
             });
         });
     }
@@ -10269,7 +10319,159 @@ export class IsometricRenderer {
             ...this._lanternGroundLightSources(lighting),
             ...(this.bridgeLanterns?.getLightSources?.(lighting) || []),
         ];
+        // 3.2 — plan the wet source reflections here, before any ground pass
+        // draws, so the neutral damp marks can stand aside for them in the
+        // same frame instead of one frame later.
+        this._wetReflectionPlan = this._planWetSourceReflections(ambient);
         return { building, ambient };
+    }
+
+    // 3.2 (Canvas/hybrid half) — at most CANVAS_WET_REFLECTION_CAP admitted
+    // sources lay a stepped patch of their own hue on genuinely wet ground.
+    // The receiver test is the authored road/quay tile set, not a guess from
+    // brightness: a lantern over grass or timber gets nothing. Cached stamps
+    // and a world-quantized origin keep the pattern still while the camera
+    // pans, matching the resident shader's world-grid dither.
+    _planWetSourceReflections(sources) {
+        const wetness = clampUnit(this._atmosphereReactions?.surfaceWetness ?? 0);
+        if (wetness <= 0.05 || !sources?.length) return null;
+        if (!this.pathTiles?.size && !this.bridgeTiles?.size) return null;
+        const ranked = [];
+        for (const light of sources) {
+            if (light.attention) continue;
+            if (light.kind && light.kind !== 'point' && light.kind !== 'spark') continue;
+            if (!Number.isFinite(light.x) || !Number.isFinite(light.y)) continue;
+            const tiles = this._wetGroundTilesNear(light.x, light.y);
+            if (!tiles.length) continue;
+            ranked.push({ light, tiles });
+            if (ranked.length >= CANVAS_WET_REFLECTION_CAP * 3) break;
+        }
+        if (!ranked.length) return null;
+        ranked.sort((a, b) => (
+            (Number(b.light.priority) || 0) - (Number(a.light.priority) || 0)
+            || (Number(b.light.intensity) || 0) - (Number(a.light.intensity) || 0)
+            || String(a.light.id || '').localeCompare(String(b.light.id || ''))
+        ));
+        ranked.length = Math.min(ranked.length, CANVAS_WET_REFLECTION_CAP);
+        return { wetness, entries: ranked };
+    }
+
+    _wetGroundTilesNear(worldX, worldY) {
+        const out = [];
+        const origin = worldToTile(worldX, worldY);
+        if (!origin) return out;
+        const baseX = Math.round(origin.tileX);
+        const baseY = Math.round(origin.tileY);
+        for (let dy = 0; dy <= WET_REFLECTION_TILE_REACH; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const tileX = baseX + dx + dy;
+                const tileY = baseY - dx + dy;
+                const key = `${tileX},${tileY}`;
+                const wet = this.pathTiles?.has(key)
+                    || this.bridgeTiles?.get(key)?.kind === 'dock';
+                if (!wet) continue;
+                const iso = isoFromTile(tileX, tileY);
+                if (iso) out.push(iso);
+            }
+        }
+        return out;
+    }
+
+    // World-space test used by the damp-mark pass: does a planned reflection
+    // already carry this patch of wet ground? Half a tile of slack keeps a
+    // fleck from sitting on the reflection's own stepped edge.
+    _wetReflectionCovers(worldX, worldY) {
+        const plan = this._wetReflectionPlan;
+        if (!plan) return false;
+        for (const entry of plan.entries) {
+            const light = entry.light;
+            const halfWidth = light.radius * 0.30 + TILE_WIDTH / 2;
+            const reach = light.radius * 0.40 + TILE_HEIGHT / 2;
+            const drop = worldY - light.y;
+            if (drop < -TILE_HEIGHT / 2 || drop > reach) continue;
+            if (Math.abs(worldX - light.x) <= halfWidth) return true;
+        }
+        return false;
+    }
+
+    // Screen-space additive pass, drawn with the light glow stamps so both
+    // consume the same exposure envelope. The reflection is always dimmer than
+    // the core it comes from and is clipped to the wet tiles it belongs to.
+    _drawWetSourceReflections(ctx, canvas, atmosphere = null) {
+        const plan = this._wetReflectionPlan;
+        if (!plan) return;
+        const core = sourceEnergyFor(atmosphere?.lighting).core;
+        if (core <= 0.2) return;
+        const zoom = this.camera?.zoom || 1;
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (const entry of plan.entries) {
+            const light = entry.light;
+            const p = this.camera.worldToScreen(light.x, light.y);
+            if (p.x < -120 || p.y < -120 || p.x > canvas.width + 120 || p.y > canvas.height + 120) continue;
+            const width = Math.max(6, Math.round(light.radius * 0.52 * zoom));
+            const height = Math.max(4, Math.round(light.radius * 0.40 * zoom));
+            const stamp = this._getWetReflectionStamp(light.color, width, height, plan.wetness, atmosphere);
+            ctx.beginPath();
+            for (const tile of entry.tiles) {
+                const c = this.camera.worldToScreen(tile.x, tile.y);
+                ctx.moveTo(c.x, c.y - (TILE_HEIGHT / 2) * zoom);
+                ctx.lineTo(c.x + (TILE_WIDTH / 2) * zoom, c.y);
+                ctx.lineTo(c.x, c.y + (TILE_HEIGHT / 2) * zoom);
+                ctx.lineTo(c.x - (TILE_WIDTH / 2) * zoom, c.y);
+                ctx.closePath();
+            }
+            ctx.save();
+            ctx.clip();
+            ctx.globalAlpha = this._quantizedAlpha(
+                Math.min(0.34, 0.30 * plan.wetness * core * (Number(light.intensity) || 1)),
+            );
+            // Quantize the origin to two screen pixels so the stepped courses
+            // stay locked to the world grid instead of crawling under a pan.
+            const x = Math.round((p.x - width / 2) / 2) * 2;
+            const y = Math.round(p.y / 2) * 2;
+            ctx.drawImage(stamp, x, y, width, height);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    _getWetReflectionStamp(color, width, height, wetness, atmosphere = null) {
+        const wetBucket = Math.round(clampUnit(wetness) * 4);
+        const key = `${color}|${width}x${height}|w${wetBucket}|${atmosphere?.cacheKey || 'fallback'}`;
+        const cached = this.lightGradientCache.get(key);
+        if (cached) {
+            this.lightGradientCache.delete(key);
+            this.lightGradientCache.set(key, cached);
+            return cached;
+        }
+        const stamp = document.createElement('canvas');
+        stamp.width = Math.max(1, width);
+        stamp.height = Math.max(1, height);
+        const stampCtx = stamp.getContext('2d');
+        SpriteRenderer.disableSmoothing(stampCtx);
+        // Three stepped courses of the source's own hue, brightest directly
+        // under the source and broken on a 2 px ordered pattern. No gradient:
+        // the palette contract wants courses, not a smooth wash.
+        const courses = [
+            { at: 0, span: Math.max(1, Math.round(height * 0.34)), alpha: 0.9, step: 1 },
+            { at: Math.round(height * 0.34), span: Math.max(1, Math.round(height * 0.33)), alpha: 0.58, step: 2 },
+            { at: Math.round(height * 0.67), span: Math.max(1, height - Math.round(height * 0.67)), alpha: 0.3, step: 3 },
+        ];
+        for (const course of courses) {
+            stampCtx.fillStyle = this._withAlpha(color, course.alpha);
+            for (let y = course.at; y < course.at + course.span; y++) {
+                const inset = Math.round(width * 0.08 * course.step);
+                for (let x = inset; x < width - inset; x += 2) {
+                    if (((x + y * 2) & 3) === 0) continue;
+                    stampCtx.fillRect(x, y, 2, 1);
+                }
+            }
+        }
+        if (canvasPixelCount(stamp) <= MAX_LIGHT_GRADIENT_STAMP_PIXELS) {
+            this.lightGradientCache.set(key, stamp);
+        }
+        return stamp;
     }
 
     _ambientLightSources(atmosphere = null) {
@@ -10303,6 +10505,9 @@ export class IsometricRenderer {
         ctx.restore();
         profileMark?.('atmosphere-grade');
 
+        // 3.2 — source-coloured wet reflections come before the halos: the
+        // patch below a lamp belongs to the ground, the halo to the air.
+        this._drawWetSourceReflections(ctx, canvas, atmosphere);
         // E2/E3 — additive building light glows, shared with the fast path so
         // both draw lanterns identically.
         this._drawLightGlowStamps(ctx, canvas, atmosphere, ambientLightSources);
@@ -10321,15 +10526,18 @@ export class IsometricRenderer {
     // lights and passes them in, the full path passes them all.
     _drawLightGlowStamps(ctx, canvas, atmosphere = null, ambientLightSources = null, maxCount = Infinity) {
         if (!this.buildingRenderer) return;
+        // `localLightPhase` stays the admission gate (no lamps at noon); 3.1's
+        // exposure envelope is the only energy authority, so the halo alpha no
+        // longer multiplies lightBoost, the beacon, and the glow scale together.
         const localLightPhase = localLightPhaseForLighting(atmosphere?.lighting);
         if (localLightPhase <= 0.04) return;
         const zoom = this.camera?.zoom || 1;
-        const glowScale = atmosphere?.lighting?.lightBoost ?? atmosphere?.grade?.buildingGlowScale ?? 1;
+        const glowScale = sourceEnergyFor(atmosphere?.lighting).core;
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = this._quantizedAlpha(
-            (zoom < 1 ? 0.10 : 0.14) * glowScale * localLightPhase,
-        );
+        // Quantized alpha + the stamp cache key keep this a small, reused set
+        // of stepped stamps rather than a per-frame gradient rebuild.
+        ctx.globalAlpha = this._quantizedAlpha((zoom < 1 ? 0.10 : 0.14) * glowScale);
         let drawn = 0;
         for (const light of ambientLightSources || this._ambientLightSources(atmosphere)) {
             if (drawn >= maxCount) break;
@@ -10351,8 +10559,10 @@ export class IsometricRenderer {
     // motion. Only runs in the full atmosphere path (the fast path drops glows
     // by design — that's E3's territory).
     _drawLanternGlows(ctx, canvas, atmosphere = null) {
+        // The night factor is the gate; the envelope core is the energy (3.1).
         const nightFactor = this._lanternNightFactor(atmosphere);
         if (nightFactor <= 0.05) return;
+        const core = sourceEnergyFor(atmosphere?.lighting).core;
         const sources = this._lanternGlowSources();
         if (!sources.length) return;
 
@@ -10369,7 +10579,7 @@ export class IsometricRenderer {
             const p = this.camera.worldToScreen(src.x, src.y);
             if (p.x < -radius || p.y < -radius || p.x > canvas.width + radius || p.y > canvas.height + radius) continue;
             const flick = flickerOn ? 0.86 + 0.14 * Math.sin(t * 5 + src.phase) : 1;
-            ctx.globalAlpha = this._quantizedAlpha(Math.min(0.5, 0.42 * nightFactor * flick));
+            ctx.globalAlpha = this._quantizedAlpha(Math.min(0.5, 0.42 * core * flick));
             ctx.drawImage(stamp, p.x - radius, p.y - radius, radius * 2, radius * 2);
         }
         ctx.restore();
@@ -10465,6 +10675,8 @@ export class IsometricRenderer {
         ctx.restore();
         profileMark?.('atmosphere-grade');
 
+        // 3.2 — the fast path keeps the same capped, cached wet reflections.
+        this._drawWetSourceReflections(ctx, canvas, atmosphere);
         // E3 — restore light glows on the fast path (previously dropped exactly
         // when zoomed into a building at night), capped at the ~12 nearest.
         this._drawFastPathLightGlows(ctx, canvas, atmosphere, ambientLightSources);
@@ -10491,7 +10703,7 @@ export class IsometricRenderer {
         stamp.height = height;
         const stampCtx = stamp.getContext('2d');
         const phase = atmosphere?.phase || 'day';
-        const grade = phaseGradeForCanvas(phase);
+        const grade = phaseGradeForCanvas(phase, atmosphere?.lighting?.moonFill);
         const gradeBase = gradeColorForCanvas(grade.base);
         const gradeEdge = gradeColorForCanvas(grade.edge);
         stampCtx.fillStyle = gradeBase;
@@ -10801,7 +11013,7 @@ export class IsometricRenderer {
         // values grade it. Painting the opaque base first, then a
         // transparent→dark radial, keeps the whole overlay opaque while
         // darkening toward the edges (the vignette).
-        const grade = phaseGradeForCanvas(phase);
+        const grade = phaseGradeForCanvas(phase, atmosphere?.lighting?.moonFill);
         const gradeBase = gradeColorForCanvas(grade.base);
         const gradeEdge = gradeColorForCanvas(grade.edge);
         overlayCtx.fillStyle = gradeBase;

@@ -27,6 +27,43 @@ export class SpriteSheet {
     }
 }
 
+// C2 action strips: an optional per-character PNG of 8 direction columns by N
+// rows of the same engine cell as the base sheet, with named groups instead of
+// frame-count identity. `sheetMeta` is the manifest `actionStrip` record:
+//   { path, cell, groups: { read: { rows: [0, 3], hold: 3 } }, grip, provenance }
+// `direction` is a DIRECTIONS index or key; `frame` is a group-relative index
+// (wrapping) or the literal 'hold' for the most legible static row. Returns
+// null for a missing strip, unknown group, or malformed metadata so callers
+// fall back to the procedural overlay.
+export function resolveActionFrame(sheetMeta, group, direction, frame = 0) {
+    const cell = Number(sheetMeta?.cell);
+    if (!Number.isInteger(cell) || cell <= 0) return null;
+    const groupMeta = sheetMeta?.groups?.[group];
+    const rows = groupMeta?.rows;
+    if (!Array.isArray(rows) || rows.length !== 2) return null;
+    const first = Number(rows[0]);
+    const last = Number(rows[1]);
+    if (!Number.isInteger(first) || !Number.isInteger(last) || first < 0 || last < first) return null;
+    const col = typeof direction === 'number' ? direction : DIRECTIONS.indexOf(direction);
+    if (!Number.isInteger(col) || col < 0 || col >= DIRECTIONS.length) return null;
+    let row;
+    if (frame === 'hold') {
+        const hold = Number(groupMeta.hold);
+        row = Number.isInteger(hold) && hold >= first && hold <= last ? hold : last;
+    } else {
+        const index = Number(frame);
+        if (!Number.isFinite(index)) return null;
+        const span = last - first + 1;
+        row = first + (((Math.trunc(index) % span) + span) % span);
+    }
+    return {
+        sx: col * cell,
+        sy: row * cell,
+        sw: cell,
+        sh: cell,
+    };
+}
+
 // Velocity → direction index. Returns 0..7 matching DIRECTIONS order.
 // DIRECTIONS = ['s','se','e','ne','n','nw','w','sw'].
 // In screen space: vy > 0 means moving south (down). atan2(vy, vx) is 0 at East,

@@ -1,5 +1,5 @@
 style:
-  assetVersion: "2026-09-05-astra-v3"
+  assetVersion: "2026-09-06-action-strip-pilot"
   anchor: "epic high-fantasy pixel art, dramatic lighting, painterly palette, crisp pixel edges, no anti-aliasing, heroic silhouettes, faint magical glow on landmarks"
 
 # Optional semantic channels. Canvas mode keeps loading the original albedo
@@ -66,6 +66,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 28, y: 9, w: 34, h: 30 }
+    provenance: { characterId: 3cef2064-b3dd-4f17-ab8a-ff35ed2ee379 }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): crimson gown + gold filigree; the
     # declared claude sources match nothing on this sheet.
@@ -91,6 +93,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 8, w: 34, h: 32 }
+    provenance: { characterId: f8a273d6-1b74-4192-ba60-c9854d8e2683 }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): midnight-blue robe, ivory hem, dusty
     # rose trim; the declared claude sources are inert here.
@@ -114,6 +118,14 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.claude.sonnet/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 28414b93-f0b6-4060-a9bf-cf471a26a7d9, animationGroupId: cbe22634-af4c-4e77-a104-72ac68c96446, generationSize: 144 }
+    portraitCrop: { x: 29, y: 6, w: 34, h: 32 }
+    provenance: { characterId: 28414b93-f0b6-4060-a9bf-cf471a26a7d9 }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): dark violet robe + cobalt cloak; the
     # declared claude sources are inert here.
@@ -139,6 +151,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 5, w: 32, h: 30 }
+    provenance: { characterId: b55ca52b-eaf5-48cc-a45b-3f0c067bf020 }
     palette_layer: claude
     # Sampled from sheet.png (plan 0.5): mint scarf (robe role) + bronze clasp;
     # declared pants source already matches the moss-green lower robe.
@@ -161,6 +175,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 28, y: 15, w: 36, h: 30 }
+    provenance: { characterId: 2d64b6cc-f4e4-4f71-ac1a-dc025a5e8650 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy armor + steel-blue limbs + teal
     # core glow; the declared codex sources are inert here.
@@ -186,6 +202,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 27, y: 9, w: 38, h: 32 }
+    provenance: { characterId: c005d237-9365-4544-8c85-54bb9d29ba1a }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): indigo plate + steel-blue pauldrons +
     # pale teal visor; the declared codex sources are inert here.
@@ -211,6 +229,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 28, y: 13, w: 38, h: 32 }
+    provenance: { characterId: c591af5b-a4e7-494b-a289-e5f9f7f6caf6 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): near-black navy plate + violet cape;
     # the declared trim source already matches the teal reactor glow.
@@ -236,6 +256,14 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt6astra/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 1cc02eeb-7fff-448a-96bc-ae4de0c6bc48, animationGroupId: 76053945-7415-4790-8abb-e0faf812bc60, generationSize: 76 }
+    portraitCrop: { x: 28, y: 14, w: 36, h: 36 }
+    provenance: { characterId: 1cc02eeb-7fff-448a-96bc-ae4de0c6bc48 }
     palette_layer: codex
     anchor: [46, 80]
     materialClass: metal
@@ -255,6 +283,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 26, y: 13, w: 40, h: 34 }
+    provenance: { characterId: c3424b1d-2a37-47db-bc9a-dfb88bf53885 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy plate only — the signature gold
     # armor stays untouched so Sol keeps his radiant identity on every variant.
@@ -278,6 +308,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 28, y: 14, w: 36, h: 32 }
+    provenance: { characterId: c4799a67-269a-42e3-bd30-030d5c01bc3f }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): navy plate + moss-green sash; the
     # declared codex sources are inert here.
@@ -303,6 +335,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 14, w: 34, h: 36 }
+    provenance: { characterId: 4c14cc02-74fc-48bc-8968-d4594c2ae150 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): silver-blue light armor + navy
     # under-suit + steel accent; the declared codex sources are inert here.
@@ -325,6 +359,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 16, w: 34, h: 30 }
+    provenance: { characterId: a3960653-9e68-42f3-9569-82b7974477b3 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): deep teal half-plate; declared pants
     # source already matches, and the cyan visor is too small to key trim on.
@@ -347,6 +383,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
+    provenance: { characterId: fbc5f021-cf8a-45de-8fc0-bf2b3497c134 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): light teal armor, darker teal limbs,
     # muted cyan lens; the declared codex sources are inert here.
@@ -369,6 +407,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 13, w: 34, h: 34 }
+    provenance: { characterId: f38d99a1-4cf7-4cca-aaaf-120737e6fdee }
     palette_layer: claude
     anchor: [46, 80]
     materialClass: fabric
@@ -388,6 +428,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 19, w: 32, h: 32 }
+    provenance: { characterId: 5791ece8-3708-4431-86a4-31c5d5314777 }
     palette_layer: codex
     # Sampled from sheet.png (plan 0.5): brown leather boots/belt + circuit-teal
     # glow; the declared robe source already matches the deep teal coat.
@@ -413,6 +455,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 15, w: 32, h: 32 }
+    provenance: { characterId: 33e0d69e-2f4f-411e-91cc-163c216017c8 }
     palette_layer: gemini
     # Sampled from sheet.png (plan 0.5): violet robe + steel-indigo starlight
     # trim; the declared pants source already matches the deep indigo folds.
@@ -438,6 +482,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 31, y: 17, w: 32, h: 32 }
+    provenance: { characterId: d52fcc0a-ff5d-4435-9b53-271fb3d72ff1 }
     palette_layer: kimi
     # Sampled from sheet.png (plan 0.5): dusty-rose sash/filigree accent; the
     # declared robe and pants sources already match the ivory robe and wrap.
@@ -462,6 +508,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 12, w: 34, h: 30 }
+    provenance: { characterId: 52c6aee3-fdf6-42a4-b5f5-8851b0145094 }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): dark forest-green leathers + teal rune
     # edging; the declared pants source already matches the leggings.
@@ -487,6 +535,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 29, y: 12, w: 34, h: 32 }
+    provenance: { characterId: b43a2e2e-8e6e-40a0-ba6c-b9d4514ffb57 }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): near-black hood/wrap + muted teal trim;
     # the declared pants source already matches the dark leggings.
@@ -512,6 +562,8 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 31, y: 15, w: 32, h: 32 }
+    provenance: { characterId: 8bc97f0f-9d7f-4801-92a3-2191cd60fc4b }
     palette_layer: deepseek
     # Sampled from sheet.png (plan 0.5): dark green vest/leggings; the declared
     # pants source already matches and no confident trim cluster exists.
@@ -543,6 +595,7 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 14, w: 32, h: 30 }
     provenance: { characterId: 831e8a22-50bc-4e45-985d-8c32b8e81f6b, generationSize: 76, generationMode: pro }
     palette_layer: grok
     # Sampled from sheet.png (plan 0.5): electric cyan constellation embroidery;
@@ -569,6 +622,7 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 15, w: 32, h: 30 }
     provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, generationSize: 76, generationMode: pro }
     palette_layer: grok
     # Sampled from sheet.png (plan 0.5): bright cyan trim/headband glow;
@@ -601,6 +655,7 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 30, y: 17, w: 32, h: 32 }
     provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, generationSize: 76, generationMode: pro }
     palette_layer: zai
     # Sampled from sheet.png: vermilion robe + shade; the peach sash shares the
@@ -627,6 +682,7 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
     provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, generationSize: 76, generationMode: pro }
     palette_layer: zai
     # Sampled from sheet.png: vermilion tunic + shade; the peach headband and
@@ -820,6 +876,34 @@ buildings:
           sources:
             - { id: emissive.command.watchfire, kind: fire, geometry: authored-albedo, strength: 1 }
         occluder: { mode: alpha-silhouette, strength: 0.65 }
+      # 4.1 — inspection aperture (plan claudeville-frontier-visual-plan §4.1).
+      # Hand-authored at the base's own 312x208 pixel scale and clipped to the
+      # east wing's right-facing wall cut. BuildingSprite draws these three
+      # itself, only while Command is the explicitly selected building at
+      # resting zoom >= 2, in the fixed order aperture -> occupants ->
+      # interior -> slot marks -> foreground; the generic manifest-layer pass
+      # skips them, so they never appear on the default frame.
+      aperture:
+        tool: hand-authored
+        prompt: "sectional cut through the Command east wing wall: sawn masonry edge with exposed wall thickness, stone back wall with course lines, a single wall sconce, cool stone floor; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: stone
+      interior:
+        tool: hand-authored
+        prompt: "Command inspection interior dressing composed from the prop.interior kit: reading desk, planning table, archive shelf, pinned parchment; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: timber
+      foreground:
+        tool: hand-authored
+        prompt: "near frame of the Command aperture: sill course and jamb pillar that occlude the presented occupant; authored, not generated"
+        width: 312
+        height: 208
+        anchor: [156, 182]
+        materialClass: stone
     emitters:
       torch: [64, 28]
       torch2: [176, 28]
@@ -996,6 +1080,19 @@ buildings:
     lightColor: '#ff8a33'
     lightRadius: 80
     lightOverlay: 'atmosphere.light.fire-glow'
+    layers:
+      # 4.6 — the hearth fire is baked into base.png, so the sleeping-town rest
+      # state needs an authored mask: this restates exactly those pixels as
+      # stepped charcoal over one ember course. BuildingSprite draws it only on
+      # canonical VillagePhase.READY_EMPTY; the generic manifest-layer pass
+      # skips it.
+      banked:
+        tool: hand-authored
+        prompt: "banked forge hearth mask: the authored furnace fire restated as stepped charcoal with a single ember course at the bed; authored, not generated"
+        width: 256
+        height: 232
+        anchor: [128, 203]
+        materialClass: stone
 
   # ── STANDARD: Token Mine ──
   - id: building.mine
@@ -1091,6 +1188,46 @@ buildings:
 # Prop ids match the camelCase `type` field in IsometricRenderer.js
 # AMBIENT_GROUND_PROPS so renderer lookup stays one-to-one.
 props:
+  # 4.1 — six-piece inspection interior kit (asset note P5). PixelLab pixflux
+  # REST, 32 px isometric, 6 generations, edge-keyed with key-out-bg. Baked
+  # into buildings/building.command/interior.png for the Command pilot and
+  # reusable for the next building aperture.
+  - id: prop.interior.readingDesk
+    tool: map_object
+    prompt: "small slanted reading desk with an open book and a lit candle stub, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.anvilBench
+    tool: map_object
+    prompt: "low smith work bench with a small iron anvil and a hammer laid across it, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.planningTable
+    tool: map_object
+    prompt: "small square planning table with an unrolled parchment map and two markers, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.archiveShelf
+    tool: map_object
+    prompt: "narrow two-shelf bookcase packed with leather ledgers and rolled scrolls, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.instrumentStand
+    tool: map_object
+    prompt: "slim wooden stand holding a brass astrolabe instrument, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
+  - id: prop.interior.cargoBench
+    tool: map_object
+    prompt: "low timber cargo bench with two stacked crates and a coil of rope, isolated single object on fully transparent background, low top-down isometric fantasy RPG interior furniture, dark walnut timber and cool grey stone, warm candle highlights, crisp stepped pixel shading, no floor tile, no ground plane, no square base, no platform, no shadow slab, no characters, no text, empty transparent corners"
+    size: 32
+    provenance: { generationSize: 32 }
+
   - id: prop.lantern
     tool: isometric_tile
     prompt: "iron street lantern on post, warm amber candlelight glow, isometric"
@@ -1863,3 +2000,19 @@ bridges:
   # dock.ew / dock.ns retired to output/attic (visual-quality plan dead-inventory
   # sweep): HARBOR_DOCK_TILES are all style 'causeway', which draws the procedural
   # _drawHarborCausewayTile — the per-tile dock sprite path is unreachable today.
+
+# ─── LOOKUP TABLES ───────────────────────────────────────────────────────────
+# Hand-authored, nearest-sampled palette tables. Not generated art: a LUT is a
+# data image and carries no silhouette, anchor meaning, or material response.
+# `lut.<name>` maps to `luts/<name>.png`.
+luts:
+  # 3.5 — Command light ramp. X = material class id in MATERIAL_CLASS_NAMES
+  # order (0..10), Y = light course (0 barely lit, 1 mid, 2 light). RGB is a
+  # tint multiplier encoded as texel*2 (128 ~ x1.0); A is an authored additive
+  # lift scaled by 0.25. Absent entry keeps today's additive light response.
+  - id: lut.light-ramp.command
+    tool: hand-authored
+    width: 11
+    height: 3
+    anchor: [0, 0]
+    materialClass: unlit

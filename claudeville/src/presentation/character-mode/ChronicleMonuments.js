@@ -2,6 +2,24 @@ import { MonumentPlanter, MonumentRules } from '../../application/MonumentRules.
 import { eventBus } from '../../domain/events/DomainEvent.js';
 import { collectCommitEvents } from './ChronicleEvents.js';
 import { tileToWorld } from './Projection.js';
+import { repoProfile } from '../shared/RepoColor.js';
+import { WORLD_BODY_FONT } from '../../config/theme.js';
+
+// 4.7 — the selected monument's stone ledger: the last three real records of
+// its district, the exact count of the rest, and the period those records
+// actually cover. Month-retained records are never called all-time history.
+const LEDGER_ROWS = 3;
+const LEDGER_MONTHS = Object.freeze([
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]);
+
+function ledgerDate(value) {
+    const at = Number(value);
+    if (!Number.isFinite(at) || at <= 0) return 'date unknown';
+    const date = new Date(at);
+    return `${date.getDate()} ${LEDGER_MONTHS[date.getMonth()] || '?'}`;
+}
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const KIND_COLORS = {
@@ -152,6 +170,8 @@ export class ChronicleMonuments {
         this._christenedRepos = new Set();
         this._onRepoChristened = (event) => this._christenRepo(event);
         this._unsubscribeRepoChristened = this.eventBus?.on?.('harbor:repo-christened', this._onRepoChristened) || null;
+        // 4.7 — the one stone whose ledger is open, or null.
+        this._selectedMonumentId = null;
         this._disposed = false;
         this._lifecycleGeneration = 0;
     }
@@ -413,10 +433,16 @@ export class ChronicleMonuments {
         const age = Math.max(0, now - Number(record.plantedAt || record.ts || now));
         const alpha = Math.max(0.55, 1 - age / MONTH_MS * 0.45);
         const color = KIND_COLORS[record.kind] || '#d8b96d';
+        // 4.7 — only the selected stone opens its ledger; everything else keeps
+        // its silence.
+        const selected = this._selectedMonumentId && record.id === this._selectedMonumentId;
 
         // 6.1 — PixelLab sprite path; the vector draws below remain the
         // asset-missing fallback.
-        if (this._drawMonumentSprite(ctx, record, world, alpha, color)) return;
+        if (this._drawMonumentSprite(ctx, record, world, alpha, color)) {
+            if (selected) this._drawMonumentLedger(ctx, record, world, now);
+            return;
+        }
 
         ctx.save();
         ctx.translate(Math.round(world.worldX ?? world.x), Math.round(world.worldY ?? world.y));
@@ -452,6 +478,76 @@ export class ChronicleMonuments {
         } else {
             ctx.globalAlpha = alpha * 0.42;
             ctx.fillRect(-3, -11, 6, 13);
+        }
+        ctx.restore();
+        if (selected) this._drawMonumentLedger(ctx, record, world, now);
+    }
+
+    // 4.7 — the low stone ledger. Rows are real retained records of this
+    // stone's district, newest first, each stating its kind, its classified
+    // label, its planted date and its repository crest. The rest is an exact
+    // count, and the covered period is stated rather than implied.
+    setSelectedMonument(id) {
+        this._selectedMonumentId = typeof id === 'string' && id ? id : null;
+    }
+
+    getSelectedMonumentId() {
+        return this._selectedMonumentId;
+    }
+
+    ledgerFor(record, now = Date.now()) {
+        if (!record) return null;
+        const district = record.district;
+        const rows = [...this.records.values()]
+            .filter((entry) => entry.district === district
+                && now - Number(entry.plantedAt || entry.ts || 0) <= MONTH_MS)
+            .sort((a, b) => Number(b.plantedAt || b.ts || 0) - Number(a.plantedAt || a.ts || 0));
+        return {
+            district,
+            rows: rows.slice(0, LEDGER_ROWS),
+            overflow: Math.max(0, rows.length - LEDGER_ROWS),
+            total: rows.length,
+        };
+    }
+
+    _drawMonumentLedger(ctx, record, world, now) {
+        const ledger = this.ledgerFor(record, now);
+        if (!ledger?.rows.length) return;
+        const x = Math.round((world.worldX ?? world.x) + 14);
+        const y = Math.round((world.worldY ?? world.y) - 2);
+        const rowH = 8;
+        const height = ledger.rows.length * rowH + (ledger.overflow > 0 ? rowH : 0) + 12;
+        ctx.save();
+        ctx.font = `6px ${WORLD_BODY_FONT}`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        let width = 0;
+        const lines = ledger.rows.map((entry) => ({
+            text: `${entry.kind} · ${String(entry.label || '').slice(0, 22)} · ${ledgerDate(entry.plantedAt || entry.ts)}`,
+            crest: repoProfile(entry.project).accent || '#d8b96d',
+        }));
+        const header = `${ledger.district} · last 30 days`;
+        width = Math.ceil(ctx.measureText(header).width);
+        for (const line of lines) width = Math.max(width, Math.ceil(ctx.measureText(line.text).width) + 6);
+        width += 8;
+        // A low tablet, not a floating card: one stone face with a lit top
+        // course, sitting on the plinth beside the stone.
+        ctx.fillStyle = 'rgba(28, 25, 20, 0.9)';
+        ctx.fillRect(x, y - height, width, height);
+        ctx.fillStyle = 'rgba(155, 138, 107, 0.9)';
+        ctx.fillRect(x, y - height, width, 1);
+        ctx.fillStyle = 'rgba(216, 185, 109, 0.9)';
+        ctx.fillText(header, x + 4, y - height + 6);
+        lines.forEach((line, index) => {
+            const rowY = y - height + 14 + index * rowH;
+            ctx.fillStyle = line.crest;
+            ctx.fillRect(x + 4, rowY - 2, 3, 4);
+            ctx.fillStyle = 'rgba(232, 228, 216, 0.94)';
+            ctx.fillText(line.text, x + 10, rowY);
+        });
+        if (ledger.overflow > 0) {
+            ctx.fillStyle = 'rgba(198, 190, 172, 0.88)';
+            ctx.fillText(`+${ledger.overflow} recorded`, x + 10, y - height + 14 + lines.length * rowH);
         }
         ctx.restore();
     }

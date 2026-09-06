@@ -62,7 +62,7 @@ test('output-dominated beats fall back to the cumulative cache ratio', () => {
         assert.equal(event.cargo.ratio, 0.8);
         assert.equal(
             activity.tokenItemTooltip({ cargo: event.cargo }),
-            'Cache 80% · read 832 / fresh 208 of 1.0k tok · session total',
+            '208 input · 832 cache read · session total',
         );
     } finally {
         activity.dispose();
@@ -102,7 +102,9 @@ test('sub-ritual token pills carry cargo only above the observable threshold', (
         const pill = [...activity.items.values()].find(item => item.type === 'token');
         assert.ok(pill);
         assert.equal(pill.cargo.ratio, 0.5);
-        assert.equal(pill.cargoLabel, '50% CACHE');
+        assert.equal(pill.cargo.cacheRead, 75);
+        assert.equal(pill.cargo.input, 75);
+        assert.equal(Object.hasOwn(pill, 'cargoLabel'), false, 'the transient percent cargo label was removed (counts, never percentages)');
         assert.equal(Object.hasOwn(pill, 'ratio'), false);
 
         activity._observeTokens(agent('small', { input: 1000, output: 0, cacheRead: 1000, availability: 'observed' }), 1000);

@@ -97,7 +97,9 @@
                 </svg>
             </button>
             <button id="worldRead" class="topbar__sound-btn world-read" type="button" aria-label="Hold to read the village (B)" aria-pressed="false" title="Hold B or this button to read work labels">READ <kbd>B</kbd></button>
+            <button id="worldAmbient" class="topbar__sound-btn world-ambient" type="button" aria-pressed="false" data-state="off" title="Ambient camera: a patient broadcast of the work that is actually happening. Any camera input or selection hands the frame back.">AMBIENT CAM</button>
             <button id="topbarSoundMode" class="topbar__sound-btn" type="button" aria-pressed="false" title="Reactive ambience mode — click for continuous town music" hidden>AMBIENT</button>
+            <span id="topbarSoundSection" class="topbar__sound-section" title="Village work behind the music" hidden></span>
             <input id="topbarSoundVolume" class="topbar__sound-vol" type="range" min="0" max="100" value="50" title="Ambience volume" aria-label="Ambience volume" hidden>
             <button id="btnModeCharacter" data-i18n="world" class="topbar__mode-btn topbar__mode-btn--active">WORLD</button>
             <button id="btnModeDashboard" data-i18n="dashboard" class="topbar__mode-btn">DASHBOARD</button>
@@ -160,6 +162,7 @@
                         </div>
                         <div class="world-grammar__body"><b>/ or Ctrl/Cmd+K</b> search agents · <b>↑/↓/Home/End</b> move · <b>Enter</b> select and follow · <b>Esc</b> clear search / close panel · <b>A</b> frame attention · <b>F</b> frame village · <b>drag / arrows</b> pan · <b>wheel / +/-</b> zoom · <b>R</b> replay</div>
                         <div class="world-grammar__body"><b>Hold B / READ</b> reveal work labels; release to restore names.</div>
+                        <div class="world-grammar__body"><b>AMBIENT CAM</b> hands the camera to the working-village broadcast; any pan, zoom, key, or selection hands it straight back.</div>
                     </div>
                     <div id="worldSemanticSummary" class="world-semantic-summary" role="status" aria-live="polite"></div>
                 </div>

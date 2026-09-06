@@ -195,6 +195,7 @@ function pairKey(aId, bId) {
 
 const MAX_EMITTED_TOOL_KEYS_PER_AGENT = 32;
 const MAX_EMITTED_TOOL_KEYS_TOTAL = 2048;
+const MAX_OBSERVED_RESULT_IDS_PER_AGENT = 16;
 
 export class AgentEventStream {
     constructor(world, { shouldEmitToolEvent = null, shouldEmitEvent = null } = {}) {
@@ -204,12 +205,18 @@ export class AgentEventStream {
         this.emittedToolKeys = new Set();
         this._emittedToolKeysByAgent = new Map();
         this._emittedToolKeyOwners = new Map();
+        this._observedResultIdsByAgent = new Map();
+        // Results that finished before the village started watching this agent
+        // are recorded, never stamped: a shelf tile means "this completed while
+        // you were here", not "this exists in the transcript tail".
+        this._startedAt = Date.now();
         this.shouldEmitToolEvent = typeof shouldEmitToolEvent === 'function' ? shouldEmitToolEvent : null;
         this.shouldEmitEvent = typeof shouldEmitEvent === 'function' ? shouldEmitEvent : null;
         this.unsubscribers = [];
 
         for (const agent of this.world?.agents?.values?.() || []) {
             this.snapshots.set(agent.id, snapshotAgent(agent));
+            this._observeResults(agent, { emit: false });
         }
 
         this.unsubscribers.push(
@@ -227,6 +234,7 @@ export class AgentEventStream {
         this.emittedToolKeys.clear();
         this._emittedToolKeysByAgent.clear();
         this._emittedToolKeyOwners.clear();
+        this._observedResultIdsByAgent.clear();
         this.shouldEmitToolEvent = null;
         this.shouldEmitEvent = null;
     }
@@ -284,6 +292,7 @@ export class AgentEventStream {
             if (this._canEmit('team:joined', event, agent)) eventBus.emit('team:joined', event);
         }
         this._emitToolIfChanged(agent, null, snap);
+        this._observeResults(agent);
     }
 
     _onUpdated(agent) {
@@ -291,6 +300,7 @@ export class AgentEventStream {
         const next = snapshotAgent(agent);
         this.snapshots.set(agent.id, next);
         this._emitToolIfChanged(agent, previous, next);
+        this._observeResults(agent);
         if (!previous?.teamName && next.teamName) {
             const event = {
                 agentId: agent.id,
@@ -315,6 +325,7 @@ export class AgentEventStream {
         }
         this._clearChatPairsFor(agent.id);
         this._retireEmittedToolKeys(agent.id);
+        this._observedResultIdsByAgent.delete(String(agent.id || ''));
     }
 
     _emitToolIfChanged(agent, previous, next) {
@@ -326,6 +337,56 @@ export class AgentEventStream {
         if (typeof this.shouldEmitToolEvent === 'function' && !this.shouldEmitToolEvent(event, agent)) return;
         eventBus.emit('tool:invoked', event);
         this._rememberEmittedToolKey(agent.id, this._emittedToolKey(agent.id, next.toolKey));
+    }
+
+    /**
+     * Emit `tool:result` once per newly observed provider result record.
+     *
+     * Results arrive as a bounded newest-first summary on the session payload
+     * (`adapters/toolResults.js`); the same finished call keeps one id across
+     * polls, so an id the stream has not seen before is a genuinely new
+     * outcome. Nothing here fires on invocation, and a result leaving the
+     * bounded summary is not an event: only a record that says how a call ended
+     * produces one.
+     */
+    _observeResults(agent, { emit = true } = {}) {
+        const results = Array.isArray(agent?.lastResults) ? agent.lastResults : [];
+        if (!results.length) return;
+        const owner = String(agent.id || '');
+        let observed = this._observedResultIdsByAgent.get(owner);
+        if (!observed) {
+            observed = new Set();
+            this._observedResultIdsByAgent.set(owner, observed);
+        }
+
+        // Oldest first, so a poll that reveals several completions stamps them
+        // in the order the provider finished them.
+        for (let index = results.length - 1; index >= 0; index--) {
+            const result = results[index];
+            const id = typeof result?.id === 'string' ? result.id : '';
+            if (!id || observed.has(id)) continue;
+            observed.add(id);
+            while (observed.size > MAX_OBSERVED_RESULT_IDS_PER_AGENT) {
+                observed.delete(observed.values().next().value);
+            }
+            const completedAt = Number(result.completedAt);
+            if (!emit || !Number.isFinite(completedAt) || completedAt < this._startedAt) continue;
+            const event = {
+                agentId: agent.id,
+                id,
+                tool: result.tool || null,
+                exitCode: Number.isFinite(Number(result.exitCode)) && result.exitCode !== null
+                    ? Number(result.exitCode)
+                    : null,
+                durationMs: Number.isFinite(Number(result.durationMs)) && result.durationMs !== null
+                    ? Number(result.durationMs)
+                    : null,
+                completedAt,
+                building: classifyTool(result.tool, result.detail || null)?.building || null,
+            };
+            if (!this._canEmit('tool:result', event, agent)) continue;
+            eventBus.emit('tool:result', event);
+        }
     }
 
     _toolEvent(agent, snap, extra = {}) {
@@ -414,6 +475,8 @@ export class AgentEventStream {
             emittedToolAgents: this._emittedToolKeysByAgent.size,
             maxEmittedToolKeysPerAgent: MAX_EMITTED_TOOL_KEYS_PER_AGENT,
             maxEmittedToolKeysTotal: MAX_EMITTED_TOOL_KEYS_TOTAL,
+            observedResultAgents: this._observedResultIdsByAgent.size,
+            maxObservedResultIdsPerAgent: MAX_OBSERVED_RESULT_IDS_PER_AGENT,
         };
     }
 

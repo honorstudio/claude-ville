@@ -19,10 +19,36 @@ export const SPRITE_GROUP_KEYS = Object.freeze([
     'terrain',
     'bridges',
     'atmosphere',
+    'luts',
 ]);
 
 export function loadSpriteManifest(path = manifestPath) {
     return yaml.load(readFileSync(path, 'utf8'));
+}
+
+// Replace the named keys of one character entry inside the manifest *text*, so
+// every other line, comment and quoting style survives. `renderedLines` are the
+// already-indented replacement lines; they land after the entry's
+// `animationGroups` ledger line when it exists, otherwise under `- id:`.
+// Returns null when the entry is absent (scratch/unmanifested assets).
+export function rewriteEntryKeys(source, spriteId, keys, renderedLines) {
+    const lines = source.split('\n');
+    const start = lines.findIndex((line) => line === `  - id: ${spriteId}`);
+    if (start < 0) return null;
+    let end = start + 1;
+    while (end < lines.length && !/^  - id:|^[^\s#]/.test(lines[end])) end++;
+    const block = lines.slice(start, end);
+    for (const key of keys) {
+        const index = block.findIndex((line) => line.startsWith(`    ${key}:`));
+        if (index < 0) continue;
+        let stop = index + 1;
+        while (stop < block.length && /^      \S|^        /.test(block[stop])) stop++;
+        block.splice(index, stop - index);
+    }
+    const ledger = block.findIndex((line) => line.startsWith('    animationGroups:'));
+    block.splice(ledger < 0 ? 1 : ledger + 1, 0, ...renderedLines);
+    lines.splice(start, end - start, ...block);
+    return lines.join('\n');
 }
 
 export function collectSpriteEntries(manifest, groups = SPRITE_GROUP_KEYS) {
@@ -54,7 +80,22 @@ export function pathForEntry(entryOrId) {
     if (id.startsWith('terrain.')) return `terrain/${id}/sheet.png`;
     if (id.startsWith('bridge.') || id.startsWith('dock.')) return `bridges/${id}.png`;
     if (id.startsWith('atmosphere.')) return `atmosphere/${id}.png`;
+    // Hand-authored data images: `lut.light-ramp.command` → `luts/light-ramp.command.png`.
+    if (id.startsWith('lut.')) return `luts/${id.slice('lut.'.length)}.png`;
     return null;
+}
+
+// C2 action strip: sprites-root relative albedo plus the companion channels the
+// entry's existing sidecar declarations imply for it.
+export function actionStripPathsForEntry(entry) {
+    const declared = typeof entry?.actionStrip?.path === 'string' ? entry.actionStrip.path.trim() : '';
+    if (!declared) return [];
+    const albedo = declared.replace(/^\/+/, '').replace(/^assets\/sprites\//, '');
+    const paths = [albedo];
+    for (const channel of ['material', 'emissive', 'occluder']) {
+        if (entry[`${channel}Sidecar`] === true) paths.push(albedo.replace(/\.png$/, `.${channel}.png`));
+    }
+    return paths;
 }
 
 export function expectedPathsForEntry(entry) {
@@ -79,6 +120,7 @@ export function expectedPathsForEntry(entry) {
     for (const layer of layerNames.filter((name) => name !== 'base')) {
         paths.push(`buildings/${entry.id}/${layer}.png`);
     }
+    paths.push(...actionStripPathsForEntry(entry));
     return paths;
 }
 

@@ -142,6 +142,51 @@ near frame boundaries.
   material class, semantic tags, and deterministic pack order. It contains no
   timestamp, so unchanged inputs produce byte-stable JSON and PNGs.
 
+## Action Strips (contract C2)
+
+A character entry may declare one optional *action strip*: a separate PNG of
+8 direction columns × N rows of the **same engine cell as the base sheet**
+(92 px, same anchor and feet), holding authored poses the base sheet has no rows
+for. The base sheet is never widened and never repurposed.
+
+```yaml
+actionStrip:
+  path: characters/agent.claude.sonnet/actions.png   # sprites-root relative
+  cell: 92
+  groups:                                            # named, never identified by frame count
+    read: { rows: [0, 3], hold: 3 }                  # hold = most legible static row
+    wait: { rows: [4, 4], hold: 4 }                  # single held row
+  grip: { hand: both, sheathe: true }                # right | left | both
+  provenance: { characterId: <pixellab id>, animationGroupId: <id>, generationSize: 144 }
+```
+
+- Row ranges are inclusive, may not overlap, and must fall inside the PNG's real
+  row count; `hold` must be a row of its own group. `provenance.generationSize`
+  is the source rig's export canvas (16–256 px), which is what v3 animation is
+  billed and assembled at — not the character entry's `generationSize` request.
+- `SpriteSheet.resolveActionFrame(sheetMeta, group, direction, frame)` returns
+  `{sx, sy, sw, sh}` or **null**; `frame` is group-relative and wraps, or the
+  literal `'hold'`. `AssetManager.getActionStrip(id)` returns
+  `{ image, meta, path, channels }` or **null**. Null on either seam means the
+  caller keeps its existing procedural overlay, so a strip-less character renders
+  byte-identically.
+- Strips load lazily per demanded character through the existing character-demand
+  path, after the base sheet is already drawable, and are priced in
+  `cacheStats()` (`actionStrips`, `actionStripPixels`) like every other decoded
+  image. A malformed or mis-sized strip is recorded as an optional load miss and
+  left unloaded.
+- Companion channels are optional and follow the ordinary sidecar rules against
+  the *strip* path (`actions.material.png` …), driven by the character entry's
+  existing `materialSidecar`/`emissiveSidecar`/`occluderSidecar` declarations.
+  `node scripts/sprites/author-roster-channels.mjs` authors sheet and strip
+  companions from the same reviewed colour classification; a companion whose
+  dimensions disagree with the strip is refused.
+- Production: `node scripts/sprites/generate-action-strip.mjs --ids=<id> --plan`
+  quotes the live balance and per-direction generations; without `--plan` it
+  requests one named v3 group at a time (Tier 1 allows 8 concurrent background
+  jobs, and one 8-direction group fills them), assembles the strip, and records
+  the manifest `actionStrip` block.
+
 ## Pilot
 
 `world-pilot` covers 18 reviewed IDs: all nine landmarks; lantern, rune brazier,

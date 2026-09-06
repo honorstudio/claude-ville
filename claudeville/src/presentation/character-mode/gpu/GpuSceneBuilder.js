@@ -577,6 +577,11 @@ function recordForBuilding(renderer, drawable, sequence) {
             ? (active ? finite(materialMeta.activeEmissive, 0.12) : finite(materialMeta.emissive, 0.03))
             : 0,
         emissiveGate,
+        // 3.5 pilot opt-in: only Command's authored material pixels quantize
+        // admitted local light to the palette ramp. Every other landmark keeps
+        // today's additive response, so the ramp cannot leak through a shared
+        // atlas batch.
+        paletteRamp: buildingType === 'command',
         occluder: finite(materialMeta.occluder, 0.86),
         textureRevision: assets.assetVersion || null,
         sidecarRevision: useAtlas && atlasFrame?.atlas

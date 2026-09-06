@@ -80,6 +80,38 @@ export function agentFrameKeyFromCell(cell = {}, cellSize = 92) {
     return `${idle ? 'idle' : 'walk'}/${dir}/${Math.max(0, frame)}`;
 }
 
+// C2 action strips live beside the base sheet and are addressed by the manifest
+// `actionStrip.path`, which is sprites-root relative like every other
+// manifest-implied path.
+export function actionStripPathFor(meta) {
+    const raw = typeof meta?.path === 'string' ? meta.path.trim() : '';
+    if (!raw) return null;
+    return `assets/sprites/${raw.replace(/^\/+/, '').replace(/^assets\/sprites\//, '')}`;
+}
+
+// Returns a reason string when the loaded strip cannot serve its declared
+// groups, so the character stays strip-less instead of drawing wrong cells.
+export function actionStripMismatch(meta, image) {
+    const cell = Number(meta?.cell);
+    if (!Number.isInteger(cell) || cell <= 0) return 'actionStrip.cell must be a positive integer';
+    const columns = AGENT_CELL_DIRECTIONS.length;
+    const width = Number(image?.width) || 0;
+    const height = Number(image?.height) || 0;
+    if (width !== columns * cell) return `width ${width} != ${columns * cell}`;
+    if (height < cell || height % cell !== 0) return `height ${height} is not whole ${cell}px rows`;
+    const rows = height / cell;
+    const groups = meta?.groups;
+    if (!groups || typeof groups !== 'object' || !Object.keys(groups).length) return 'actionStrip.groups is empty';
+    for (const [name, group] of Object.entries(groups)) {
+        const range = group?.rows;
+        if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger)
+            || range[0] < 0 || range[1] < range[0] || range[1] >= rows) {
+            return `groups.${name} rows must be an inclusive range inside 0–${rows - 1}`;
+        }
+    }
+    return null;
+}
+
 export function atlasSourceRect(rect = {}, {
     split = false,
     front = false,
@@ -249,6 +281,8 @@ export class AssetManager {
             .map((channel) => [channel, new Map()]));
         this.atlasImages = new Map();  // `${atlasId}:${channel}` → HTMLImageElement
         this.atlasMetadata = new Map();// atlas id → deterministic metadata JSON
+        this.actionStrips = new Map(); // agent id → { image, meta, path, channels }
+        this._actionStripLoads = new Map();
         this._entriesCache = null;
         this._entryById = new Map();
         this.assetVersion = null;
@@ -601,7 +635,78 @@ export class AssetManager {
             anchor: entry.anchor || null,
             generation,
         });
+        // C2: the optional action strip is a separate PNG loaded after the base
+        // sheet is drawable, so a body never waits on it and never widens.
+        await this._loadActionStrip(entry, { signal, generation });
         return true;
+    }
+
+    // Lazily resident per demanded character. A missing, malformed, or
+    // mis-sized strip leaves the character strip-less and rendering identical.
+    async _loadActionStrip(entry, { signal, generation }) {
+        const meta = entry?.actionStrip;
+        const path = actionStripPathFor(meta);
+        if (!path) return;
+        if (this.actionStrips.get(entry.id)?.generation === generation) return;
+        const { img, ok, reason } = await this._loadOptionalImage(path, { signal });
+        if (!this._canCommitLoad(signal, generation)) {
+            if (img) this._releaseImage(img);
+            return;
+        }
+        const invalid = !ok || !img ? (reason || 'load failed') : actionStripMismatch(meta, img);
+        if (invalid) {
+            if (img) this._releaseImage(img);
+            this._optionalLoadMisses.push({ id: entry.id, channel: 'actionStrip', path, reason: invalid });
+            return;
+        }
+        const channels = { albedo: img, material: null, emissive: null, occluder: null };
+        if (this._materialDecodedLoaded) {
+            await Promise.all(MATERIAL_CHANNELS
+                .filter((channel) => channel !== 'albedo')
+                .map(async (channel) => {
+                    // Strip companions follow the existing sidecar declaration
+                    // of their character entry, keyed off the strip path.
+                    const companionPath = companionPathFor(entry, channel, path);
+                    if (!companionPath) return;
+                    const loaded = await this._loadOptionalImage(companionPath, { signal });
+                    if (!this._canCommitLoad(signal, generation) || !loaded.ok || !loaded.img) {
+                        if (loaded.img) this._releaseImage(loaded.img);
+                        if (!loaded.ok) {
+                            this._optionalLoadMisses.push({
+                                id: entry.id,
+                                channel: `actionStrip:${channel}`,
+                                path: companionPath,
+                                reason: loaded.reason || 'load failed',
+                            });
+                        }
+                        return;
+                    }
+                    if (loaded.img.width !== img.width || loaded.img.height !== img.height) {
+                        this._releaseImage(loaded.img);
+                        this._optionalLoadMisses.push({
+                            id: entry.id,
+                            channel: `actionStrip:${channel}`,
+                            path: companionPath,
+                            reason: `dimension ${loaded.img.width}x${loaded.img.height} != ${img.width}x${img.height}`,
+                        });
+                        return;
+                    }
+                    channels[channel] = loaded.img;
+                }));
+        }
+        if (!this._canCommitLoad(signal, generation)) {
+            for (const image of Object.values(channels)) if (image) this._releaseImage(image);
+            return;
+        }
+        this._releaseActionStrip(entry.id);
+        this.actionStrips.set(entry.id, { image: img, meta, path, channels, generation });
+    }
+
+    _releaseActionStrip(id) {
+        const strip = this.actionStrips.get(id);
+        if (!strip) return;
+        for (const image of Object.values(strip.channels)) if (image) this._releaseImage(image);
+        this.actionStrips.delete(id);
     }
 
     async _loadCharacterCompanions(entry, { signal, generation }) {
@@ -651,6 +756,7 @@ export class AssetManager {
         collect(root.terrain);
         collect(root.bridges);
         collect(root.atmosphere);
+        collect(root.luts);
         return out;
     }
 
@@ -710,6 +816,11 @@ export class AssetManager {
             // character, terrain, prop, and atmosphere asset.
             buildMask: entry.id.startsWith('building.'),
         });
+        // C2: characters loaded through the eager pass get their optional strip
+        // as well, so residency does not depend on which path demanded them.
+        if (this._isCharacterEntry(entry) && ok) {
+            await this._loadActionStrip(entry, { signal, generation });
+        }
         // Recurse for layered entries (overlays).
         if (entry.layers) {
             await Promise.all(Object.entries(entry.layers).map(([name, layer]) => {
@@ -870,6 +981,8 @@ export class AssetManager {
         if (entry.id.startsWith('terrain.')) return `assets/sprites/terrain/${entry.id}/sheet.png`;
         if (entry.id.startsWith('bridge.') || entry.id.startsWith('dock.')) return `assets/sprites/bridges/${entry.id}.png`;
         if (entry.id.startsWith('atmosphere.')) return `assets/sprites/atmosphere/${entry.id}.png`;
+        // Hand-authored data images (palette ramps); `lut.<name>` → `luts/<name>.png`.
+        if (entry.id.startsWith('lut.')) return `assets/sprites/luts/${entry.id.slice('lut.'.length)}.png`;
         return PLACEHOLDER_PATH;
     }
 
@@ -1159,6 +1272,33 @@ export class AssetManager {
     getEntry(id) {
         return this._entryById.get(id);
     }
+    // C2: `{ image, meta, path, channels }` for a resident action strip, or null.
+    // Null is the byte-identical fallback contract — callers keep the existing
+    // procedural overlay. Demanding a strip demands its character.
+    getActionStrip(id, { request = true } = {}) {
+        const strip = this.actionStrips.get(id) || null;
+        if (!strip && request && typeof id === 'string' && id.startsWith('agent.')
+            && this.getEntry(id)?.actionStrip) {
+            // A character whose sheet is already resident never re-enters the
+            // demand path, so ask for the strip on its own.
+            if (this.has(id, { request: false })) this._ensureActionStrip(id);
+            else this.requestCharacterAssets(id).catch(() => {});
+        }
+        return strip;
+    }
+    _ensureActionStrip(id) {
+        const inFlight = this._actionStripLoads.get(id);
+        if (inFlight) return inFlight;
+        const entry = this.getEntry(id);
+        if (!entry?.actionStrip || this._disposed || this._suspended) return Promise.resolve();
+        const operation = this._loadActionStrip(entry, { signal: null, generation: this._loadGeneration })
+            .catch(() => {})
+            .finally(() => {
+                if (this._actionStripLoads.get(id) === operation) this._actionStripLoads.delete(id);
+            });
+        this._actionStripLoads.set(id, operation);
+        return operation;
+    }
     getCompanion(id, channel) {
         const image = this.companions.get(channel)?.get(id) || null;
         if (!image) this._reloadOptionalEntry(`companion:${channel}:${id}`);
@@ -1446,11 +1586,20 @@ export class AssetManager {
         for (const image of this.atlasImages.values()) {
             atlasPixels += Math.max(0, Number(image?.width) || 0) * Math.max(0, Number(image?.height) || 0);
         }
+        let actionStripPixels = 0;
+        let actionStripCompanionPixels = 0;
+        for (const strip of this.actionStrips.values()) {
+            for (const [channel, image] of Object.entries(strip.channels || {})) {
+                const pixels = Math.max(0, Number(image?.width) || 0) * Math.max(0, Number(image?.height) || 0);
+                if (channel === 'albedo') actionStripPixels += pixels;
+                else actionStripCompanionPixels += pixels;
+            }
+        }
         // Browser image/canvas implementations do not expose allocation size.
         // RGBA width x height is therefore a diagnostic estimate, not a claim
         // that every backing allocation is simultaneously resident or exact.
-        const baseDecodedImageEstimateBytes = decodedBitmapPixels * 4;
-        const optionalMaterialImageEstimateBytes = (companionPixels + atlasPixels) * 4;
+        const baseDecodedImageEstimateBytes = (decodedBitmapPixels + actionStripPixels) * 4;
+        const optionalMaterialImageEstimateBytes = (companionPixels + atlasPixels + actionStripCompanionPixels) * 4;
         const decodedImageEstimateBytes = baseDecodedImageEstimateBytes + optionalMaterialImageEstimateBytes;
         const derivedCanvasEstimateBytes = (derivedBitmapPixels + outlinePixels) * 4 + maskBytes;
         const stats = {
@@ -1503,6 +1652,8 @@ export class AssetManager {
             derivedCanvasEstimateBytes: { value: derivedCanvasEstimateBytes },
             materialTextureEstimateBytes: { value: optionalMaterialImageEstimateBytes },
             optionalSidecarHighWaterEstimateBytes: { value: OPTIONAL_SIDECAR_HIGH_WATER_ESTIMATE_BYTES },
+            actionStrips: { value: this.actionStrips.size },
+            actionStripPixels: { value: actionStripPixels + actionStripCompanionPixels },
             activeProfileKeys: { value: [...this._activeProfilePins.keys()].sort() },
             selectedProfilePins: { value: [...this._activeProfilePins]
                 .filter(([, pin]) => pin.selected)
@@ -1682,6 +1833,8 @@ export class AssetManager {
                 bitmap.height = 0;
             }
         }
+        for (const id of [...this.actionStrips.keys()]) this._releaseActionStrip(id);
+        this._actionStripLoads.clear();
         this.bitmaps.clear();
         this.alphaMasks.clear();
         this.dimensions.clear();

@@ -67,6 +67,47 @@ export const BUILDING_VISUAL_REGISTRY = Object.freeze({
         ],
         // #53 — sprite-local pole base for the occupancy pennant (right turret).
         pennant: { at: [240, 56] },
+        // 4.1 — the inspection aperture. The authored sectional view swaps the
+        // east wing's front wall for a cut room on explicit selection at
+        // resting zoom >= `minZoom`. `cut` is the sprite-local parallelogram
+        // the three layers were authored inside (2:1 iso, rising to the
+        // right): it spans the wing's whole right-facing bay, from the course
+        // under the eave down to the plinth and from the corner quoin to the
+        // tower pilaster, so the room is a full storey rather than a slot.
+        // `slots` are the bottom-centre anchors of the authored desks, front
+        // to back, and `occupant.h` is the presented body height in sprite
+        // pixels — two thirds of the room's height, so an occupant reads as a
+        // person standing in a room at 2x. The exterior silhouette, footprint,
+        // door anchor, hit target and pathfinding are untouched.
+        aperture: {
+            minZoom: 2,
+            layers: ['aperture', 'interior', 'foreground'],
+            cut: { x0: 196, x1: 242, top: 118, bottom: 156, slope: -0.5 },
+            // The open aperture's legend: the working/waiting count and one
+            // row per presented session, on the apron under the cut. Sized in
+            // sprite pixels so it scales with the building, never with the
+            // viewport.
+            legend: { at: [196, 160], w: 84, rowH: 8 },
+            occupant: { h: 26 },
+            slots: [
+                { at: [205, 146] },
+                { at: [220, 139] },
+                { at: [235, 131] },
+            ],
+        },
+        // 4.2 — the hall's work rooms: one authored window per room, lit for
+        // one real working occupant each. Distinct from `windowRects` (the
+        // dusk warmth stamps) and from the gate/tower safety lights, and
+        // deliberately outside the 4.1 cut so an open aperture never argues
+        // with a lit window about the same room.
+        rooms: {
+            countAt: [216, 168],
+            slots: [
+                { at: [133, 114], w: 9, h: 8 },
+                { at: [155, 116], w: 9, h: 8 },
+                { at: [177, 114], w: 9, h: 8 },
+            ],
+        },
     },
     taskboard: {
         material: BUILDING_MATERIAL_REGISTRY.taskboard,
@@ -85,6 +126,17 @@ export const BUILDING_VISUAL_REGISTRY = Object.freeze({
             { at: [182, 62], w: 6, h: 8, shape: 'ellipse' },
         ],
         pennant: { at: [128, 34] },
+        // 4.7 — plan tabs on the slate's wooden frame: one project-coloured
+        // tab per concurrent plan owner, stacked down the left stile with the
+        // exact overflow beneath them. Hit targets, not decoration.
+        planTabs: {
+            at: [62, 84],
+            w: 26,
+            h: 10,
+            gap: 3,
+            max: 3,
+            overflowAt: [62, 124],
+        },
     },
     forge: {
         material: BUILDING_MATERIAL_REGISTRY.forge,
@@ -101,6 +153,22 @@ export const BUILDING_VISUAL_REGISTRY = Object.freeze({
             { at: [157, 143], w: 9, h: 10 },
             { at: [172, 143], w: 9, h: 10 },
         ],
+        // 4.6 — the hearth fire is painted into base.png, so rest needs an
+        // authored mask: `banked.png` restates exactly those pixels as stepped
+        // charcoal over one ember course. Drawn by the building renderer on
+        // canonical READY_EMPTY only, never by the generic layer pass.
+        rest: { layer: 'banked' },
+        // 4.4 — the workload bench. `billets` are the three stepped bars on the
+        // anvil plinth (one per observed count tier), `shelf` is the result
+        // rack under the front windows where a finished command's stamped tile
+        // lands, and `countAt` carries the exact edit-call count on
+        // inspection. The chimney anchor is the one the smoke column uses.
+        workload: {
+            billets: { at: [176, 178], step: [10, -4], w: 8, h: 4 },
+            chimney: { at: [175, 28] },
+            countAt: [172, 208],
+            shelf: { at: [140, 152], step: 11, w: 9, h: 8, max: 4 },
+        },
     },
     mine: {
         material: BUILDING_MATERIAL_REGISTRY.mine,
@@ -131,6 +199,18 @@ export const BUILDING_VISUAL_REGISTRY = Object.freeze({
                 { offset: [-14, 3], w: 28, h: 1 },
             ],
         },
+        // 4.3 — the assay bench: two shallow trays and the coin-stamp rack,
+        // standing in the authored yard in front of the cave mouth, below the
+        // cart rails and clear of the reserve gauge and the visitor slots.
+        assay: {
+            trays: [
+                { at: [100, 202], w: 26, h: 10, kind: 'input' },
+                { at: [130, 202], w: 26, h: 10, kind: 'cacheRead' },
+            ],
+            rack: { at: [164, 200], w: 30, h: 12 },
+            countAt: [128, 220],
+            costAt: [128, 229],
+        },
     },
     archive: {
         material: BUILDING_MATERIAL_REGISTRY.archive,
@@ -150,6 +230,15 @@ export const BUILDING_VISUAL_REGISTRY = Object.freeze({
             { at: [204, 130], w: 5, h: 9 },
         ],
         pennant: { at: [48, 30] },
+        // 4.2 — the archive has exactly two reading rooms in its art. A third
+        // working occupant is a count, never an invented third window.
+        rooms: {
+            countAt: [168, 186],
+            slots: [
+                { at: [139, 130], w: 5, h: 9 },
+                { at: [204, 130], w: 5, h: 9 },
+            ],
+        },
     },
     observatory: {
         material: BUILDING_MATERIAL_REGISTRY.observatory,
@@ -406,6 +495,60 @@ export function getBuildingDoorSpillDescriptor(type, {
         alpha,
         staticAlpha: true,
     };
+}
+
+// 4.1 — optional authored inspection aperture. A building without a profile
+// never opens; the caller keeps the exterior exactly as it ships.
+export function getBuildingApertureProfile(type) {
+    const aperture = getBuildingVisual(type)?.aperture;
+    if (!aperture?.cut || !Array.isArray(aperture.slots) || !aperture.slots.length) return null;
+    if (!Array.isArray(aperture.layers) || aperture.layers.length !== 3) return null;
+    return aperture;
+}
+
+// 4.1 — the layer names the aperture owns, so the generic manifest-layer pass
+// can skip them: they are drawn only during explicit inspection, in the
+// authored order, by the building renderer.
+export function isBuildingApertureLayer(type, layerName) {
+    const visual = getBuildingVisual(type);
+    if (visual?.rest?.layer && visual.rest.layer === layerName) return true;
+    const aperture = visual?.aperture;
+    return Array.isArray(aperture?.layers) && aperture.layers.includes(layerName);
+}
+
+// 4.6 — optional authored rest mask (`banked.png`). Absent = the building has
+// no baked work light to restate and keeps its shipped idle treatment.
+export function getBuildingRestLayer(type) {
+    const layer = getBuildingVisual(type)?.rest?.layer;
+    return typeof layer === 'string' && layer ? layer : null;
+}
+
+// 4.2 — optional authored work rooms (sprite-local windows). Buildings without
+// a profile keep the shipped aggregate night gate.
+export function getBuildingRoomProfile(type) {
+    const rooms = getBuildingVisual(type)?.rooms;
+    if (!Array.isArray(rooms?.slots) || !rooms.slots.length) return null;
+    return rooms;
+}
+
+// 4.3 — optional authored assay bench (sprite-local trays + coin rack). Only
+// the Mine carries one; absent = the building shows no assay instrument.
+export function getBuildingAssayProfile(type) {
+    const assay = getBuildingVisual(type)?.assay;
+    if (!Array.isArray(assay?.trays) || !assay.trays.length) return null;
+    return assay;
+}
+
+// 4.4 — optional authored workload bench (billets, chimney, result shelf).
+export function getBuildingWorkloadProfile(type) {
+    const workload = getBuildingVisual(type)?.workload;
+    return workload?.billets?.at ? workload : null;
+}
+
+// 4.7 — optional authored plan-tab strip on the slate frame.
+export function getBuildingPlanTabProfile(type) {
+    const tabs = getBuildingVisual(type)?.planTabs;
+    return Array.isArray(tabs?.at) ? tabs : null;
 }
 
 // #53 — optional occupancy-pennant anchor (sprite-local pole base). Only hero

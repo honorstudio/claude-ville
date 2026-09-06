@@ -6,29 +6,84 @@ import { getModelVisualIdentity, providerPaletteKey } from '../shared/ModelVisua
 import { getTeamColor } from '../shared/TeamColor.js';
 import { Compositor } from '../character-mode/Compositor.js';
 
-let SPRITE_ASSET_VERSION_PROMISE = null;
+let SPRITE_METADATA_PROMISE = null;
 let SPRITE_ASSET_VERSION = '2026-04-26-visual-revamp'; // overwritten asynchronously on first load
+// Portrait entries resolved from the manifest: spriteId -> { crop, bust }.
+let PORTRAIT_ENTRIES = new Map();
 const AVATAR_CANVASES = new Set();
 
-async function getSpriteAssetVersion() {
-    if (!SPRITE_ASSET_VERSION_PROMISE) {
-        SPRITE_ASSET_VERSION_PROMISE = fetch('assets/sprites/manifest.yaml')
-            .then(r => r.text())
-            .then(text => {
-                const m = text.match(/^\s*assetVersion:\s*"([^"]+)"/m);
-                return m ? m[1] : 'unknown';
-            })
-            .catch(() => 'unknown');
-    }
-    return SPRITE_ASSET_VERSION_PROMISE;
+function normalizeCrop(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    const w = Number(raw.w);
+    const h = Number(raw.h);
+    if (![x, y, w, h].every(Number.isInteger)) return null;
+    if (x < 0 || y < 0 || w <= 0 || h <= 0) return null;
+    return { x, y, w, h };
 }
 
-getSpriteAssetVersion().then(v => {
-    const previous = SPRITE_ASSET_VERSION;
-    SPRITE_ASSET_VERSION = v;
-    if (previous === v) return;
-    for (const avatar of AVATAR_CANVASES) avatar._onSpriteAssetVersionChanged(previous, v);
+async function yamlParser() {
+    if (globalThis.jsyaml?.load) return globalThis.jsyaml;
+    await import('../../../vendor/js-yaml.min.js');
+    return globalThis.jsyaml?.load ? globalThis.jsyaml : null;
+}
+
+// One manifest read serves both the asset version (cache-busting) and the
+// per-character portrait metadata (2.6). A parse failure still yields the
+// asset version, so avatars never lose their cache key over portrait data.
+function loadSpriteMetadata() {
+    if (!SPRITE_METADATA_PROMISE) {
+        SPRITE_METADATA_PROMISE = (async () => {
+            let text = '';
+            try {
+                text = await fetch('assets/sprites/manifest.yaml').then(r => r.text());
+            } catch {
+                return { assetVersion: 'unknown', portraits: new Map() };
+            }
+            const portraits = new Map();
+            let assetVersion = null;
+            try {
+                const manifest = (await yamlParser())?.load(text);
+                assetVersion = manifest?.style?.assetVersion || null;
+                for (const entry of manifest?.characters || []) {
+                    if (!entry?.id) continue;
+                    const crop = normalizeCrop(entry.portraitCrop);
+                    const bust = typeof entry.portrait === 'string' && entry.portrait ? entry.portrait : null;
+                    if (crop || bust) portraits.set(entry.id, { crop, bust });
+                }
+            } catch {
+                // Manifest shape or parser unavailable: portraits stay empty
+                // and every avatar keeps its full-body rendering.
+            }
+            if (!assetVersion) {
+                const m = text.match(/^\s*assetVersion:\s*"([^"]+)"/m);
+                assetVersion = m ? m[1] : 'unknown';
+            }
+            return { assetVersion, portraits };
+        })();
+    }
+    return SPRITE_METADATA_PROMISE;
+}
+
+loadSpriteMetadata().then(({ assetVersion, portraits }) => {
+    const previousVersion = SPRITE_ASSET_VERSION;
+    SPRITE_ASSET_VERSION = assetVersion;
+    PORTRAIT_ENTRIES = portraits;
+    for (const avatar of AVATAR_CANVASES) {
+        avatar._onSpriteMetadataLoaded(previousVersion !== assetVersion);
+    }
 });
+
+// Portrait source for one sprite, from the manifest: a generated 64 px bust
+// (`portrait`) wins over the authored head-and-shoulders crop
+// (`portraitCrop`, cell-local pixels of the composed south idle frame).
+// Neither present means this character has no portrait and keeps the
+// full-body avatar.
+function portraitSourceFor(spriteId) {
+    const entry = PORTRAIT_ENTRIES.get(spriteId);
+    return { crop: entry?.crop || null, bust: entry?.bust || null };
+}
 
 const SPRITE_IMAGE_CACHE = new Map();
 
@@ -59,19 +114,57 @@ function loadSpriteImage(spriteId) {
     return record;
 }
 
+// Generated portrait busts (manifest `portrait` path, relative to the sprite
+// root), cached per path and asset version like the sheets above.
+function loadPortraitImage(relativePath) {
+    const key = `portrait|${relativePath}|${SPRITE_ASSET_VERSION}`;
+    const cached = SPRITE_IMAGE_CACHE.get(key);
+    if (cached) return cached;
+
+    const image = new Image();
+    const record = { image, loaded: false, failed: false, promise: null };
+    record.promise = new Promise((resolve) => {
+        image.onload = () => {
+            record.loaded = true;
+            resolve(record);
+        };
+        image.onerror = () => {
+            record.failed = true;
+            resolve(record);
+        };
+    });
+    image.src = `assets/sprites/${relativePath}?v=${SPRITE_ASSET_VERSION}`;
+    SPRITE_IMAGE_CACHE.set(key, record);
+    return record;
+}
+
+// Idle, south-facing frame row: matches SpriteSheet.js layout.
+const IDLE_SOUTH_ROW = 6;
+
 export function fitAvatarFrame(width, height, maxWidth, maxHeight, integer = false) {
     const fit = Math.min(maxWidth / Math.max(1, width), maxHeight / Math.max(1, height));
     const scale = integer && fit >= 1 ? Math.min(4, Math.floor(fit)) : fit;
     return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
+// Canvas box and the frame area the sprite is fitted into, per size.
+const AVATAR_SIZES = Object.freeze({
+    hero: { w: 96, h: 96, bodyW: 88, bodyH: 82, portraitW: 92, portraitH: 92 },
+    card: { w: 44, h: 52, bodyW: 40, bodyH: 46, portraitW: 44, portraitH: 48 },
+    // 2.6 — the full-body identity witness that stays beside the name when the
+    // hero niche shows a head-and-shoulders portrait, so held weapons and
+    // effort crowns are not erased by the crop.
+    witness: { w: 26, h: 32, bodyW: 24, bodyH: 29, portraitW: 0, portraitH: 0 },
+});
+
 export class AvatarCanvas {
-    // size: 'card' (44x52 dashboard chip) | 'hero' (96x96 Activity Panel portrait, #46).
+    // size: 'card' (44x52 dashboard chip) | 'hero' (96x96 Activity Panel
+    // portrait, #46) | 'witness' (26x32 full-body witness, always full body).
     constructor(agent, size = 'card') {
         this.agent = agent;
-        this.size = size === 'hero' ? 'hero' : 'card';
+        this.size = AVATAR_SIZES[size] ? size : 'card';
         this.canvas = document.createElement('canvas');
-        const dim = this.size === 'hero' ? { w: 96, h: 96 } : { w: 44, h: 52 };
+        const dim = AVATAR_SIZES[this.size];
         this.canvas.width = dim.w;
         this.canvas.height = dim.h;
         this.canvas.style.width = `${dim.w}px`;
@@ -81,13 +174,32 @@ export class AvatarCanvas {
         this.spriteId = null;
         this.spriteAssetVersion = null;
         this.spriteFailed = false;
+        // 2.6 — last painted identity signature; repeated draw() calls from the
+        // 1 Hz panel refresh repaint nothing while the signature holds.
+        this._paintedKey = null;
+        this._portrait = false;
+        this._districtValue = null;
         AVATAR_CANVASES.add(this);
         // 1.7 — redraw once the world's shared Compositor registers (avatars
         // can be created before the world renderer boots); the composited
         // path replaces the raw-sheet fallback on the next draw.
         this._unsubscribeSharedCompositor = Compositor.onSharedAvailable(() => {
-            if (AVATAR_CANVASES.has(this)) this.draw();
+            if (AVATAR_CANVASES.has(this)) this.redraw();
         });
+        this.draw();
+    }
+
+    // True when the last paint was a head-and-shoulders portrait (crop or
+    // bust) rather than the full body. The Activity Panel mounts its witness
+    // on this.
+    isPortrait() {
+        return this._portrait;
+    }
+
+    // Force the next draw to repaint even if the identity signature is
+    // unchanged (asset arrival, asset version change).
+    redraw() {
+        this._paintedKey = null;
         this.draw();
     }
 
@@ -100,8 +212,13 @@ export class AvatarCanvas {
         const trim = identity.trim?.[0] || app.shirt;
         const accent = identity.accent?.[0] || app.skin;
 
+        const key = this._renderKey(identity, app);
+        if (this._paintedKey !== null && this._paintedKey === key) return;
+        this._paintedKey = key;
+
         ctx.clearRect(0, 0, w, h);
         ctx.imageSmoothingEnabled = false;
+        this._portrait = false;
 
         if (this._drawGeneratedSprite(ctx, identity, accent)) {
             return;
@@ -221,19 +338,23 @@ export class AvatarCanvas {
     _drawGeneratedSprite(ctx, identity, accent) {
         const spriteId = identity.spriteId;
         if (!spriteId || this.spriteFailed) return false;
+        if (this._drawPortrait(ctx, identity, accent, spriteId)) {
+            this._portrait = true;
+            return true;
+        }
         const source = this._avatarSheetSource(identity, spriteId);
         if (!source) return false;
 
         const sourceWidth = source.image.naturalWidth || source.image.width;
         const cellSize = Math.floor(sourceWidth / 8);
         if (!Number.isFinite(cellSize) || cellSize <= 0) return false;
-        const sourceRow = 6; // idle, south-facing frame: matches SpriteSheet.js layout.
-        const bounds = this._spriteFrameBounds(source, cellSize, sourceRow);
+        const bounds = this._spriteFrameBounds(source, cellSize, IDLE_SOUTH_ROW);
         const sourceW = bounds.maxX - bounds.minX + 1;
         const sourceH = bounds.maxY - bounds.minY + 1;
         const hero = this.size === 'hero';
+        const box = AVATAR_SIZES[this.size];
         const { width: targetW, height: targetH } = fitAvatarFrame(
-            sourceW, sourceH, hero ? 88 : 40, hero ? 82 : 46, hero,
+            sourceW, sourceH, box.bodyW, box.bodyH, hero,
         );
         const dx = Math.round((this.canvas.width - targetW) / 2);
         const groundPad = hero ? 8 : 3;
@@ -242,12 +363,13 @@ export class AvatarCanvas {
         ctx.save();
         // Warm-tinted ground shadow so the avatar sits in the parchment niche
         // behind it (village house style, #20) rather than on a cold black dab.
-        const ellipseRx = hero ? 24 : 14;
+        const ellipseRx = hero ? 24 : Math.round(box.bodyW * 0.35);
         const ellipseRy = hero ? 6 : 4;
         const ellipseY = this.canvas.height - (hero ? 7 : 5);
         // 4.4 — district ground tint: the card stamps --cv-building-rgb (#30),
         // so the avatar stands on its district's color beneath the warm shadow.
-        const districtRgb = this._districtRgb();
+        // Read once per draw by the render key; reused here.
+        const districtRgb = this._districtValue;
         if (districtRgb) {
             ctx.fillStyle = `rgba(${districtRgb}, 0.22)`;
             ctx.beginPath();
@@ -261,7 +383,7 @@ export class AvatarCanvas {
         ctx.drawImage(
             source.image,
             bounds.minX,
-            sourceRow * cellSize + bounds.minY,
+            IDLE_SOUTH_ROW * cellSize + bounds.minY,
             sourceW,
             sourceH,
             dx,
@@ -269,9 +391,72 @@ export class AvatarCanvas {
             targetW,
             targetH
         );
-        this._drawEffortCrest(ctx, identity, accent);
+        if (this.size !== 'witness') this._drawEffortCrest(ctx, identity, accent);
         ctx.restore();
         return true;
+    }
+
+    // 2.6 — head-and-shoulders portrait: a generated 64 px bust when the
+    // manifest carries one, else the authored crop of the composed south idle
+    // frame at integer enlargement. The crop is taken from the accessory-free
+    // composite so a runtime effort crown can never be sliced in half — the
+    // crown stays on the full-body witness and the corner crest states the
+    // tier. Returns false whenever no portrait metadata resolves, which
+    // leaves the full-body avatar exactly as it was.
+    _drawPortrait(ctx, identity, accent, spriteId) {
+        const box = AVATAR_SIZES[this.size];
+        if (!box.portraitW || !box.portraitH) return false;
+        const { crop, bust } = portraitSourceFor(spriteId);
+
+        const bustImage = bust ? this._bustImage(bust) : null;
+        if (bustImage) {
+            this._drawPortraitImage(ctx, bustImage, 0, 0, bustImage.naturalWidth, bustImage.naturalHeight, box);
+            this._drawEffortCrest(ctx, identity, accent);
+            return true;
+        }
+        if (!crop) return false;
+
+        const source = this._avatarSheetSource(identity, spriteId, { accessory: false });
+        if (!source) return false;
+        const cellSize = Math.floor((source.image.naturalWidth || source.image.width) / 8);
+        if (!Number.isFinite(cellSize) || cellSize <= 0) return false;
+        // Crop metadata authored against a different cell size cannot be
+        // trusted; fall back to the full body rather than blit garbage.
+        if (crop.x + crop.w > cellSize || crop.y + crop.h > cellSize) return false;
+
+        this._drawPortraitImage(
+            ctx,
+            source.image,
+            crop.x,
+            IDLE_SOUTH_ROW * cellSize + crop.y,
+            crop.w,
+            crop.h,
+            box,
+        );
+        this._drawEffortCrest(ctx, identity, accent);
+        return true;
+    }
+
+    _drawPortraitImage(ctx, image, sx, sy, sw, sh, box) {
+        const { width: targetW, height: targetH } = fitAvatarFrame(sw, sh, box.portraitW, box.portraitH, true);
+        const dx = Math.round((this.canvas.width - targetW) / 2);
+        const dy = Math.round((this.canvas.height - targetH) / 2);
+        ctx.save();
+        ctx.drawImage(image, sx, sy, sw, sh, dx, dy, targetW, targetH);
+        ctx.restore();
+    }
+
+    // Generated bust (manifest `portrait` path). Loaded once per path and
+    // asset version through the shared image cache; the avatar repaints when
+    // it arrives.
+    _bustImage(path) {
+        const record = loadPortraitImage(path);
+        if (record.failed) return null;
+        if (record.loaded || (record.image.complete && record.image.naturalWidth)) return record.image;
+        record.promise.then(() => {
+            if (AVATAR_CANVASES.has(this)) this.redraw();
+        });
+        return null;
     }
 
     // 1.7 — the avatar requests the exact composited bitmap the world draws
@@ -279,12 +464,12 @@ export class AvatarCanvas {
     // Compositor, keyed identically, so World and Dashboard show the same
     // villager and share one cache. Falls back to the raw sheet image while
     // the compositor is unavailable (early boot) or missing the asset.
-    _avatarSheetSource(identity, spriteId) {
+    _avatarSheetSource(identity, spriteId, { accessory: withAccessory = true } = {}) {
         const compositor = Compositor.shared();
         if (compositor) {
             const providerKey = providerPaletteKey(this.agent);
             const paletteKey = identity.paletteKey || providerKey;
-            const accessory = identity.allowRuntimeEffortAccessory !== false
+            const accessory = withAccessory && identity.allowRuntimeEffortAccessory !== false
                 ? (identity.effortAccessory || null)
                 : null;
             const composited = compositor.spriteFor(
@@ -342,15 +527,54 @@ export class AvatarCanvas {
             return false;
         }
         if (record.loaded || (record.image.complete && record.image.naturalWidth)) return true;
-        record.promise.then(() => this.draw());
+        record.promise.then(() => this.redraw());
         return false;
     }
 
-    _onSpriteAssetVersionChanged() {
-        if (!this.spriteId || this.spriteAssetVersion === SPRITE_ASSET_VERSION) return;
-        this.spriteImage = null;
-        this.spriteFailed = false;
-        this.draw();
+    // 2.6 — the manifest read supplies both the asset version and the portrait
+    // metadata, so a resolved manifest always repaints: the portrait may have
+    // just become available for this identity.
+    _onSpriteMetadataLoaded(versionChanged) {
+        if (versionChanged) {
+            this.spriteImage = null;
+            this.spriteFailed = false;
+        }
+        this.redraw();
+    }
+
+    // Everything the painted pixels depend on. Identical key means the canvas
+    // already holds this exact avatar, so the 1 Hz panel refresh and the
+    // dashboard's per-frame draw calls cost nothing.
+    _renderKey(identity, appearance) {
+        const app = appearance || {};
+        const spriteId = identity.spriteId || '';
+        const portrait = spriteId ? portraitSourceFor(spriteId) : { crop: null, bust: null };
+        const crop = portrait.crop;
+        // One style read per draw, shared with the ground-tint paint below.
+        this._districtValue = this._districtRgb();
+        return [
+            this.size,
+            SPRITE_ASSET_VERSION,
+            spriteId,
+            identity.paletteKey || '',
+            identity.effortTier || '',
+            identity.effortAccessory || '',
+            identity.modelClass || '',
+            this._paletteVariant(providerPaletteKey(this.agent)),
+            this._teamTrimAccent() || '',
+            this._districtValue || '',
+            Compositor.shared() ? 'composited' : 'sheet',
+            this.spriteFailed ? 'failed' : '',
+            portrait.bust || '',
+            crop ? `${crop.x},${crop.y},${crop.w},${crop.h}` : '',
+            app.skin || '',
+            app.shirt || '',
+            app.pants || '',
+            app.hair || '',
+            app.hairStyle || '',
+            app.eyeStyle || '',
+            app.accessory || '',
+        ].join('|');
     }
 
     // Content bounds of one sheet cell, cached on the source itself (the

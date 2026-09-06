@@ -22,6 +22,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { PNG } from 'pngjs';
 import yaml from 'js-yaml';
+import { blitPng, fitCenterToCell } from './pixellab-rest.mjs';
+import { rewriteEntryKeys } from './manifest-utils.mjs';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const cacheRoot = join(repoRoot, 'output', 'character-mcp-cache');
@@ -108,7 +110,7 @@ async function main() {
             if (!frames || frames.length !== end - start + 1) throw new Error(`${selection.name} missing direction ${dir} or wrong frame count`);
             for (let f = 0; f < frames.length; f++) {
                 const frame = fitCenter(readPng(join(extractDir, frames[f])), SOURCE);
-                blit(frame, sheet, col * CELL, (start + f) * CELL);
+                blitPng(frame, sheet, col * CELL, (start + f) * CELL);
             }
         }
     }
@@ -151,65 +153,21 @@ function characterManifestEntry(spriteId) {
 }
 
 function manifestLedgerUpdate(spriteId, animationGroups, provenance) {
-    const source = readFileSync(manifestPath, 'utf8');
-    const lines = source.split('\n');
-    const start = lines.findIndex((line) => line === `  - id: ${spriteId}`);
-    if (start < 0) return null; // Explicit scratch-only --allow-unmanifested path.
-    let end = start + 1;
-    while (end < lines.length && !/^  - id:|^[^\s#]/.test(lines[end])) end++;
-    const block = lines.slice(start, end);
-    for (const key of ['animationGroups', 'provenance']) {
-        const index = block.findIndex((line) => line.startsWith(`    ${key}:`));
-        if (index < 0) continue;
-        let stop = index + 1;
-        while (stop < block.length && /^      \S|^        /.test(block[stop])) stop++;
-        block.splice(index, stop - index);
-    }
     const metadata = yaml.dump({ animationGroups, provenance }, { lineWidth: -1, noRefs: true })
         .trimEnd().split('\n').map((line) => `    ${line}`);
-    block.splice(1, 0, ...metadata);
-    lines.splice(start, end - start, ...block);
-    return lines.join('\n');
+    // null for the explicit scratch-only --allow-unmanifested path.
+    return rewriteEntryKeys(
+        readFileSync(manifestPath, 'utf8'),
+        spriteId,
+        ['animationGroups', 'provenance'],
+        metadata,
+    );
 }
 
-// Centre a SOURCE×SOURCE frame in a CELL×CELL window: crop when the source is
-// larger, pad with transparency when it is smaller.
+// Assert the export canvas the metadata declared, then centre it in the cell.
 function fitCenter(src, source) {
     if (src.width !== source || src.height !== source) {
         throw new Error(`expected ${source}×${source}, got ${src.width}×${src.height}`);
     }
-    const off = Math.floor((source - CELL) / 2);
-    const out = new PNG({ width: CELL, height: CELL });
-    out.data.fill(0);
-    for (let y = 0; y < CELL; y++) {
-        const syy = off + y;
-        if (syy < 0 || syy >= source) continue;
-        for (let x = 0; x < CELL; x++) {
-            const sxx = off + x;
-            if (sxx < 0 || sxx >= source) continue;
-            const si = (src.width * syy + sxx) << 2;
-            const di = (CELL * y + x) << 2;
-            out.data[di] = src.data[si];
-            out.data[di + 1] = src.data[si + 1];
-            out.data[di + 2] = src.data[si + 2];
-            out.data[di + 3] = src.data[si + 3];
-        }
-    }
-    return out;
-}
-
-function blit(src, dst, dx, dy) {
-    for (let y = 0; y < src.height; y++) {
-        for (let x = 0; x < src.width; x++) {
-            const si = (src.width * y + x) << 2;
-            const dxx = dx + x;
-            const dyy = dy + y;
-            if (dxx < 0 || dyy < 0 || dxx >= dst.width || dyy >= dst.height) continue;
-            const di = (dst.width * dyy + dxx) << 2;
-            dst.data[di] = src.data[si];
-            dst.data[di + 1] = src.data[si + 1];
-            dst.data[di + 2] = src.data[si + 2];
-            dst.data[di + 3] = src.data[si + 3];
-        }
-    }
+    return fitCenterToCell(src, CELL);
 }

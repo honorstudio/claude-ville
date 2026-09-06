@@ -1082,7 +1082,80 @@ function buildGrade(phase, phaseProgress, weather) {
     };
 }
 
-function buildLighting(minute, seasonToken, phase, phaseProgress, weather) {
+// 3.1 — the dusk exposure contract. One source-energy envelope is shared by
+// every consumer of motivated light: the emissive core (authored emission),
+// the near receiver (admitted local lights and their wet reflections), and the
+// broad bloom halo. Before this table each of those read its own continuous
+// boost (`lightBoost`, `emissivePhase`, `beaconIntensity`, `buildingGlowScale`)
+// and the products stacked, so dusk brightened four times over and the
+// Lighthouse/Harbor halos outgrew the work they were lighting.
+//
+// The envelope is a small set of reviewed buckets, never a continuous product:
+// energy is allocated cores first, then spill/reflection, and bloom last
+// (`core >= bloom` in every bucket). `halo` caps halo *area* together with the
+// absolute cap in `BuildingSprite`; brightness never grows with a crowd count.
+// Action-needed overlays are outside this budget: the renderer applies `spill`
+// per admitted light and skips attention sources.
+export const SOURCE_ENERGY_BUCKETS = Object.freeze({
+    // Authored emitters stay identifiable in daylight without floodlighting.
+    daylight: Object.freeze({ bucket: 'daylight', core: 0.14, spill: 0.06, bloom: 0.12, halo: 0.72 }),
+    // The sky is going but the working windows have not taken over yet.
+    settling: Object.freeze({ bucket: 'settling', core: 0.46, spill: 0.42, bloom: 0.22, halo: 0.84 }),
+    // The night window gate is opening: cores read first, spill follows.
+    lamplight: Object.freeze({ bucket: 'lamplight', core: 0.90, spill: 0.92, bloom: 0.34, halo: 0.96 }),
+    // Full night: cores and near receivers at full energy, halo still small.
+    'deep-night': Object.freeze({ bucket: 'deep-night', core: 1, spill: 1.15, bloom: 0.42, halo: 1 }),
+});
+
+// Feeds and fixtures authored before the envelope keep today's response.
+export const NEUTRAL_SOURCE_ENERGY = Object.freeze({
+    bucket: 'unreviewed', core: 1, spill: 1, bloom: 1, halo: 1,
+});
+
+const OVERCAST_WEATHER_TYPES = new Set(['rain', 'storm', 'overcast']);
+const SOURCE_ENERGY_ORDER = ['daylight', 'settling', 'lamplight', 'deep-night'];
+
+/**
+ * Pick one reviewed exposure bucket. `nightWindowGate`'s dusk shoulder stays
+ * the authority on *when* working windows light up; this only decides how much
+ * energy each consumer may spend once they do. Heavy weather promotes the
+ * bucket by exactly one step (never past `lamplight`) because the sky really is
+ * that much darker — it is a step, not another multiplier.
+ */
+export function sourceEnergyEnvelope(phase, phaseProgress = 0, weather = null) {
+    const progress = clamp(phaseProgress);
+    let index;
+    if (phase === 'night') index = progress <= 0.2 ? 2 : 3;
+    else if (phase === 'dusk') index = progress >= 0.8 ? 2 : progress >= 0.5 ? 1 : 0;
+    else if (phase === 'dawn') index = progress <= 0.4 ? 2 : progress <= 0.7 ? 1 : 0;
+    else index = 0;
+    if (index < 2 && OVERCAST_WEATHER_TYPES.has(weather?.type) && clamp(weather?.intensity) >= 0.5) {
+        index += 1;
+    }
+    return SOURCE_ENERGY_BUCKETS[SOURCE_ENERGY_ORDER[index]];
+}
+
+/** The envelope a lighting state carries, or today's neutral response. */
+export function sourceEnergyFor(lighting) {
+    const energy = lighting?.sourceEnergy;
+    return energy && Number.isFinite(Number(energy.core)) ? energy : NEUTRAL_SOURCE_ENERGY;
+}
+
+/**
+ * 3.4 — one `moonFill` scalar from the lunar illumination this module already
+ * computes, the moon's own visibility alpha, and cloud transmission. Strictly
+ * night-only: dusk and dawn shoulders keep their authored grade, and no
+ * daylight surface is relit. Consumers turn this into one of three reviewed
+ * night ambient courses through the shared grade table.
+ */
+export function moonFillFor(phase, moon, weather) {
+    if (phase !== 'night' || !moon?.visible) return 0;
+    const illumination = clamp(moon.phase?.illumination ?? 0);
+    const transmission = clamp(1 - clamp(weather?.cloudCover ?? 0) * 0.85);
+    return clamp(illumination * clamp(moon.alpha ?? 0) * transmission);
+}
+
+function buildLighting(minute, seasonToken, phase, phaseProgress, weather, moon = null) {
     const light = phaseLight(phase, phaseProgress);
     const dark = 1 - light;
     const dawnWarmth = phase === 'dawn' ? 1 - smoothstep(phaseProgress) : 0;
@@ -1115,6 +1188,8 @@ function buildLighting(minute, seasonToken, phase, phaseProgress, weather) {
         sunBloomScale: clamp(0.85 + sunWarmth * 0.95 - weatherDim * 0.35, 0.65, 1.85),
         beaconIntensity: clamp(dark * 0.9 + sunWarmth * 0.25 + weatherDim * 0.25, 0, 1),
         waterGlintScale: clamp(0.64 + light * 0.28 + sunWarmth * 0.48 - weatherDim * 0.22, 0.32, 1.42),
+        sourceEnergy: sourceEnergyEnvelope(phase, phaseProgress, weather),
+        moonFill: moonFillFor(phase, moon, weather),
     });
 }
 
@@ -1132,6 +1207,12 @@ export function normalizeLightingState(state = {}) {
         sunBloomScale: clamp(state.sunBloomScale ?? 1, 0, 2),
         beaconIntensity: clamp(state.beaconIntensity ?? 0, 0, 1),
         waterGlintScale: clamp(state.waterGlintScale ?? 1, 0, 2),
+        // Carried verbatim: the envelope is a reviewed bucket object, and a
+        // feed authored without one keeps today's neutral response.
+        sourceEnergy: state.sourceEnergy && Number.isFinite(Number(state.sourceEnergy.core))
+            ? state.sourceEnergy
+            : NEUTRAL_SOURCE_ENERGY,
+        moonFill: clamp(state.moonFill ?? 0),
     };
 }
 
@@ -1234,7 +1315,8 @@ export function createAtmosphereSnapshot({
     const cloudDensity = clamp(preset.cloudDensity * (0.58 + intensity * 0.28 + cloudCover * 0.52));
     const transition = phaseTransition(phase, phaseProgress);
     const assetIds = SKY_ASSETS[weather.type] || SKY_ASSETS.clear;
-    const lighting = buildLighting(minute, seasonToken, phase, phaseProgress, weather);
+    const moon = buildMoon(minute, phase, phaseProgress, weather, effectiveDate, phases);
+    const lighting = buildLighting(minute, seasonToken, phase, phaseProgress, weather, moon);
     const timeBucket = Math.floor(dayProgress * 96);
     const lightBucket = Math.round(phaseLight(phase, phaseProgress) * 100);
     const intensityBucket = Math.round(intensity * 10);
@@ -1254,7 +1336,9 @@ export function createAtmosphereSnapshot({
         // 5.5 — weather.cause ('timeline' | 'fleet') is part of the key so
         // baked storm plates re-bake when a storm flips between fleet-driven
         // (violet cast) and timeline-driven.
-        cacheKey: `${phase}|${weather.type}|i${intensityBucket}|c${cloudBucket}|p${precipitationBucket}|f${fogBucket}|b${timeBucket}|l${lightBucket}|${weather.cause === 'fleet' ? 'fleet' : 'timeline'}`,
+        // 3.4 — `mN` is the reviewed night ambient course: the cached Canvas
+        // grade overlay and baked plates must re-bake when the moon changes it.
+        cacheKey: `${phase}|${weather.type}|i${intensityBucket}|c${cloudBucket}|p${precipitationBucket}|f${fogBucket}|b${timeBucket}|l${lightBucket}|m${Math.round(lighting.moonFill * 10)}|${weather.cause === 'fleet' ? 'fleet' : 'timeline'}`,
         weather,
         // Additive local-atmosphere contract. The shared sky remains coherent;
         // renderers may paint these feathered effects around project occupants.
@@ -1263,7 +1347,7 @@ export function createAtmosphereSnapshot({
             palette: blendPalette(phase, phaseProgress, weather),
             assetIds,
             sun: buildSun(minute, phase, phaseProgress, weather, phases),
-            moon: buildMoon(minute, phase, phaseProgress, weather, effectiveDate, phases),
+            moon,
             starsAlpha: starAlpha(phase, phaseProgress, weather),
             cloudAlpha,
             cloudDensity,

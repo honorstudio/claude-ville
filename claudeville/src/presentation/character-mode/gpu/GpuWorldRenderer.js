@@ -4,27 +4,41 @@ import {
     createGpuTimingMetricsScratch,
     effectBudgetMode,
     shedEffectsForLevel,
-    emissivePhaseForAmbientLight,
     estimateGpuWorldTextureBytes,
     gpuLightColorForShader,
+    isAttentionLight,
     localLightPhaseForLighting,
     selectGpuTimingMetrics,
-    WORLD_PHASE_GRADES,
+    worldPhaseGrade,
 } from './GpuWorldPolicy.js';
 import {
     createPostFxLadder,
     POST_FX_LEVELS,
 } from '../postfx/PostFxLadder.js';
 import { glslMaterialWeatherFunctions } from '../MaterialRegistry.js';
+import { NEUTRAL_SOURCE_ENERGY, sourceEnergyFor } from '../AtmosphereState.js';
 import { growTypedArray } from '../AssetManager.js';
 
 const MAX_LIGHTS = 32;
-const VERTEX_FLOATS = 10;
+// 3.5 adds one float: the per-record palette-ramp opt-in. It cannot ride an
+// existing channel — `material` is overridden by the sidecar's own class byte
+// and `gate` carries authored emission — so the pilot gets its own lane.
+const VERTEX_FLOATS = 11;
 const VERTEX_STRIDE = VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT;
 const BLOOM_SCALE = 0.375;
 const OCCLUSION_SCALE = 0.375;
 const EMA_ALPHA = 0.1;
-const MAX_CACHED_TEXTURE_BYTES = 48 * 1024 * 1024;
+// 3.5's ramp table (11x3 RGBA = 132 B) and 3.3's ground-receiver field
+// (2 x 256x144 RGBA8 = 294,912 B) are new resident bytes, so the evictable
+// cached-source ceiling gives up exactly that much: the renderer's total
+// resident texture ceiling is unchanged from the shipped 48 MiB.
+const PALETTE_LUT_WIDTH = 11;
+const PALETTE_LUT_HEIGHT = 3;
+const PALETTE_LUT_BYTES = PALETTE_LUT_WIDTH * PALETTE_LUT_HEIGHT * 4;
+const SPILL_FIELD_WIDTH = 256;
+const SPILL_FIELD_HEIGHT = 144;
+const SPILL_FIELD_BYTES = SPILL_FIELD_WIDTH * SPILL_FIELD_HEIGHT * 4 * 2;
+const MAX_CACHED_TEXTURE_BYTES = 48 * 1024 * 1024 - PALETTE_LUT_BYTES - SPILL_FIELD_BYTES;
 const MAX_CACHED_TEXTURES = 512;
 const LOCAL_LIGHT_VISIBILITY_FLOOR = 0.04;
 const DEFAULT_LIGHT_COLOR = Object.freeze([1, 0.78, 0.42]);
@@ -42,6 +56,7 @@ function writeGpuVertex(vertices, offset, x, y, u, v, record) {
     vertices[offset++] = record.emissive;
     vertices[offset++] = record.occluder;
     vertices[offset++] = record.emissiveGate ?? 1;
+    vertices[offset++] = record.paletteRamp ? 1 : 0;
     return offset;
 }
 
@@ -70,6 +85,7 @@ layout(location = 1) in vec2 a_uv;
 layout(location = 2) in vec4 a_meta;
 layout(location = 3) in float a_occluder;
 layout(location = 4) in float a_gate;
+layout(location = 5) in float a_ramp;
 uniform vec3 u_camera;
 uniform vec2 u_resolution;
 out vec2 v_uv;
@@ -80,6 +96,7 @@ out float v_elevation;
 out float v_emissive;
 out float v_occluder;
 out float v_gate;
+out float v_ramp;
 void main() {
     vec2 screen = (a_world + u_camera.xy) * u_camera.z;
     vec2 clip = vec2(
@@ -95,6 +112,7 @@ void main() {
     v_emissive = a_meta.w;
     v_occluder = a_occluder;
     v_gate = a_gate;
+    v_ramp = a_ramp;
 }`;
 
 const SCENE_FRAGMENT = `#version 300 es
@@ -106,6 +124,7 @@ in float v_material;
 in float v_elevation;
 in float v_emissive;
 in float v_gate;
+in float v_ramp;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outEmission;
 uniform sampler2D u_albedo;
@@ -131,6 +150,28 @@ uniform bool u_useOcclusion;
 uniform int u_lightCount;
 uniform vec4 u_lights[32];
 uniform vec4 u_lightColors[32];
+// 3.1 — the emissive-core share of the shared source-energy envelope. The
+// spill/reflection share rides each light's own alpha channel (staged on the
+// CPU) so action-needed overlays stay outside this budget, and the bloom share
+// is applied once in the composite. One envelope, three consumers.
+uniform float u_coreEnergy;
+// 3.4 — reviewed night fill (0 outside night). Only the FULL water silver
+// course reads it in the scene pass; the ambient course is a grade selection.
+uniform float u_moonFill;
+uniform bool u_waterSilver;
+// 3.2 — accumulated surface wetness from real precipitation history, and how
+// many admitted sources may carry a wet reflection at this ladder level.
+uniform float u_wetness;
+uniform int u_wetReflectionCount;
+// 3.5 — authored palette ramp for the Command pilot. 11 px wide (material
+// class id) x 3 px tall (course: barely lit / mid / light). RGB is a tint
+// multiplier encoded as texel * 2 (0.5 = x1.0), A an authored additive lift
+// scaled by PALETTE_LUT_LIFT. Nearest-sampled; absent table = today response.
+uniform sampler2D u_paletteLut;
+uniform bool u_hasPaletteLut;
+// Action-needed lights are outside the exposure budget and outside the ramp:
+// bit i is set when admitted light i is an attention source.
+uniform uint u_attentionMask;
 
 float materialNear(float value, float target) {
     return 1.0 - step(0.45, abs(value - target));
@@ -169,11 +210,17 @@ vec3 applyMaterialWeather(vec3 color, float material, vec2 px) {
     float foliage = materialNear(material, 4.0);
     float phase = u_motionScale <= 0.0 ? 0.37 : u_time * 0.001 * u_motionScale;
     float ordered = orderedDither4(px);
-    float wet = rain * wetness;
+    // 3.2 — darkening follows the accumulated surface wetness, not just live
+    // precipitation, so a street stays wet as the rain stops and MINIMAL (with
+    // weather amplitude shed) still shows the static wet course.
+    float wet = max(rain, u_wetness) * wetness;
     color *= mix(1.0, 0.80, wet);
     color = mix(color, color * vec3(0.82, 0.94, 1.08), wet * 0.24);
+    // Where an admitted source reflection carries the read, the anonymous
+    // glint noise steps aside instead of competing with it.
+    float glintShare = u_wetReflectionCount > 0 ? 0.30 : 1.0;
     float glint = step(0.86, fract((px.x + px.y * 0.5) * 0.031 + phase * 0.07 + ordered * 0.08));
-    color += vec3(0.22, 0.30, 0.34) * glint * wet * reflection * 0.16;
+    color += vec3(0.22, 0.30, 0.34) * glint * wet * reflection * 0.16 * glintShare;
     color = mix(color, color * vec3(0.86, 0.94, 0.82), rain * foliage * 0.12);
     return color;
 }
@@ -188,7 +235,14 @@ vec3 applyWaterState(vec3 color, vec2 px) {
     float shimmer = step(2.0, mix(calmCourse, roughCourse, storm));
     float contrast = mix(0.07, 0.13, storm);
     vec3 phaseTint = mix(vec3(0.82, 0.94, 1.08), u_gradeBase, 0.22);
-    return color * phaseTint * mix(1.0 - contrast, 1.0 + contrast, shimmer);
+    vec3 tinted = color * phaseTint * mix(1.0 - contrast, 1.0 + contrast, shimmer);
+    // 3.4 — FULL only, bright moon only: one extra silver course on the same
+    // world cells as the palette cycle. A new-moon night never receives it.
+    if (u_waterSilver && u_moonFill >= 0.5) {
+        float silver = step(3.0, mod(calmCell.x + 3.0 * calmCell.y, 5.0));
+        tinted = mix(tinted, tinted * vec3(1.10, 1.14, 1.20), silver * 0.5);
+    }
+    return tinted;
 }
 
 vec3 applyAuthoredSunBand(vec3 color, float material) {
@@ -255,11 +309,10 @@ void main() {
         emissionColor = vec3(0.0);
         emissive = 0.0;
     }
-    // Authored emitters remain identifiable in daylight without behaving like
-    // night-time floodlights. Ambient light falls through dusk/night, smoothly
-    // restoring their full energy when illumination is actually needed.
-    float emissivePhase = mix(0.12, 1.0, 1.0 - clamp(u_sun.w, 0.0, 1.0));
-    emissive *= emissivePhase;
+    // 3.1 — the reviewed emissive-core share replaces the old continuous
+    // ambient ramp: authored emitters stay identifiable by day and reach full
+    // energy once the exposure envelope says the village needs them.
+    emissive *= u_coreEnergy;
     vec4 geometry = u_hasOccluderMap ? texture(u_occluderMap, v_uv) : vec4(0.0);
     float elevation = geometry.a > 0.0 ? geometry.r : v_elevation;
     vec2 px = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
@@ -268,11 +321,22 @@ void main() {
     // Clear weather is the overwhelmingly common case. Avoid the ordered
     // glint/material classification work when every weather contribution is
     // mathematically zero; rainy output remains byte-for-byte equivalent.
-    if (u_weather.x > 0.001) color = applyMaterialWeather(color, material, v_world);
+    if (u_weather.x > 0.001 || u_wetness > 0.001) color = applyMaterialWeather(color, material, v_world);
     if (materialNear(material, 8.0) > 0.5) color = applyWaterState(color, v_world);
     color = applyAuthoredSunBand(color, material);
     color = applyGrade(color, px, material);
 
+    // 3.2 — the approved wet receiver is classified lazily: only a fragment
+    // that a reflecting source actually reaches pays for the classification,
+    // so an unlit street costs nothing. Water keeps its own reflection course;
+    // timber, fabric and foliage never carry a source reflection.
+    float wetReceiver = -1.0;
+    float waterReceiver = materialNear(material, 8.0);
+    // 3.5 — a pilot pixel collects the admitted light as one scalar instead of
+    // adding it toward white; the authored ramp then decides what that much
+    // light does to this material.
+    bool rampPixel = u_hasPaletteLut && v_ramp > 0.5;
+    float admitted = 0.0;
     for (int i = 0; i < 32; i++) {
         if (i >= u_lightCount) break;
         vec4 light = u_lights[i];
@@ -282,13 +346,47 @@ void main() {
         float falloff = 1.0 - smoothstep(0.0, radius, distanceToLight);
         float blocked = u_useOcclusion ? occlusionBetween(glPx, light.xy, elevation) : 0.0;
         float amount = falloff * light.w * (1.0 - blocked * 0.88);
-        color += u_lightColors[i].rgb * amount * u_lightColors[i].a * 0.34;
-        float waterReceiver = materialNear(material, 8.0);
+        bool attention = (u_attentionMask & (1u << uint(i))) != 0u;
+        if (rampPixel && !attention) {
+            admitted += amount * u_lightColors[i].a;
+        } else {
+            color += u_lightColors[i].rgb * amount * u_lightColors[i].a * 0.34;
+        }
         float reflectionX = 1.0 - smoothstep(0.0, radius * 0.30, abs(glPx.x - light.x));
         float reflectionY = 1.0 - smoothstep(0.0, radius * 1.70, abs(glPx.y - light.y));
         float reflectionCourse = step(0.52, fract((floor(v_world.x) + floor(v_world.y) * 0.5) * 0.125));
         color += u_lightColors[i].rgb * waterReceiver * reflectionX * reflectionY
             * reflectionCourse * light.w * u_lightColors[i].a * 0.10;
+        // The source's own hue lies in a world-space downward footprint below
+        // the lantern or window, broken on the world grid and clipped by the
+        // same occluders as its direct light, so it never crosses a roof.
+        if (i < u_wetReflectionCount) {
+            if (wetReceiver < 0.0) {
+                wetReceiver = max(
+                    materialNear(material, 7.0),
+                    max(materialNear(material, 1.0), materialNear(material, 6.0))
+                ) * u_wetness * materialWetness(material);
+            }
+            if (wetReceiver > 0.01) {
+                float drop = light.y - glPx.y;
+                float footprint = step(0.0, drop) * (1.0 - smoothstep(0.0, radius * 1.30, drop));
+                float lateral = 1.0 - smoothstep(0.0, radius * 0.26, abs(glPx.x - light.x));
+                float wetCourse = step(0.55, fract((floor(v_world.x) + floor(v_world.y) * 0.5) * 0.125 + 0.37));
+                color += u_lightColors[i].rgb * wetReceiver * footprint * lateral * wetCourse
+                    * light.w * u_lightColors[i].a * (1.0 - blocked) * 0.22;
+            }
+        }
+    }
+    // 3.5 — two reviewed thresholds pick the dark / mid / light course. The
+    // ramp multiplies the authored albedo and adds one authored lift, so slate
+    // stays slate and gold reaches its own highlight instead of bleaching.
+    if (rampPixel && admitted > 0.0) {
+        float course = step(0.14, admitted) + step(0.45, admitted);
+        vec4 ramp = texture(u_paletteLut, vec2(
+            (material + 0.5) / 11.0,
+            (course + 0.5) / 3.0
+        ));
+        color = color * (ramp.rgb * 2.0) + vec3(ramp.a * 0.25) * step(0.14, admitted);
     }
 
     float fog = clamp(u_weather.y, 0.0, 1.0);
@@ -427,7 +525,7 @@ function uniformLocations(gl, program, names) {
 
 function phaseGrade(feed = {}) {
     const phase = String(feed.phase || feed.atmosphere?.phase || 'day').toLowerCase();
-    return WORLD_PHASE_GRADES[phase] || WORLD_PHASE_GRADES.day;
+    return worldPhaseGrade(phase, feed.lighting?.moonFill ?? feed.atmosphere?.lighting?.moonFill ?? 0);
 }
 
 function weatherUniform(feed = {}) {
@@ -495,7 +593,8 @@ export class GpuWorldRenderer {
         this.records = 0;
         this.batches = 0;
         this.lightCount = 0;
-        this.emissivePhase = 0.12;
+        this.sourceEnergy = NEUTRAL_SOURCE_ENERGY;
+        this.wetReflectionCount = 0;
         this.localLightPhase = 0;
         this.uploadMs = null;
         this.cpuMs = null;
@@ -633,7 +732,9 @@ export class GpuWorldRenderer {
             'u_edgeAlpha', 'u_fogColor', 'u_weather', 'u_time', 'u_motionScale',
             'u_sun', 'u_cloudShadow[0]',
             'u_lightCount', 'u_lights[0]', 'u_lightColors[0]',
-            'u_useOcclusion',
+            'u_useOcclusion', 'u_coreEnergy', 'u_moonFill', 'u_waterSilver',
+            'u_wetness', 'u_wetReflectionCount',
+            'u_paletteLut', 'u_hasPaletteLut', 'u_attentionMask',
         ]);
         this.occlusionUniforms = uniformLocations(gl, this.occlusionProgram, [
             'u_camera', 'u_resolution', 'u_albedo', 'u_materialMap',
@@ -657,6 +758,8 @@ export class GpuWorldRenderer {
         gl.vertexAttribPointer(3, 1, gl.FLOAT, false, VERTEX_STRIDE, 8 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(4);
         gl.vertexAttribPointer(4, 1, gl.FLOAT, false, VERTEX_STRIDE, 9 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(5);
+        gl.vertexAttribPointer(5, 1, gl.FLOAT, false, VERTEX_STRIDE, 10 * Float32Array.BYTES_PER_ELEMENT);
         gl.bindVertexArray(null);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         this.emptyMaterialTexture = this._createTexture(1, 1, {
@@ -1257,7 +1360,37 @@ export class GpuWorldRenderer {
                     this.height,
                 ),
         );
-        this.emissivePhase = emissivePhaseForAmbientLight(feed.lighting?.ambientLight);
+        // 3.1 — one envelope, three consumers: the core here, the spill on each
+        // admitted light below, and the bloom share in `_present`.
+        const energy = sourceEnergyFor(feed.lighting);
+        this.sourceEnergy = energy;
+        gl.uniform1f(uniforms.u_coreEnergy, clamp(finite(energy.core, 1), 0, 2));
+        // 3.4 — night fill drives the grade course above; the optional water
+        // silver course is FULL-only and stays out of REDUCED and MINIMAL.
+        const moonFill = clamp(finite(feed.lighting?.moonFill, 0), 0, 1);
+        gl.uniform1f(uniforms.u_moonFill, moonFill);
+        gl.uniform1i(uniforms.u_waterSilver, qualityLevel <= POST_FX_LEVELS.FULL ? 1 : 0);
+        // 3.2 — real accumulated wetness; FULL reflects eight admitted sources,
+        // REDUCED four, MINIMAL none (the static wet darkening still reads).
+        const wetness = clamp(finite(feed.wetness, 0), 0, 1);
+        gl.uniform1f(uniforms.u_wetness, wetness);
+        this.wetReflectionCount = wetness <= 0.01 || qualityLevel >= POST_FX_LEVELS.MINIMAL
+            ? 0
+            : qualityLevel >= POST_FX_LEVELS.REDUCED ? 4 : 8;
+        gl.uniform1i(uniforms.u_wetReflectionCount, this.wetReflectionCount);
+        // 3.5 — the authored ramp table. An absent, wrong-sized, or shed table
+        // leaves the pilot with today's additive response.
+        const lutSource = qualityLevel >= POST_FX_LEVELS.MINIMAL ? null : feed.paletteLut || null;
+        const lut = lutSource
+            && lutSource.width === PALETTE_LUT_WIDTH
+            && lutSource.height === PALETTE_LUT_HEIGHT
+            ? this._textureFor('lut:palette-ramp', lutSource, feed.paletteLutRevision ?? null)
+            : null;
+        this.paletteLutActive = Boolean(lut);
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, lut || this.emptyMaterialTexture);
+        gl.uniform1i(uniforms.u_paletteLut, 5);
+        gl.uniform1i(uniforms.u_hasPaletteLut, lut ? 1 : 0);
         // Keep the existing time channel inside float32's precise range. The
         // one-million-ms period closes on both shader phase multipliers.
         const shaderTimeMs = ((finite(feed.timeMs, Date.now()) % 1000000) + 1000000) % 1000000;
@@ -1286,6 +1419,7 @@ export class GpuWorldRenderer {
         const lightColors = this._lightColorScratch;
         lightValues.fill(0);
         lightColors.fill(0);
+        let attentionMask = 0;
         for (let index = 0; index < lights.length; index++) {
             const light = lights[index];
             const color = gpuLightColorForShader(light, DEFAULT_LIGHT_COLOR, this._singleLightColorScratch);
@@ -1293,19 +1427,23 @@ export class GpuWorldRenderer {
             lightValues[offset] = finite(light.x);
             lightValues[offset + 1] = this.height - finite(light.y);
             lightValues[offset + 2] = Math.max(1, finite(light.radius, 64));
-            lightValues[offset + 3] = clamp(finite(light.intensity, 1), 0, 3)
-                * this.localLightPhase;
+            lightValues[offset + 3] = clamp(finite(light.intensity, 1), 0, 3);
+            const attention = isAttentionLight(light);
+            if (attention) attentionMask |= (1 << index) >>> 0;
             lightColors[offset] = color[0];
             lightColors[offset + 1] = color[1];
             lightColors[offset + 2] = color[2];
-            lightColors[offset + 3] = light.night
+            // The spill share of the envelope rides here, so an action-needed
+            // overlay light keeps its full read outside the exposure budget.
+            lightColors[offset + 3] = (light.night
                 ? clamp(finite(feed.lighting?.beaconIntensity, 0), 0, 1)
-                : 1;
+                : 1) * (attention ? 1 : clamp(finite(energy.spill, 1), 0, 2));
         }
         this.lightCount = lights.length;
         gl.uniform1i(uniforms.u_lightCount, lights.length);
         gl.uniform4fv(uniforms['u_lights[0]'], lightValues);
         gl.uniform4fv(uniforms['u_lightColors[0]'], lightColors);
+        gl.uniform1ui(uniforms.u_attentionMask, attentionMask >>> 0);
     }
 
     _renderScene(batches, camera, feed, qualityLevel = POST_FX_LEVELS.FULL) {
@@ -1362,9 +1500,12 @@ export class GpuWorldRenderer {
         gl.uniform1i(this.compositeUniforms.u_bloom, 1);
         const bloomMode = effectBudgetMode('bloom', qualityLevel);
         const bloomStrength = bloomMode === 'off' ? 0 : bloomMode === 'reduced' ? 0.42 : 0.72;
+        // 3.1 — bloom is served last from the same envelope, so broad halo
+        // energy shrinks while the cores it came from stay readable.
+        const bloomEnergy = clamp(finite(this.sourceEnergy?.bloom, 1), 0, 2);
         gl.uniform1f(
             this.compositeUniforms.u_bloomStrength,
-            this.lightCount > 0 ? bloomStrength * this.emissivePhase : 0,
+            this.lightCount > 0 ? bloomStrength * bloomEnergy : 0,
         );
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.sceneTarget.textures[0]);
@@ -1516,6 +1657,9 @@ export class GpuWorldRenderer {
             batches: this.batches,
             lights: this.lightCount,
             localLightPhase: this.localLightPhase,
+            // 3.1/3.2 receipts an operator can read in Shift-D beside the bands.
+            exposureBucket: this.sourceEnergy?.bucket ?? 'unreviewed',
+            wetReflections: this.wetReflectionCount,
             uploads: this.uploads,
             uploadBytes: this.uploadBytes,
             uploadMs: this.uploadMs ?? 0,

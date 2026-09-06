@@ -100,6 +100,37 @@ Every character may declare `animationGroups: { walk: { rows: [0, 5] }, breathin
 
 The planner quotes v3 animation generations as `ceil(width * height * frames / 65536)` per direction using the source generation size, and template animation as one generation per direction when a matching template exists. These animation costs are separate from the character rig's `generationMode`. It parses `.dev.vars` with the shared token loader (`PIXELLAB_API_TOKEN`, or unquoted `PIXELLAB_AUTHORIZATION`); never source that file or print credentials. Tier 1 / 2,000 generations was verified on 2026-09-05 with 1,403 remaining and a September 9 reset; only the live balance authorizes a new batch.
 
+## Add An Action Strip
+
+An action strip is the optional second PNG beside a character sheet
+(`characters/<id>/actions.png`, 8 direction columns × 5 rows of the 92px engine
+cell) that carries authored poses the base sheet has no rows for. The full field
+contract is in [`docs/material-channel-contract.md`](../../docs/material-channel-contract.md)
+§Action Strips (contract C2).
+
+1. Record the source rig once: `provenance: { characterId: <uuid> }` on the
+   character entry. Every shipped sheet's rig was recovered by comparing each
+   server rotation against the shipped south idle cells; the four previously
+   recorded IDs agreed with that comparison.
+2. Quote before spending: `node scripts/sprites/generate-action-strip.mjs --ids=<id> --plan`
+   prints the live `/v2/balance`, the rig's export canvas, and
+   `ceil(canvas² × frames / 65536) × 8` generations per named group. The canvas
+   is the rig's real export size (76–152px across this roster), not the entry's
+   `generationSize`; several rigs therefore cost 2 generations per direction.
+3. Generate and assemble: the same command without `--plan`. Groups are
+   requested one at a time because Tier 1 allows **8 concurrent background jobs**
+   and one 8-direction group fills them; a concurrency `429` is retried, not
+   failed. Frames cache under `output/action-strip-cache/`, so `--assemble-only`
+   re-assembles and re-reviews without spending anything.
+4. Review every direction at 1×/2×/3×: `--contact-sheet=/tmp/strip-{id}.png`.
+   Regenerate one group with `--groups=<name> --force` when hands, hats, or
+   props clip the cell; leave a character strip-less rather than shipping a bad
+   pose — the fallback is byte-identical.
+5. Author strip companions with `node scripts/sprites/author-roster-channels.mjs`
+   (it covers sheet and strip from one profile), then
+   `npm run sprites:audit-refresh`.
+6. Bump `style.assetVersion` once after the strip PNGs land.
+
 ## Manifest-Driven Bulk Bake + Contact Sheets
 
 `scripts/sprites/bake-manifest.mjs` is the supported bulk-rebake path: it reads prompt, dimensions, and output path straight from `manifest.yaml` (`style.anchor` + entry prompt), calls REST pixflux, keys out the edge background, and writes the manifest-implied PNG. Building overlay layers are addressed as `--ids=building.<id>.<layerName>`. Raw API responses cache under `output/pixellab-cache/bake/`; `--force` ignores the cache, `--dry-run` prints the plan. Characters and terrain tilesets are out of scope (different generation surfaces).

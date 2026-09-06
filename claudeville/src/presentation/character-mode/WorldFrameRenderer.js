@@ -1,8 +1,10 @@
 import { eventBus } from '../../domain/events/DomainEvent.js';
 import { AgentStatus } from '../../domain/value-objects/AgentStatus.js';
 import { TILE_WIDTH, TILE_HEIGHT } from '../../config/constants.js';
+import { WORLD_BODY_FONT } from '../../config/theme.js';
 import { drawCouncilRings, drawFamilyTethers, drawAdvisorTethers, drawAllyTethers, drawTalkArcs, admitTalkArcMarks } from './CouncilRing.js';
 import { drawCrowdClusterAuras, drawCrowdClusterBadges } from './CrowdClusterOverlay.js';
+import { drawSharedFileKnot, drawSharedFileOverlapLabel } from './SharedFileKnot.js';
 import {
     appendDepthSortedDrawables,
     cullDepthSortedDrawables,
@@ -20,11 +22,16 @@ import {
 import { worldSceneCategoryRegistry } from './SceneCategoryRegistry.js';
 import { buildGpuWorldRecords } from './gpu/GpuSceneBuilder.js';
 import { createBoundedRing, writeBoundedRing } from '../shared/ClientPerfMetrics.js';
+import { drawWorkScoreGround, drawWorkScoreScreen } from './SpatialWorkScore.js';
 import { ornamentPlan, sampleFramePressure } from './MarkGovernor.js';
 
 const FRAME_TIMING_RING_CAPACITY = 90;
 const FRAME_TIMER_MAX_MARKS = 48;
 const CANVAS_SCENE_BACKEND = Object.freeze({ id: 'canvas-2d', canvasFallback: true });
+// 3.5 — the authored palette-ramp table (11x3 RGBA, nearest-sampled). Declared
+// in the sprite manifest like every other asset; absent means the Command
+// pilot keeps today's additive light response.
+export const PALETTE_RAMP_ASSET_ID = 'lut.light-ramp.command';
 
 // Quarter-res occupancy field, matching the PostFx water-mask budget. One
 // byte per sample; the renderer paints it into a reused quarter-res canvas
@@ -628,6 +635,13 @@ export function renderWorldFrame(renderer, dt = 16) {
         gpuFeed.atmosphere = atmosphere;
         gpuFeed.weather = atmosphere?.weather || null;
         gpuFeed.lighting = atmosphere?.lighting || null;
+        // 3.2 — the resident shader consumes the same accumulated wetness the
+        // Canvas damp marks use; it never re-derives rain history in GLSL.
+        gpuFeed.wetness = renderer._surfaceWetness || 0;
+        // 3.5 — the authored palette ramp travels as a plain decoded image; a
+        // missing or unexpected table leaves the pilot at today's response.
+        gpuFeed.paletteLut = renderer.assets?.get?.(PALETTE_RAMP_ASSET_ID) || null;
+        gpuFeed.paletteLutRevision = renderer.assets?.assetVersion || null;
         const gpuRenderContext = renderer._gpuRenderContext || (renderer._gpuRenderContext = {});
         gpuRenderContext.records = records;
         gpuRenderContext.camera = renderer.camera;
@@ -706,15 +720,38 @@ export function renderWorldFrame(renderer, dt = 16) {
         }
     }
     drawSelectedAgentXray(renderer, overlayCtx, buildingDrawables);
+    // 4.5 — the shared-file overlap plate. The thread and knot live in the
+    // occluded ground texture; the exact counts belong here, once, in both
+    // backends, so dense load keeps the numbers when the lines are dropped.
+    drawSharedFileOverlapLabel(overlayCtx, {
+        overlap: renderer.relationshipState?.getSnapshot?.()?.fileOverlap || null,
+        agentSprites: renderer.agentSprites,
+        zoom,
+        threaded: renderer._sharedFileThreadDrawn === true,
+    });
     markFrameTiming(frameTimer, 'post-atmosphere-effects');
 
     if (!renderer.selectedAgent && !renderer.cameraDirector?.attentionFrame) {
         renderer.buildingRenderer?.drawBubbles(overlayCtx, renderer.world);
     }
+    // 5.1 — the ambient caption is measured before the label pass so landmark
+    // plates treat its strip as occupied and step aside instead of colliding
+    // with it. Screen rect converted to world space: the label pass runs under
+    // the world transform.
+    const ambientCaption = ambientCaptionLayout(overlayCtx, renderer, viewport);
+    const captionWorldBox = ambientCaption && renderer.camera?.screenToWorld
+        ? (() => {
+            const topLeft = renderer.camera.screenToWorld(ambientCaption.rect.left, ambientCaption.rect.top);
+            const bottomRight = renderer.camera.screenToWorld(ambientCaption.rect.right, ambientCaption.rect.bottom);
+            return { left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y };
+        })()
+        : null;
     renderer.buildingRenderer?.drawLabels(overlayCtx, {
         zoom,
         scaleMode: 'screen-fixed',
-        occupiedBoxes: renderer._collectAgentLabelHitRects(sortedSprites),
+        occupiedBoxes: captionWorldBox
+            ? [...renderer._collectAgentLabelHitRects(sortedSprites), captionWorldBox]
+            : renderer._collectAgentLabelHitRects(sortedSprites),
         harborPendingRepos,
         readMode: renderer.getReadMode(),
     });
@@ -747,6 +784,9 @@ export function renderWorldFrame(renderer, dt = 16) {
     renderer.seasonalAmbience?.drawStatic?.(overlayCtx);
     renderer.harborTraffic?.drawScreenSummary(overlayCtx, viewport, renderer.camera, renderNow);
     drawVillageDirectorScreen(overlayCtx, villageSnapshot, viewport);
+    // 5.4 — the work score's badge and every exact count, once, on the shared
+    // upper overlay so Canvas and resident WebGL say the same thing.
+    drawWorkScoreScreen(overlayCtx, viewport, villageSnapshot?.workScore || {});
     // 5.7 — offscreen-event edge indicators (incl. cues the CameraDirector
     // dropped): small screen-edge markers, click to glide there.
     drawOffscreenCueEdges(overlayCtx, renderer, viewport, renderNow);
@@ -754,9 +794,14 @@ export function renderWorldFrame(renderer, dt = 16) {
     // fades in and out with the cinematic move. Reduced motion yields no grade
     // (the camera cut leaves nothing to fade), so this is a no-op there.
     drawDirectorGlideGrade(overlayCtx, renderer.camera?.getDirectorGlideGrade?.(), viewport);
-    // 5.7 — cinematic letterbox bars while a release/incident cue glide owns
-    // the frame. Never fires under reduced motion (no cue glides happen).
+    // 5.7/5.2 — cinematic letterbox bars: they ride a release/incident cue
+    // glide, and an ambient chapter holds them for a beat after settling so
+    // the caption is read at rest. Reduced motion draws none.
     drawCueLetterbox(overlayCtx, renderer.camera, viewport);
+    // 5.1/5.2 — the broadcast's one factual caption, drawn after the bars so
+    // they never cover it: the district and its counts, or the incident
+    // chapter's identity. Static text, no motion of its own.
+    drawAmbientCaption(overlayCtx, ambientCaption);
     drawDebugOverlay(renderer, overlayCtx, atmosphere, viewport);
     const timings = finishFrameTiming(renderer, frameTimer);
     if (frameTimer) {
@@ -767,6 +812,17 @@ export function renderWorldFrame(renderer, dt = 16) {
 
 function drawGroundSemantics(renderer, groundCtx, { villageSnapshot, renderNow, perfNow, atmosphere, viewport }) {
     renderer.trailRenderer?.draw?.(groundCtx, renderer.camera, viewport, renderNow, true);
+
+    // 5.4 — the requested work score sits on the retained ground cue texture,
+    // so buildings and bodies occlude the diagram like every other ground cue.
+    if (villageSnapshot?.workScore) {
+        drawWorkScoreGround(groundCtx, {
+            ...villageSnapshot.workScore,
+            zoom: renderer.camera.zoom,
+            perfNow,
+            motionScale: renderer.motionScale ?? 1,
+        });
+    }
 
     // 3.10 — teams with a live council ring skip the director aura wash.
     drawVillageDirectorGround(groundCtx, villageSnapshot, renderNow, atmosphere?.grade, {
@@ -825,7 +881,17 @@ function drawGroundSemantics(renderer, groundCtx, { villageSnapshot, renderNow, 
             groundCtx.restore();
         }
     }
-
+    // 4.5 — one shared-file thread and knot for the selected agent. Under
+    // annotation pressure (a hundred agents) the thread is dropped entirely and
+    // the upper label carries the exact per-building counts instead.
+    renderer._sharedFileThreadDrawn = drawSharedFileKnot(groundCtx, {
+        overlap: renderer.relationshipState?.getSnapshot?.()?.fileOverlap || null,
+        agentSprites: renderer.agentSprites,
+        zoom: renderer.camera.zoom,
+        lighting: atmosphere?.lighting,
+        grade: atmosphere?.grade,
+        allowThread: (renderer._annotationMode || 'full') === 'full',
+    });
 }
 
 export function prepareSemanticGround(renderer, viewport, snapshot, atmosphere) {
@@ -837,7 +903,9 @@ export function prepareSemanticGround(renderer, viewport, snapshot, atmosphere) 
         || renderer._crowdStats?.clusters?.length
         || snapshot?.buildingSignals?.length
         || snapshot?.replaySamples?.length || snapshot?.selectedBuildingSignal || snapshot?.hoverBuildingSignal
-        || snapshot?.teams?.length || snapshot?.incidents?.length || snapshot?.recoveries?.length || snapshot?.releaseParade;
+        || snapshot?.teams?.length || snapshot?.incidents?.length || snapshot?.recoveries?.length || snapshot?.releaseParade
+        // 5.4 — an open work score is a ground cue in its own right.
+        || snapshot?.workScore;
     renderer._semanticGroundActive = Boolean(hasCues);
     if (!hasCues) return null;
     // ponytail: one 1024px-bounded cue texture; cache static frames and quantize
@@ -857,6 +925,14 @@ export function prepareSemanticGround(renderer, viewport, snapshot, atmosphere) 
             [...(relationship?.teamToMembers || [])].map(([name, ids]) => [name, [...ids]]),
             [...(relationship?.parentToChildren || [])].map(([id, children]) => [id, [...children]]),
             relationship?.advisorPairs,
+            // 4.5 — the overlap edge is drawn into this texture, so a changed
+            // peer, path, kind or availability must invalidate it.
+            relationship?.fileOverlap?.edge
+                ? [relationship.fileOverlap.selectedId, relationship.fileOverlap.edge.peerId,
+                    relationship.fileOverlap.edge.path, relationship.fileOverlap.edge.kind,
+                    relationship.fileOverlap.edge.available]
+                : null,
+            renderer._annotationMode || 'full',
             renderer._allyTetherPairs?.map(pair => [pair.a?.agent?.id, pair.b?.agent?.id]),
             renderer._crowdStats?.clusters?.map(cluster => [cluster.id, cluster.tileX, cluster.tileY, cluster.count, cluster.dominantStatus]),
             // Light boost changes continuously through the day. Sub-byte alpha
@@ -864,7 +940,10 @@ export function prepareSemanticGround(renderer, viewport, snapshot, atmosphere) 
             Math.round((atmosphere?.lighting?.lightBoost ?? 1) * 64), atmosphere?.grade?.worldTint,
         ]),
         JSON.stringify([snapshot?.buildingSignals, snapshot?.selectedBuildingSignal, snapshot?.hoverBuildingSignal,
-            snapshot?.replaySamples, snapshot?.teams, snapshot?.incidents, snapshot?.recoveries, snapshot?.releaseParade]),
+            snapshot?.replaySamples, snapshot?.teams, snapshot?.incidents, snapshot?.recoveries, snapshot?.releaseParade,
+            // 5.4 — the scrub cursor and every resolved node position are drawn
+            // into this texture, so both must invalidate it.
+            snapshot?.workScore?.signature || null]),
         sprites.map(sprite => `${sprite.agent?.id}:${Math.round(sprite.x)}:${Math.round(sprite.y)}:${sprite.selected}:${sprite.hovered}:${sprite.agent?.status}:${sprite.isArrivalPending?.()}:${sprite._providerAccentColor?.()}:${sprite._providerTrimColor?.() || sprite.providerTrimColor}`).join('|'),
     ].join(';');
     const ctx = canvas.getContext('2d');
@@ -944,23 +1023,72 @@ function drawDirectorGlideGrade(ctx, grade, viewport) {
 // by the cue grade) keeps them reading as cinema chrome, not a render
 // artifact. Reduced motion: cue glides are suppressed and Camera cuts instead,
 // so no bars ever appear.
+//
+// 5.2 — an Ambient incident chapter keeps its bars at full height for three
+// seconds after the move settles instead of dropping them on arrival, so the
+// caption is read at rest. The Camera owns that timing (getLetterboxState);
+// cue bars are unchanged.
 function drawCueLetterbox(ctx, camera, viewport) {
-    if (!camera?.isDirectorGliding?.() || !viewport?.width || !viewport?.height) return;
-    const owner = String(camera._cameraOwner || '');
-    if (owner !== 'cue:release' && owner !== 'cue:incident') return;
-    const grade = camera.getDirectorGlideGrade?.();
-    const weight = Math.max(0, Math.min(1, Number(grade?.weight) || 0));
-    if (weight <= 0.02) return;
+    if (!camera?.getLetterboxState || !viewport?.width || !viewport?.height) return 0;
+    const state = camera.getLetterboxState();
+    const weight = Math.max(0, Math.min(1, Number(state?.weight) || 0));
+    if (weight <= 0.02) return 0;
     const barH = Math.round(Math.min(72, viewport.height * 0.08) * weight);
-    if (barH < 2) return;
+    if (barH < 2) return 0;
     ctx.save();
     ctx.fillStyle = 'rgba(12, 9, 7, 0.94)';
     ctx.fillRect(0, 0, viewport.width, barH);
     ctx.fillRect(0, viewport.height - barH, viewport.width, barH);
-    const tint = hexToRgb(grade?.worldTint) || { r: 214, g: 169, b: 81 };
+    const tint = hexToRgb(state?.grade?.worldTint) || { r: 214, g: 169, b: 81 };
     ctx.fillStyle = `rgba(${tint.r}, ${tint.g}, ${tint.b}, ${0.5 * weight})`;
     ctx.fillRect(0, barH, viewport.width, 1);
     ctx.fillRect(0, viewport.height - barH - 1, viewport.width, 1);
+    ctx.restore();
+    return barH;
+}
+
+// 5.1/5.2 — the broadcast caption: one short factual line naming the district
+// and its counts ("Forge · 4 working"), or the incident chapter's identity
+// ("Push failed · pharos-watch"). Static: no fade, no motion, identical in
+// Canvas and resident WebGL, and present under reduced motion where it is the
+// only thing the static overview has to say.
+// Measured once per frame, before the label pass, so the plate's strip can be
+// reserved. Returns null whenever Ambient does not own the frame.
+function ambientCaptionLayout(ctx, renderer, viewport) {
+    const caption = renderer?.cameraDirector?.getAmbientCaption?.();
+    const text = String(caption?.text || '').trim();
+    if (!text || !viewport?.width || !viewport?.height) return null;
+    const bars = renderer.camera?.getLetterboxState?.();
+    const barH = bars?.weight > 0.02
+        ? Math.round(Math.min(72, viewport.height * 0.08) * Math.min(1, bars.weight))
+        : 0;
+    const label = text.toUpperCase();
+    ctx.save();
+    ctx.font = `10px ${WORLD_BODY_FONT}`;
+    const width = Math.ceil(ctx.measureText(label).width) + 18;
+    ctx.restore();
+    const left = Math.round((viewport.width - width) / 2);
+    const top = barH + 12;
+    return {
+        label,
+        incident: caption.kind === 'chapter',
+        rect: { left, top, right: left + width, bottom: top + 22 },
+    };
+}
+
+function drawAmbientCaption(ctx, layout) {
+    if (!layout) return;
+    const { rect, incident, label } = layout;
+    ctx.save();
+    ctx.font = `10px ${WORLD_BODY_FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = incident ? 'rgba(34, 16, 14, 0.88)' : 'rgba(20, 16, 13, 0.84)';
+    ctx.strokeStyle = incident ? 'rgba(248, 113, 113, 0.72)' : 'rgba(214, 169, 81, 0.6)';
+    ctx.fillRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    ctx.strokeRect(rect.left + 0.5, rect.top + 0.5, rect.right - rect.left - 1, rect.bottom - rect.top - 1);
+    ctx.fillStyle = incident ? '#ffd9d3' : '#f4e3bc';
+    ctx.fillText(label, rect.left + 9, (rect.top + rect.bottom) / 2);
     ctx.restore();
 }
 

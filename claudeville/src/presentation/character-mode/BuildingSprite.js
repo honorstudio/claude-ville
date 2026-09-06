@@ -15,7 +15,7 @@ import { BUILDING_EVENTS, eventBus } from '../../domain/events/DomainEvent.js';
 import { classifyTool } from '../../domain/services/ToolIdentity.js';
 import { repoProfile } from '../shared/RepoColor.js';
 import { normalizeLightSource } from './LightSourceRegistry.js';
-import { normalizeLightingState, smokeWindDrift } from './AtmosphereState.js';
+import { normalizeLightingState, smokeWindDrift, sourceEnergyFor } from './AtmosphereState.js';
 import { SMOKE_COOL_COLORS, SMOKE_WARM_COLORS } from './ParticleSystem.js';
 import { getActiveMarkGovernor, MarkTier } from './MarkGovernor.js';
 import { pulseBand01Frame } from './PulsePolicy.js';
@@ -47,6 +47,18 @@ import {
     getBuildingWindowRects,
     LIGHT_SOURCE_REGISTRY,
 } from './BuildingVisualRegistry.js';
+import {
+    getBuildingApertureProfile,
+    getBuildingAssayProfile,
+    getBuildingPlanTabProfile,
+    getBuildingRestLayer,
+    getBuildingRoomProfile,
+    getBuildingWorkloadProfile,
+    isBuildingApertureLayer,
+} from './BuildingVisualRegistry.js';
+import { APERTURE_MIN_ZOOM, assignRoomSlots, buildApertureModel } from './BuildingApertureModel.js';
+import { resolveObservation } from './ObservationCertainty.js';
+import { VillagePhase } from '../../application/VillageState.js';
 
 // READ translates canonical classifier reasons, never tool names or input text.
 const READ_VERBS = Object.freeze({
@@ -77,6 +89,19 @@ const LABEL_COMPACT_OVERLAP_TOLERANCE = 0.62;
 const MAX_TASKBOARD_PAPERS = 4;
 const FORGE_GLOW_BASELINE = 0.22;
 const FORGE_GLOW_DECAY_PER_SECOND = 0.32;
+// 4.6 — the banked hearth of a confirmed-empty village: an ember behind the
+// mouth, well under the ordinary idle baseline, never fully out.
+const FORGE_BANKED_GLOW = 0.07;
+// 4.6 — architecture that stays lit through a sleeping town: the Pharos and
+// the harbour lantern are safety lights, not work signals.
+const REST_SAFETY_LIGHT_TYPES = new Set(['watchtower', 'harbor']);
+// 4.4 — the result shelf. Only records that say how a call *ended* land here
+// (`tool:result`, from the adapters' bounded last-result summary); invocation
+// puts nothing on the shelf and a tool disappearing removes nothing from it.
+// The newest few keep their own tile, everything older is coalesced into an
+// exact count so a busy Forge never rains stamps.
+const RESULT_SHELF_RETAINED = 24;
+const RESULT_TILE_SETTLE_MS = 260;
 const LABEL_SHORT_TEXT = Object.fromEntries(
     BUILDING_DEFS
         .filter((building) => typeof building.shortLabel === 'string' && building.shortLabel.trim())
@@ -127,6 +152,12 @@ const PRESENCE_TIER_TABLE = Object.freeze({
     occupied: { emitter: 1.0, radius: 1.0, occupancy: 0.7 },
     busy:     { emitter: 1.6, radius: 1.15, occupancy: 1 },
 });
+// 3.1 — halo area is capped by authored source geometry, not by how dark the
+// sky is. The widest authored lamps (Pharos 108 px, Harbor/Lighthouse 96 px)
+// used to reach ~140 px of soft halo at night and rivalled the work they lit;
+// the cap keeps every ambient halo inside one reviewed ceiling while the
+// emissive core and near-receiver spill keep their full energy (D4).
+export const SOURCE_HALO_RADIUS_CAP = 76;
 // Observatory clock spin while a WebFetch/WebSearch/web.run ritual is active.
 // Spin speed is in rad/s; ease back to 0 over OBSERVATORY_SPIN_EASE_MS.
 const OBSERVATORY_WEB_RITUAL_TOOLS = new Set(['WebFetch', 'WebSearch', 'web.run']);
@@ -271,6 +302,16 @@ function compactRitualLabel(value, fallback = '') {
     if (!text) return fallback;
     return text.length > 10 ? `${text.slice(0, 8)}..` : text;
 }
+// 4.1 — the aperture's tool label. Same reduction the director uses for its
+// feed (last path segment, underscores opened up), clipped to what one desk
+// row can hold; the exact invocation stays in the panel.
+function compactToolLabel(tool) {
+    const text = String(tool || '').trim();
+    if (!text) return '';
+    const parts = text.split(/[.:/]/).filter(Boolean);
+    const name = (parts.at(-1) || text).replace(/_/g, ' ');
+    return name.length > 12 ? `${name.slice(0, 11)}…` : name;
+}
 
 function hashText(value) {
     const text = String(value || '');
@@ -353,6 +394,57 @@ export class BuildingSprite {
             this._watchtowerFlare = 1;
         };
         eventBus.on('distress:watchtower', this._onDistress);
+        // 4.1/4.2 — explicit building inspection. Selection is the only way in;
+        // nothing here changes the default frame, the exterior sprite, the hit
+        // target, or any domain position.
+        this._selectedBuildingType = null;
+        this._apertureModel = null;
+        this._apertureProfile = null;
+        // agentId -> desk index and agentId -> room index, per building type.
+        // Sticky, so a session keeps its desk and a worker keeps its window
+        // until it stops qualifying: leaving work must extinguish exactly one
+        // room, never reshuffle the row.
+        this._deskAssignments = new Map();
+        this._roomAssignments = new Map();
+        this._roomStateByType = new Map();
+        this._onBuildingSelected = (building) => {
+            const type = building?.type || null;
+            if (type === this._selectedBuildingType) return;
+            this._selectedBuildingType = type;
+            this._deskAssignments.clear();
+            this._roomAssignments.clear();
+            this._roomStateByType.clear();
+            this._apertureModel = null;
+            this._apertureProfile = null;
+        };
+        this._onBuildingDeselected = () => this._onBuildingSelected(null);
+        eventBus.on(BUILDING_EVENTS.SELECTED, this._onBuildingSelected);
+        eventBus.on(BUILDING_EVENTS.DESELECTED, this._onBuildingDeselected);
+        // 4.6 — the canonical readiness phase. READY_EMPTY is the only phase
+        // that earns the rest state; DEGRADED and READY_NO_PROVIDERS keep the
+        // shipped treatment, because silence and blindness are opposite facts.
+        this._villagePhase = null;
+        this._onVillageState = (state) => { this._villagePhase = state?.phase || null; };
+        eventBus.on('village:state', this._onVillageState);
+        // 4.3 / 4.4 — the two work ledgers LandmarkActivity measures. This
+        // renderer only draws them; it never derives a count of its own.
+        this._mineAssay = null;
+        this._onMineAssay = (assay) => { this._mineAssay = assay || null; };
+        eventBus.on('building:mine-assay', this._onMineAssay);
+        this._forgeWorkload = null;
+        this._onForgeWorkload = (workload) => { this._forgeWorkload = workload || null; };
+        eventBus.on('building:forge-workload', this._onForgeWorkload);
+        // 4.4 — the result shelf: bounded, newest first, deduplicated on the
+        // adapters' stable result id. A stamp is placed only by a record that
+        // reports how a call ended.
+        this._resultShelf = [];
+        this._resultShelfIds = new Set();
+        this._onToolResult = (event) => this._observeToolResult(event);
+        eventBus.on('tool:result', this._onToolResult);
+        // Selectable world instruments (result tiles, plan tabs): world-space
+        // rects recorded by the draw pass and cleared once per frame, so the
+        // hit target is always exactly what was last drawn.
+        this._instrumentHits = [];
         this.motionScale = (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) ? 0 : 1;
         this._motionMq = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-reduced-motion: reduce)') : null;
         this._onMotionChange = (e) => this.setMotionScale(e.matches ? 0 : 1);
@@ -364,6 +456,15 @@ export class BuildingSprite {
         eventBus.off(BUILDING_EVENTS.ACTIVE_AGENTS, this._onPresence);
         eventBus.off('building:read-intensity', this._onReadIntensity);
         eventBus.off('distress:watchtower', this._onDistress);
+        eventBus.off(BUILDING_EVENTS.SELECTED, this._onBuildingSelected);
+        eventBus.off(BUILDING_EVENTS.DESELECTED, this._onBuildingDeselected);
+        eventBus.off('village:state', this._onVillageState);
+        eventBus.off('building:mine-assay', this._onMineAssay);
+        eventBus.off('building:forge-workload', this._onForgeWorkload);
+        eventBus.off('tool:result', this._onToolResult);
+        this._resultShelf = [];
+        this._resultShelfIds.clear();
+        this._instrumentHits = [];
         this._litGateByType.clear();
     }
 
@@ -579,7 +680,10 @@ export class BuildingSprite {
 
     update(dt) {
         this.frame += (dt / 16) * (this.motionScale || 0);
+        // Selectable instruments are re-registered by this frame's draw pass.
+        this._instrumentHits.length = 0;
         this._updateVisitorCounts();
+        this._updateInspection();
         this._updateNightLightGates(dt);
         this._emitVillagePopulation();
         this._trackObservatoryWebRituals();
@@ -1578,8 +1682,15 @@ export class BuildingSprite {
 
     // Light sources for water/wall additive light passes (Phase 2.5.5).
     // `overlay` is the atmosphere sprite id used for the additive reflection.
+    //
+    // 3.1 — every source reads the shared exposure envelope instead of the old
+    // stack of continuous boosts (`lightBoost` x window warmth x beacon x
+    // presence). Occupancy still decides *whether* and *how strongly* a place
+    // is lit; the envelope decides how much energy that light may spend, and
+    // `SOURCE_HALO_RADIUS_CAP` caps halo area by authored source geometry, so
+    // the wide Lighthouse and Harbor lamps stop out-glowing the work (D4).
     getLightSources(lightingState = this.lightingState) {
-        const lightBoost = lightingState?.lightBoost ?? 1;
+        const energy = sourceEnergyFor(lightingState ?? this.atmosphereState?.lighting);
         const windowWarmth = this.atmosphereState?.reactions?.windowWarmth || 0;
         const staticSources = this._staticLightSources();
         const out = [];
@@ -1597,20 +1708,22 @@ export class BuildingSprite {
                 if (this.harborStatus?.failedPushActive) color = '#ff755d';
             }
             const warmthBoost = source.kind === 'beam' ? 0 : windowWarmth * 0.16;
-            // Beacon breathing: every emitter glow brightens/widens in unison as
-            // night deepens or a storm dims the world, scaled per building type.
-            const beaconScale = source.kind === 'beam' ? 0 : this._beaconScaleFor(source.buildingType, lightingState);
-            const beaconBoost = beaconScale * 0.34;
+            const typeResponse = source.kind === 'beam'
+                ? 1
+                : 0.62 + 0.38 * getBuildingBeaconBase(source.buildingType);
             const presenceRadiusMult = source.buildingType
                 ? PRESENCE_TIER_TABLE[this._presenceTierFor(source.buildingType)].radius
                 : 1;
-            const radius = source.radius * Math.min(1.84, 0.72 + lightBoost * 0.28 + warmthBoost + beaconScale * 0.22 + (activity - 1) * 0.18) * presenceRadiusMult;
+            const radius = Math.min(
+                source.radius * energy.halo,
+                SOURCE_HALO_RADIUS_CAP,
+            ) * presenceRadiusMult;
             const emissiveGate = !source.buildingType || source.buildingType === 'watchtower'
                 ? 1
                 : this._emissiveGateFor(source.building);
-            const intensity = (activity + warmthBoost + beaconBoost) * emissiveGate;
+            const intensity = (activity + warmthBoost) * typeResponse * energy.core * emissiveGate;
             if (intensity < 0.02) continue;
-            if (alpha != null) alpha *= (1 + beaconBoost) * emissiveGate;
+            if (alpha != null) alpha *= energy.core * emissiveGate;
             out.push(normalizeLightSource({
                 ...source,
                 color,
@@ -1623,9 +1736,9 @@ export class BuildingSprite {
                 building: source.building,
             }));
         }
-        for (const source of this._ritualLightSources(lightBoost)) out.push(source);
-        for (const source of this._forgeSpillLightSources(lightBoost)) out.push(source);
-        for (const source of this._archiveSpillLightSources(lightBoost)) out.push(source);
+        for (const source of this._ritualLightSources(energy.core)) out.push(source);
+        for (const source of this._forgeSpillLightSources(energy.core)) out.push(source);
+        for (const source of this._archiveSpillLightSources(energy.core)) out.push(source);
         return out;
     }
 
@@ -1634,7 +1747,7 @@ export class BuildingSprite {
     // screen-composite light path (overlay sprite). Brightness tracks the read
     // counter (_archiveReadIntensity); flicker rides the slow building pulse and
     // holds steady under reduced motion (#12).
-    _archiveSpillLightSources(lightBoost = 1) {
+    _archiveSpillLightSources(coreEnergy = 1) {
         const readIntensity = this._archiveReadIntensity || 0;
         if (readIntensity <= 0.4) return [];
         const strength = clamp01((readIntensity - 0.4) / 0.6);
@@ -1658,7 +1771,7 @@ export class BuildingSprite {
                 // `intensity`; drive it from the read counter so the spill
                 // brightens with reading. `alpha` is kept for any alpha-aware path.
                 intensity: 0.6 + strength * 0.9,
-                alpha: (0.18 + strength * 0.30) * flicker * lightBoost,
+                alpha: (0.18 + strength * 0.30) * flicker * coreEnergy,
                 overlay: 'atmosphere.light.lantern-glow',
                 buildingType: building.type,
                 building,
@@ -1673,7 +1786,7 @@ export class BuildingSprite {
     // Ground-spill light from the forge molten pool: when the smithy is hot and
     // the world is dark, the apron glow bleeds onto adjacent tiles/water via the
     // screen-composite light path. Brightness tracks _forgeGlow (#11).
-    _forgeSpillLightSources(lightBoost = 1) {
+    _forgeSpillLightSources(coreEnergy = 1) {
         const night = clamp01(this.atmosphereState?.reactions?.nightReflection ?? 0);
         const heat = clamp01((this._forgeGlowIntensity() - FORGE_GLOW_BASELINE) / (1 - FORGE_GLOW_BASELINE));
         const strength = night * heat;
@@ -1694,7 +1807,7 @@ export class BuildingSprite {
                 },
                 color: '#ff9a4d',
                 radius: 52 + strength * 18,
-                alpha: strength * 0.4 * flicker * lightBoost,
+                alpha: strength * 0.4 * flicker * coreEnergy,
                 overlay: 'atmosphere.light.fire-glow',
                 buildingType: building.type,
                 building,
@@ -1792,6 +1905,42 @@ export class BuildingSprite {
         return null;
     }
 
+    // 4.4 / 4.7 — the selectable world instruments this renderer draws (result
+    // tiles, plan tabs). World-space rects, newest first, so the front-most
+    // instrument wins exactly like the sprite hit test.
+    _registerInstrumentHit(entry) {
+        if (!entry?.agentId) return;
+        this._instrumentHits.push(entry);
+    }
+
+    hitTestInstrument(worldX, worldY) {
+        for (let index = this._instrumentHits.length - 1; index >= 0; index--) {
+            const hit = this._instrumentHits[index];
+            if (worldX >= hit.left && worldX <= hit.right && worldY >= hit.top && worldY <= hit.bottom) {
+                return hit;
+            }
+        }
+        return null;
+    }
+
+    // One small dark plate with one factual line on it. Used by the building
+    // instruments so counts read identically wherever they appear.
+    _drawInstrumentPlate(ctx, x, y, text, { color = '#e8e2d6', align = 'center' } = {}) {
+        const line = String(text || '');
+        if (!line) return;
+        ctx.save();
+        ctx.font = `6px ${WORLD_BODY_FONT}`;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        const width = Math.ceil(ctx.measureText(line).width) + 6;
+        const left = align === 'center' ? Math.round(x - width / 2) : Math.round(x);
+        ctx.fillStyle = 'rgba(18, 14, 12, 0.84)';
+        ctx.fillRect(left, Math.round(y) - 5, width, 10);
+        ctx.fillStyle = color;
+        ctx.fillText(line, align === 'center' ? Math.round(x) : left + 3, Math.round(y));
+        ctx.restore();
+    }
+
     // Returns drawable payloads (one per building, or two if splitForOcclusion).
     // Cached until the building list changes; hover and animation state are read
     // live by drawDrawable().
@@ -1848,7 +1997,7 @@ export class BuildingSprite {
 
     _drawAnimatedOverlays(ctx, entry, wx, wy, building = null, splitPass = 'whole', horizonY = null) {
         if (entry.layers) {
-            this._drawManifestLayers(ctx, entry, wx, wy, splitPass, horizonY);
+            this._drawManifestLayers(ctx, entry, wx, wy, splitPass, horizonY, building);
         }
         if (building) {
             this._drawFunctionalOverlay(ctx, building, entry, wx, wy, splitPass, horizonY);
@@ -1965,15 +2114,29 @@ export class BuildingSprite {
             const occupancy = PRESENCE_TIER_TABLE[this._presenceTierFor(building.type)].occupancy;
             const lit = this._nightShiftLit(building.type);
             const nightGate = this._nightWindowGate();
-            const buildingWarmth = windowWarmth * lerp(0.45 + 0.55 * occupancy, lit, nightGate);
+            // 4.6 — at canonical rest the work buildings go dark and only the
+            // safety architecture (Pharos, harbour lantern) keeps its warmth:
+            // an empty village should read as between shifts, not as a lit
+            // workplace with nobody in it.
+            const restDark = this._villageAtRest() && !REST_SAFETY_LIGHT_TYPES.has(building.type);
+            const buildingWarmth = restDark
+                ? windowWarmth * 0.12
+                : windowWarmth * lerp(0.45 + 0.55 * occupancy, lit, nightGate);
             // Window warmth breathes with the building beacon so lit windows
             // brighten together as night deepens (static floor under reduced motion).
             const beaconWarm = 0.82 + this._beaconScaleFor(building.type) * 0.4;
             const warmthAlpha = Math.min(0.3, buildingWarmth * (0.12 + pulse * 0.05) * beaconWarm);
             // 6.2 — buildings with calibrated windowRects get crisp lit windows
-            // instead of the generic mid-wall warmth blobs.
+            // instead of the generic mid-wall warmth blobs. 4.2 — while the
+            // selected building assigns a room per working occupant, the
+            // aggregate warmth stands down entirely: two answers to "who is in
+            // there" must never be lit at once. The doorstep spill below is a
+            // door, not a room, so it stays.
+            const roomsLit = Boolean(this._roomInstrumentFor(building));
             const windowRects = getBuildingWindowRects(building.type);
-            if (windowRects) {
+            if (roomsLit) {
+                // rooms carry the occupancy read for this building
+            } else if (windowRects) {
                 this._drawWarmthWindows(
                     ctx,
                     windowRects,
@@ -2156,10 +2319,15 @@ export class BuildingSprite {
         ctx.clip();
     }
 
-    _drawManifestLayers(ctx, entry, wx, wy, splitPass = 'whole', horizonY = null) {
+    _drawManifestLayers(ctx, entry, wx, wy, splitPass = 'whole', horizonY = null, building = null) {
         const baseAnchor = this.assets.getAnchor(entry.id);
+        const buildingType = building?.type || '';
         for (const [name, layer] of Object.entries(entry.layers)) {
             if (name === 'base') continue;
+            // 4.1 — the inspection layers are not ambient dressing: the
+            // building renderer draws them, in their authored order, only
+            // while this building is the explicitly selected one.
+            if (isBuildingApertureLayer(buildingType, name)) continue;
             const localY = Array.isArray(layer.anchor) ? layer.anchor[1] : 0;
             if (
                 splitPass !== 'whole' &&
@@ -2203,9 +2371,23 @@ export class BuildingSprite {
             || !Number.isFinite(horizonY)
             || (splitPass === 'back' ? localY < horizonY : localY >= horizonY)
         );
+        // 4.1 — the aperture spans the occlusion horizon (a wall cut is not a
+        // roof and not a foreground prop), so it is drawn after the split clip
+        // is released, once, on the front pass only.
+        let openAperture = null;
 
         ctx.save();
         this._clipToSplitPass(ctx, entry, wx, wy, splitPass, horizonY, null, baseAnchor);
+        // 4.2 — one authored window per real working occupant, on the selected
+        // building only, at night only. Draws before the per-type work so a
+        // room light never sits over a ritual mark.
+        const rooms = this._roomInstrumentFor(building);
+        if (rooms) {
+            this._drawWorkRooms(ctx, localPoint, shouldDrawLocalY, rooms, {
+                // The open aperture carries the counts in its own legend.
+                withCount: !this._openApertureFor(building),
+            });
+        }
         if (building.type === 'observatory') {
             this._assertObservatoryClockDims(entry);
             // #52 — the dome dormer aperture sits above the clock on the roof;
@@ -2221,11 +2403,28 @@ export class BuildingSprite {
             return;
         }
         if (building.type === 'forge') {
-            if (shouldDrawLocalY(118)) this._drawForgeEnhancement(ctx, localPoint, pulse, building);
-            // #33 — reduced-motion fallback: a single static smoke wisp above the
-            // chimney, warmed by forge heat, standing in for the live column.
-            if (!this.motionScale && shouldDrawLocalY(28)) {
-                this._drawStaticSmokeWisp(ctx, localPoint(175, 28), { heat: this._forgeGlowIntensity() });
+            // 4.6 — at canonical rest the hearth is banked: the authored orange
+            // mouth is masked back to a stepped ember and the work marks,
+            // molten spill and heat bloom stand down. Any other phase keeps the
+            // shipped treatment. 4.4 — a Forge we have watched fall quiet for
+            // ten minutes banks the same way: the mask is the same, the reason
+            // is a measured idle rather than a canonical empty village.
+            const forgeSelected = this._selectedBuildingType === 'forge';
+            if (this._villageAtRest() || this._forgeWorkload?.banked) {
+                this._drawForgeBankedMouth(ctx, entry, wx, wy);
+            } else {
+                if (shouldDrawLocalY(118)) this._drawForgeEnhancement(ctx, localPoint, pulse, building);
+                // #33 — reduced-motion fallback: a single static smoke wisp above the
+                // chimney, warmed by forge heat, standing in for the live column.
+                if (!this.motionScale && shouldDrawLocalY(28)) {
+                    this._drawStaticSmokeWisp(ctx, localPoint(175, 28), { heat: this._forgeGlowIntensity() });
+                }
+            }
+            // The workload billets and the result shelf are physical objects in
+            // the yard: they stay after the heat fades and through rest.
+            if (splitPass !== 'back') {
+                this._drawForgeWorkload(ctx, localPoint, forgeSelected);
+                this._drawForgeResultShelf(ctx, localPoint, forgeSelected);
             }
         } else if (building.type === 'mine') {
             if (!shouldDrawLocalY(158)) {
@@ -2283,6 +2482,11 @@ export class BuildingSprite {
             if (!this.motionScale) {
                 this._drawStaticSmokeWisp(ctx, localPoint(128, 158), { dust: true });
             }
+            // 4.3 — the assay bench opens on explicit Mine selection only; the
+            // default frame keeps the yard as it ships.
+            if (this._selectedBuildingType === 'mine') {
+                this._drawMineAssayBench(ctx, localPoint);
+            }
         } else if (building.type === 'portal') {
             if (!shouldDrawLocalY(60)) {
                 ctx.restore();
@@ -2331,16 +2535,31 @@ export class BuildingSprite {
         } else if (building.type === 'archive') {
             if (splitPass !== 'back') this._drawArchiveEnhancement(ctx, localPoint, pulse);
         } else if (building.type === 'taskboard') {
-            if (splitPass !== 'front' && !this._drawTaskboardBoard(ctx, localPoint)) {
-                this._drawTaskboardRitual(ctx, localPoint, building);
+            if (splitPass !== 'front') {
+                if (this._villageAtRest()) this._drawTaskboardEmptyRack(ctx, localPoint);
+                else if (!this._drawTaskboardBoard(ctx, localPoint)) {
+                    this._drawTaskboardRitual(ctx, localPoint, building);
+                }
+                // 4.7 — the frame tabs name every other concurrent plan owner,
+                // so a hidden plan is one click away instead of invisible.
+                if (!this._villageAtRest()) this._drawTaskboardPlanTabs(ctx, localPoint);
             }
         } else if (building.type === 'command') {
             if (splitPass !== 'back') {
-                this._drawCommandActivityDetails(ctx, localPoint, building, pulse);
+                const open = this._openApertureFor(building);
+                // 4.1 — the sectional view replaces the wing's front wall while
+                // Command is the selected building; the aggregate hall-window
+                // row and the open room are the same fact, so only one of them
+                // is ever on screen.
+                this._drawCommandActivityDetails(ctx, localPoint, building, pulse, {
+                    windows: !open && !rooms,
+                });
+                openAperture = open;
                 this._drawCommandRitual(ctx, localPoint, building);
             }
         }
         ctx.restore();
+        if (openAperture) this._drawInspectionAperture(ctx, building, entry, wx, wy, openAperture);
     }
 
     _ritualsFor(type) {
@@ -2370,7 +2589,12 @@ export class BuildingSprite {
 
     _updateForgeGlow(dt = 16) {
         const rituals = this._ritualsFor('forge');
-        let target = FORGE_GLOW_BASELINE;
+        // 4.6 — a confirmed-empty village banks the hearth below its ordinary
+        // idle baseline. Every downstream reader (light sources, emitter
+        // density, smoke warmth) sees the banked value, so the whole forge
+        // cools together instead of one cue going quiet.
+        const floor = this._villageAtRest() ? FORGE_BANKED_GLOW : FORGE_GLOW_BASELINE;
+        let target = floor;
         for (const ritual of rituals) {
             const fade = this._ritualFade(ritual);
             if (fade <= 0.03) continue;
@@ -2383,7 +2607,7 @@ export class BuildingSprite {
         }
 
         const decay = (Math.max(0, Number(dt) || 0) / 1000) * FORGE_GLOW_DECAY_PER_SECOND;
-        this._forgeGlow = Math.max(FORGE_GLOW_BASELINE, this._forgeGlow - decay);
+        this._forgeGlow = Math.max(floor, this._forgeGlow - decay);
     }
 
     _syncTaskboardPapers(now) {
@@ -3027,6 +3251,147 @@ export class BuildingSprite {
         ctx.fill();
     }
 
+    // 4.4 — the workload. Three stepped billets by the anvil, one per observed
+    // count tier, and the exact `12 edit calls · last 60s` on inspection.
+    // These are *calls the classifier routed here*, never successful edits.
+    _drawForgeWorkload(ctx, localPoint, selected) {
+        const profile = getBuildingWorkloadProfile('forge');
+        const workload = this._forgeWorkload;
+        if (!profile || !workload) return;
+        const tier = Math.max(0, Math.min(3, Number(workload.tier) || 0));
+        if (tier > 0) {
+            const [ax, ay] = profile.billets.at;
+            const [stepX, stepY] = profile.billets.step || [10, -5];
+            const w = Math.max(4, Math.round(profile.billets.w || 8));
+            const h = Math.max(3, Math.round(profile.billets.h || 4));
+            ctx.save();
+            for (let index = 0; index < tier; index++) {
+                const at = localPoint(ax + index * stepX, ay + index * stepY);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#2b1d13';
+                ctx.fillRect(at.x - 1, at.y - 1, w + 2, h + 2);
+                ctx.fillStyle = index === 2 ? '#ffd36a' : index === 1 ? '#f08a4b' : '#c2601f';
+                ctx.fillRect(at.x, at.y, w, h);
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = '#ffb347';
+                ctx.fillRect(at.x, at.y, w, 1);
+            }
+            ctx.restore();
+        }
+        if (selected && Array.isArray(profile.countAt)) {
+            const at = localPoint(profile.countAt[0], profile.countAt[1]);
+            this._drawInstrumentPlate(ctx, at.x, at.y, workload.label, { color: '#ffd36a' });
+        }
+    }
+
+    // 4.4 — a record that says how a call ended. Deduplicated on the adapters'
+    // stable result id, so the same finished command never stamps twice across
+    // polls, and bounded so a busy Forge cannot grow this list.
+    _observeToolResult(event) {
+        if (event?.building !== 'forge') return;
+        const id = typeof event.id === 'string' ? event.id : '';
+        if (!id || this._resultShelfIds.has(id)) return;
+        this._resultShelfIds.add(id);
+        const exitCode = Number.isFinite(Number(event.exitCode)) && event.exitCode !== null
+            ? Number(event.exitCode)
+            : null;
+        this._resultShelf.unshift({
+            id,
+            agentId: typeof event.agentId === 'string' ? event.agentId : null,
+            tool: event.tool || null,
+            exitCode,
+            completedAt: Number(event.completedAt) || Date.now(),
+            placedAt: Date.now(),
+        });
+        while (this._resultShelf.length > RESULT_SHELF_RETAINED) {
+            const dropped = this._resultShelf.pop();
+            if (dropped) this._resultShelfIds.delete(dropped.id);
+        }
+    }
+
+    // The shelf itself: the newest few finished commands keep their own
+    // stamped tile — intact for `exit 0`, cracked for a non-zero exit, blank
+    // while the exit is unknown — and everything older is coalesced into an
+    // exact `xN`. Selecting a tile opens that session's detail record.
+    _drawForgeResultShelf(ctx, localPoint, selected) {
+        const profile = getBuildingWorkloadProfile('forge');
+        if (!profile?.shelf || !this._resultShelf.length) return;
+        const shelf = profile.shelf;
+        const max = Math.max(1, Math.round(shelf.max || 4));
+        const w = Math.max(5, Math.round(shelf.w || 9));
+        const h = Math.max(4, Math.round(shelf.h || 8));
+        const step = Math.max(w + 1, Math.round(shelf.step || 11));
+        const shown = this._resultShelf.slice(0, max);
+        const now = Date.now();
+        const origin = localPoint(shelf.at[0], shelf.at[1]);
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        // The shelf plank: one course of stone under the tiles.
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(38, 32, 30, 0.9)';
+        ctx.fillRect(origin.x - 2, origin.y + h, step * shown.length + 2, 2);
+        shown.forEach((entry, index) => {
+            const x = origin.x + index * step;
+            const y = origin.y;
+            const settle = this.motionScale
+                ? Math.min(1, Math.max(0, (now - entry.placedAt) / RESULT_TILE_SETTLE_MS))
+                : 1;
+            ctx.globalAlpha = 0.25 + settle * 0.75;
+            this._drawResultTile(ctx, x, y, w, h, entry.exitCode);
+            this._registerInstrumentHit({
+                kind: 'result-tile',
+                agentId: entry.agentId,
+                left: x - 1,
+                top: y - 1,
+                right: x + w + 1,
+                bottom: y + h + 1,
+            });
+        });
+        ctx.globalAlpha = 1;
+        const coalesced = this._resultShelf.length - shown.length;
+        if (coalesced > 0 && selected) {
+            ctx.font = `6px ${WORLD_BODY_FONT}`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(232, 226, 214, 0.9)';
+            ctx.fillText(`x${coalesced}`, origin.x + shown.length * step, origin.y + h / 2);
+        }
+        ctx.restore();
+    }
+
+    _drawResultTile(ctx, x, y, w, h, exitCode) {
+        ctx.fillStyle = 'rgba(26, 22, 20, 0.94)';
+        ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+        if (exitCode === null) {
+            // Blank while the outcome is unknown: a tile with no stamp on it.
+            ctx.fillStyle = 'rgba(120, 114, 108, 0.85)';
+            ctx.fillRect(x, y, w, h);
+            ctx.fillStyle = 'rgba(58, 54, 50, 0.9)';
+            ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+            return;
+        }
+        const failed = exitCode !== 0;
+        ctx.fillStyle = failed ? '#8c4a3a' : '#c9b183';
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = failed ? '#5a2c22' : '#8d7a52';
+        ctx.fillRect(x, y + h - 2, w, 2);
+        if (failed) {
+            // Cracked stamp: one stepped fracture across the tile.
+            ctx.fillStyle = '#28100c';
+            for (let index = 0; index < h; index++) {
+                ctx.fillRect(x + Math.round((index * (w - 1)) / Math.max(1, h - 1)), y + index, 1, 1);
+            }
+            return;
+        }
+        // Intact stamp: a struck seal, centred.
+        ctx.fillStyle = '#f2e2b6';
+        ctx.fillRect(x + Math.round(w / 2) - 2, y + Math.round(h / 2) - 2, 4, 3);
+        ctx.fillStyle = '#6a5a3a';
+        ctx.fillRect(x + Math.round(w / 2) - 1, y + Math.round(h / 2) - 1, 2, 1);
+    }
+
     _drawStaticSmokeWisp(ctx, point, { heat = 0, dust = false } = {}) {
         if (!point) return;
         const baseColor = dust
@@ -3214,10 +3579,8 @@ export class BuildingSprite {
             }
         }
         if (ritual.label) this._drawRitualLabel(ctx, mouth.x, mouth.y - 40, ritual.label, this._mineSeamColor(), fade);
-        if (ritual.cargo && (ritual.motionEnabled === false || this._zoom >= 1.5)) {
-            const percentage = Math.round(this._mineCargoMix(ritual.cargo).ratio * 100);
-            this._drawRitualLabel(ctx, cartX, cartY - 31, `${percentage}% CACHE`, '#9fd8f0', fade);
-        }
+        // No percentage on the Mine (4.3): the cart's crystal/ore mix carries
+        // the class split and the selected bench carries the exact counts.
     }
 
     // Mine reserves = remaining 5-hour quota, rendered as a stockpile of glowing
@@ -3288,6 +3651,122 @@ export class BuildingSprite {
             ctx.stroke();
         }
         ctx.restore();
+    }
+
+    // 4.3 — the assay bench. Two shallow trays retain the last 60 s of
+    // observed fresh-input ore and cache-read crystal, an assay rack states
+    // provenance one coin stamp at a time (solid = provider-reported cost,
+    // hollow = estimate), and the slate carries exact counts. A class the
+    // provider does not report reads `unknown`; it never becomes an empty tray
+    // labelled zero, and nothing here is ever a percentage.
+    _drawMineAssayBench(ctx, localPoint) {
+        const profile = getBuildingAssayProfile('mine');
+        const assay = this._mineAssay;
+        if (!profile || !assay) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        for (const tray of profile.trays) {
+            const at = localPoint(tray.at[0], tray.at[1]);
+            const value = tray.kind === 'cacheRead' ? assay.tokens.cacheRead : assay.tokens.input;
+            this._drawAssayTray(ctx, at, tray, value);
+        }
+        this._drawAssayRack(ctx, localPoint(profile.rack.at[0], profile.rack.at[1]), profile.rack, assay.cost);
+        if (Array.isArray(profile.countAt)) {
+            const at = localPoint(profile.countAt[0], profile.countAt[1]);
+            this._drawInstrumentPlate(ctx, at.x, at.y, assay.tokens.label, {
+                color: MINE_CARGO_CRYSTAL_COLORS[0],
+            });
+        }
+        if (Array.isArray(profile.costAt)) {
+            const at = localPoint(profile.costAt[0], profile.costAt[1]);
+            const note = assay.cost.note ? ` · ${assay.cost.note}` : '';
+            this._drawInstrumentPlate(ctx, at.x, at.y, `${assay.cost.label}${note}`, {
+                color: assay.cost.coverage === 'ok' ? '#f6d384' : '#c9c2b4',
+            });
+        }
+        ctx.restore();
+    }
+
+    // Quantized fill only: six nugget slots on a documented log ladder, so a
+    // tray reads as more or less at a glance while the exact number stays on
+    // the slate. `null` is an explicitly unknown class, not an empty tray.
+    _drawAssayTray(ctx, at, tray, value) {
+        const w = Math.max(10, Math.round(tray.w || 26));
+        const h = Math.max(6, Math.round(tray.h || 10));
+        const left = Math.round(at.x);
+        const top = Math.round(at.y);
+        ctx.fillStyle = 'rgba(36, 28, 20, 0.92)';
+        ctx.fillRect(left, top, w, h);
+        ctx.fillStyle = 'rgba(126, 106, 80, 0.9)';
+        ctx.fillRect(left, top, w, 1);
+        ctx.fillRect(left, top + h - 1, w, 1);
+        ctx.fillRect(left, top, 1, h);
+        ctx.fillRect(left + w - 1, top, 1, h);
+        if (value === null || value === undefined) {
+            ctx.font = `6px ${WORLD_BODY_FONT}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(198, 190, 178, 0.86)';
+            ctx.fillText('unknown', left + w / 2, top + h / 2 + 0.5);
+            return;
+        }
+        const nuggets = value <= 0 ? 0 : Math.max(1, Math.min(6, 1 + Math.floor(Math.log2(value / 100))));
+        const crystal = tray.kind === 'cacheRead';
+        const palette = crystal ? MINE_CARGO_CRYSTAL_COLORS : MINE_CARGO_ORE_COLORS;
+        for (let index = 0; index < nuggets; index++) {
+            const col = index % 3;
+            const row = index < 3 ? 0 : 1;
+            const x = left + 5 + col * 8;
+            const y = top + h - 3 - row * 4;
+            ctx.fillStyle = palette[index % palette.length];
+            if (crystal) {
+                ctx.beginPath();
+                ctx.moveTo(x, y - 3);
+                ctx.lineTo(x + 3, y);
+                ctx.lineTo(x, y + 2);
+                ctx.lineTo(x - 3, y);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.fillRect(x - 3, y - 2, 6, 4);
+            }
+        }
+    }
+
+    // One coin stamp per covered session: struck solid for a provider-reported
+    // cost, left hollow for an estimate. The rack never states an amount — the
+    // measured window does that once, on the slate.
+    _drawAssayRack(ctx, at, rack, cost) {
+        const w = Math.max(12, Math.round(rack.w || 30));
+        const h = Math.max(8, Math.round(rack.h || 12));
+        const left = Math.round(at.x);
+        const top = Math.round(at.y);
+        ctx.fillStyle = 'rgba(30, 24, 18, 0.9)';
+        ctx.fillRect(left, top, w, h);
+        ctx.fillStyle = 'rgba(126, 106, 80, 0.85)';
+        ctx.fillRect(left, top + h - 1, w, 1);
+        const stamps = Array.isArray(cost?.stamps) ? cost.stamps : [];
+        stamps.forEach((source, index) => {
+            const cx = left + 4 + index * 5;
+            const cy = top + Math.round(h / 2);
+            ctx.fillStyle = source === 'provider' ? '#f6d384' : 'rgba(246, 211, 132, 0.42)';
+            if (source === 'provider') {
+                ctx.fillRect(cx - 2, cy - 2, 4, 4);
+            } else {
+                ctx.fillRect(cx - 2, cy - 2, 4, 1);
+                ctx.fillRect(cx - 2, cy + 1, 4, 1);
+                ctx.fillRect(cx - 2, cy - 1, 1, 2);
+                ctx.fillRect(cx + 1, cy - 1, 1, 2);
+            }
+        });
+        if (cost?.stampOverflow > 0) {
+            ctx.font = `6px ${WORLD_BODY_FONT}`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(226, 222, 210, 0.88)';
+            ctx.fillText(`+${cost.stampOverflow}`, left + 4 + stamps.length * 5, top + h / 2);
+        }
     }
 
     // #52 — dome aperture: the round opening nearest the telescope opens with
@@ -3657,6 +4136,60 @@ export class BuildingSprite {
         return true;
     }
 
+    // 4.7 — the slate's frame tabs: one project-coloured tab per concurrent
+    // plan owner, each carrying its repo crest and its own `done/total`, with
+    // an exact `+N plans` under them. The slate itself still shows exactly one
+    // owner's phase plan — selecting a tab is what changes whose.
+    _drawTaskboardPlanTabs(ctx, localPoint) {
+        const profile = getBuildingPlanTabProfile('taskboard');
+        if (!profile) return;
+        const summaries = this._taskboardBoardModel.summaries({
+            candidates: this._taskboardCandidates || [],
+            agentSprites: this.agentSprites,
+        });
+        if (summaries.length < 2) return;
+        const shown = summaries.slice(0, Math.max(1, profile.max || 3));
+        const boardId = this._taskboardBoardAgent()?.id || null;
+        const w = Math.max(12, Math.round(profile.w || 26));
+        const h = Math.max(7, Math.round(profile.h || 10));
+        const gap = Math.max(1, Math.round(profile.gap || 3));
+        ctx.save();
+        ctx.font = `6px ${WORLD_BODY_FONT}`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        shown.forEach((summary, index) => {
+            const origin = localPoint(profile.at[0], profile.at[1] + index * (h + gap));
+            const accent = this._repoProfileFor(summary.project)?.accent || '#8bd7ff';
+            const active = summary.agentId === boardId;
+            ctx.fillStyle = 'rgba(20, 24, 24, 0.92)';
+            ctx.fillRect(origin.x, origin.y, w, h);
+            ctx.fillStyle = active ? accent : 'rgba(120, 128, 124, 0.75)';
+            ctx.fillRect(origin.x, origin.y, 2, h);
+            // Owner token: the same repo crest colour the villager's tag uses.
+            ctx.fillStyle = accent;
+            ctx.fillRect(origin.x + 4, origin.y + Math.round(h / 2) - 2, 4, 4);
+            ctx.fillStyle = active ? '#f2f6ee' : 'rgba(226, 232, 222, 0.72)';
+            ctx.fillText(`${summary.done}/${summary.total}`, origin.x + 10, origin.y + h / 2 + 0.5);
+            this._registerInstrumentHit({
+                kind: 'plan-tab',
+                agentId: summary.agentId,
+                left: origin.x,
+                top: origin.y,
+                right: origin.x + w,
+                bottom: origin.y + h,
+            });
+        });
+        const overflow = summaries.length - shown.length;
+        if (overflow > 0 && Array.isArray(profile.overflowAt)) {
+            const at = localPoint(profile.overflowAt[0], profile.overflowAt[1]);
+            ctx.fillStyle = 'rgba(20, 24, 24, 0.86)';
+            ctx.fillRect(at.x, at.y, w, 9);
+            ctx.fillStyle = 'rgba(226, 232, 222, 0.86)';
+            ctx.fillText(`+${overflow} plans`, at.x + 3, at.y + 5);
+        }
+        ctx.restore();
+    }
+
     _drawTaskboardRitual(ctx, localPoint) {
         const papers = this._taskboardPapers
             .slice()
@@ -3716,7 +4249,10 @@ export class BuildingSprite {
         });
     }
 
-    _drawCommandActivityDetails(ctx, localPoint, building, pulse) {
+    // `windows: false` withdraws the aggregate hall-window row when the 4.1
+    // aperture or the 4.2 rooms are carrying occupancy for this building —
+    // one instrument per fact.
+    _drawCommandActivityDetails(ctx, localPoint, building, pulse, { windows = true } = {}) {
         const activity = this._buildingActivityInfo(building);
         const activeWorking = this._watchtowerActiveCount();
         const signal = Math.max(activity.intensity, activity.occupancy.ratio, Math.min(1, activeWorking / 6));
@@ -3746,7 +4282,7 @@ export class BuildingSprite {
         }
 
         ctx.globalCompositeOperation = 'source-over';
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; windows && i < count; i++) {
             const x = Math.round(hall.x - 22 + i * 11);
             const y = Math.round(hall.y + 16 + (i % 2) * 2);
             // 6.5 — hall windows redrawn sprite-quality: arched dark frame,
@@ -4078,7 +4614,13 @@ export class BuildingSprite {
         // forge chimney column, mine dust, and harbor steam all lean downwind
         // by the same amount.
         const windDrift = smokeWindDrift(this.atmosphereState);
-        for (const emitter of BUILDING_EMITTER_FALLBACKS[b.type] || []) {
+        // 4.6 — at canonical rest the activity-only emitters (hearth embers,
+        // forge and harbor smoke, mine dust, quest pings, archive motes) stop;
+        // the architectural fires keep burning — the castle torches and gate
+        // lantern in `entry.emitters` above, and the Pharos beacon, which is a
+        // safety light and not a work signal.
+        const restQuiet = this._villageAtRest() && b.type !== 'watchtower';
+        for (const emitter of restQuiet ? [] : BUILDING_EMITTER_FALLBACKS[b.type] || []) {
             let chanceBoost = b.type === 'forge'
                 ? 0.7 + this._forgeGlowIntensity() * 1.1
                 : this._visitorCountFor(b) > 0 ? 1.6 : 1;
@@ -4259,6 +4801,337 @@ export class BuildingSprite {
             state,
             ratio: capacity > 0 ? clamp01(count / capacity) : 0,
         };
+    }
+    // ── 4.1 / 4.2 — explicit building inspection ────────────────────────────
+
+    // The sessions a selected building can present: everything the building
+    // panel counts as assigned here, plus everyone physically inside it. This
+    // is the same set the 1.8 instrument reads, so the aperture header and the
+    // panel can never disagree.
+    _inspectionSessions(type, now) {
+        const sessions = [];
+        const seen = new Set();
+        for (const sprite of this.agentSprites || []) {
+            const agent = sprite?.agent;
+            if (!agent?.id || seen.has(agent.id) || agent.isDeparted) continue;
+            const assigned = String(
+                agent.targetBuildingType || agent.lastKnownBuildingType || agent.buildingType || agent.building || '',
+            ).trim() === type;
+            const visiting = sprite._foldBuildingType === type;
+            if (!assigned && !visiting) continue;
+            seen.add(agent.id);
+            const observation = sprite.observation || resolveObservation(agent, now);
+            sessions.push({
+                agentId: agent.id,
+                name: agent.displayName || agent.name || agent.id,
+                tool: compactToolLabel(agent.currentTool),
+                status: agent.status,
+                observation,
+                visiting,
+                // A waiting session is not a failed bulb, and a stale one is
+                // not a finished one: both keep their identity, neither claims
+                // new work (C1).
+                working: lightsBuildingWindows(agent),
+                stale: observation?.state === 'stale',
+                waiting: agent.status === AgentStatus.WAITING_ON_USER || agent.status === AgentStatus.WAITING,
+            });
+        }
+        return sessions.sort((a, b) => (a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0));
+    }
+
+    _updateInspection() {
+        const type = this._selectedBuildingType;
+        this._apertureModel = null;
+        this._apertureProfile = null;
+        this._roomStateByType.clear();
+        if (!type) return;
+        const rooms = getBuildingRoomProfile(type);
+        const aperture = getBuildingApertureProfile(type);
+        if (!rooms && !aperture) return;
+
+        const sessions = this._inspectionSessions(type, Date.now());
+        if (rooms) {
+            const held = this._roomAssignments.get(type);
+            // A stale observation freezes: it keeps the room it already holds
+            // and never takes a new one.
+            const workingIds = sessions
+                .filter((session) => session.working && (!session.stale || held?.has(session.agentId)))
+                .map((session) => session.agentId);
+            const { assignment, overflow } = assignRoomSlots({
+                previous: held,
+                workingIds,
+                rooms: rooms.slots.length,
+            });
+            this._roomAssignments.set(type, assignment);
+            this._roomStateByType.set(type, {
+                profile: rooms,
+                assignment,
+                working: workingIds.length,
+                waiting: sessions.filter((session) => session.waiting).length,
+                overflow,
+            });
+        }
+        if (!aperture) return;
+        const minZoom = Number.isFinite(aperture.minZoom) ? aperture.minZoom : APERTURE_MIN_ZOOM;
+        if ((this._zoom || 0) < minZoom) return;
+        const capacity = aperture.slots.length;
+        const { assignment } = assignRoomSlots({
+            previous: this._deskAssignments.get(type),
+            workingIds: sessions.map((session) => session.agentId),
+            rooms: capacity,
+        });
+        this._deskAssignments.set(type, assignment);
+        const seated = sessions
+            .filter((session) => assignment.has(session.agentId))
+            .sort((a, b) => assignment.get(a.agentId) - assignment.get(b.agentId));
+        const standing = sessions.filter((session) => !assignment.has(session.agentId));
+        this._apertureProfile = aperture;
+        this._apertureModel = buildApertureModel({
+            buildingType: type,
+            capacity,
+            sessions: [...seated, ...standing],
+        });
+    }
+
+    // C4 — the aperture record other surfaces may read. Null whenever the
+    // aperture is closed.
+    getApertureModel() {
+        return this._apertureModel;
+    }
+
+    _openApertureFor(building) {
+        if (!this._apertureModel || !this._apertureProfile) return null;
+        if (building?.type !== this._apertureModel.buildingType) return null;
+        return { model: this._apertureModel, profile: this._apertureProfile };
+    }
+
+    // 4.2 — the per-room instrument is night-only and selection-only. Outside
+    // it every building keeps the shipped aggregate occupancy gate.
+    _roomInstrumentFor(building) {
+        const state = this._roomStateByType.get(building?.type);
+        if (!state) return null;
+        return this._nightWindowGate() > 0 ? state : null;
+    }
+
+    _spriteForAgent(agentId) {
+        for (const sprite of this.agentSprites || []) {
+            if (sprite?.agent?.id === agentId) return sprite;
+        }
+        return null;
+    }
+
+    // The authored sectional view. Fixed order, identical in Canvas and in the
+    // resident renderer (both reach this through the shared functional-overlay
+    // pass): cut and room shell, the presented occupants, the desks that
+    // occlude their legs, their marks, then the near frame.
+    _drawInspectionAperture(ctx, building, entry, wx, wy, open) {
+        const { model, profile } = open;
+        const [baseAx, baseAy] = this.assets.getAnchor(entry.id);
+        const localPoint = (lx, ly) => ({ x: Math.round(wx - baseAx + lx), y: Math.round(wy - baseAy + ly) });
+        const layer = (name) => {
+            const id = `${entry.id}.${name}`;
+            if (!this.assets.get(id)) return;
+            this.sprites.drawSprite(ctx, id, wx, wy, { anchor: [baseAx, baseAy] });
+        };
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        layer(profile.layers[0]);
+        const occupantHeight = Math.max(8, Math.round(profile.occupant?.h || 26));
+        model.slots.forEach((slot, index) => {
+            const anchor = profile.slots[index]?.at;
+            if (!anchor) return;
+            this._drawApertureOccupant(ctx, localPoint(anchor[0], anchor[1]), slot, occupantHeight);
+        });
+        layer(profile.layers[1]);
+        model.slots.forEach((slot, index) => {
+            const anchor = profile.slots[index]?.at;
+            if (!anchor) return;
+            this._drawApertureSlotMark(ctx, localPoint(anchor[0], anchor[1]), slot);
+        });
+        layer(profile.layers[2]);
+        this._drawApertureLegend(ctx, localPoint, building, model, profile);
+        ctx.restore();
+    }
+
+    // The occupant is drawn from its own composited sheet, so it is the same
+    // body the operator sees outside — a presentation crop at the desk, never a
+    // second sprite with a position of its own. `height` is the authored body
+    // height for this room (4.1): the room is a full storey and a person in it
+    // fills about two thirds of it, which is what makes the occupants readable
+    // at zoom 2 instead of a row of specks.
+    _drawApertureOccupant(ctx, point, slot, height = 26) {
+        const sprite = this._spriteForAgent(slot.agentId);
+        const cell = sprite?.currentPoseCell?.() || sprite?.spriteSheet?.cell?.('idle', 0, 0) || null;
+        const canvas = cell?.canvas || sprite?.spriteCanvas || null;
+        if (!cell || !canvas) {
+            // No sheet resident yet: a plain slate figure, never an invented
+            // identity.
+            ctx.fillStyle = 'rgba(158, 150, 164, 0.9)';
+            ctx.fillRect(point.x - Math.round(height / 5), point.y - height, Math.max(4, Math.round(height / 2.5)), height);
+            return;
+        }
+        const sx = cell.sx + Math.round(cell.sw * 0.28);
+        const sy = cell.sy + Math.round(cell.sh * 0.16);
+        const sw = Math.round(cell.sw * 0.44);
+        const sh = Math.round(cell.sh * 0.74);
+        const dh = Math.max(10, height);
+        const dw = Math.max(6, Math.round((sw * dh) / Math.max(1, sh)));
+        ctx.globalAlpha = slot.observation?.state === 'stale' ? 0.72 : 1;
+        ctx.drawImage(canvas, sx, sy, sw, sh, point.x - Math.round(dw / 2), point.y - dh, dw, dh);
+        ctx.globalAlpha = 1;
+    }
+
+    // One status pip per desk and, for an unfresh observation, the 1.1 seal.
+    // No outcome is claimed here: the pip is the reported status, nothing more.
+    _drawApertureSlotMark(ctx, point, slot) {
+        const visual = STATUS_VISUALS[slot.status] || null;
+        ctx.fillStyle = 'rgba(16, 12, 18, 0.85)';
+        ctx.fillRect(point.x - 4, point.y + 1, 8, 3);
+        ctx.fillStyle = visual?.color || '#c9c2cf';
+        ctx.fillRect(point.x - 3, point.y + 2, 6, 1);
+        if (slot.observation?.state === 'fresh') return;
+        // Cut-corner slate seal (C5): the observation is old, the desk is not.
+        const sealX = point.x + 4;
+        const sealY = point.y - 16;
+        ctx.fillStyle = 'rgba(206, 202, 214, 0.92)';
+        ctx.fillRect(sealX, sealY + 1, 4, 4);
+        ctx.fillStyle = 'rgba(38, 32, 42, 0.92)';
+        ctx.fillRect(sealX + 3, sealY + 1, 1, 1);
+    }
+
+    // The legend names what the room shows: the same working/waiting counts
+    // the 4.2 rooms use, one row per presented session with its current tool,
+    // and an exact `+N more`. Counts, never percentages.
+    _drawApertureLegend(ctx, localPoint, building, model, profile) {
+        const legend = profile.legend;
+        if (!legend?.at) return;
+        const rooms = this._roomStateByType.get(model.buildingType);
+        const working = rooms ? rooms.working : this._visitorStatusByType.get(model.buildingType)?.working || 0;
+        const waiting = rooms
+            ? rooms.waiting
+            : this._visitorStatusByType.get(model.buildingType)?.waiting_on_user || 0;
+        const rows = [`${working} working · ${waiting} waiting`];
+        for (const slot of model.slots) {
+            rows.push(slot.tool ? `${slot.name} · ${slot.tool}` : slot.name);
+        }
+        if (model.overflow > 0) rows.push(`+${model.overflow} more`);
+        if (!model.slots.length) rows.push('No assigned sessions');
+        const rowH = Number(legend.rowH) || 8;
+        const width = Number(legend.w) || 78;
+        const origin = localPoint(legend.at[0], legend.at[1]);
+        const height = rows.length * rowH + 3;
+        ctx.save();
+        ctx.fillStyle = 'rgba(18, 14, 20, 0.82)';
+        ctx.fillRect(origin.x, origin.y, width, height);
+        ctx.fillStyle = 'rgba(148, 140, 142, 0.55)';
+        ctx.fillRect(origin.x, origin.y, width, 1);
+        ctx.font = `6px ${WORLD_BODY_FONT}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        rows.forEach((text, index) => {
+            ctx.fillStyle = index === 0 ? '#f6c85f' : 'rgba(226, 222, 232, 0.92)';
+            ctx.fillText(text, origin.x + 3, origin.y + 2 + rowH / 2 + index * rowH);
+        });
+        ctx.restore();
+    }
+
+    // 4.2 — one authored window per real working occupant, plus the exact
+    // counts. A room the art does not have is never invented: the surplus is
+    // the overflow number.
+    _drawWorkRooms(ctx, localPoint, shouldDrawLocalY, state, { withCount = true } = {}) {
+        const gate = this._nightWindowGate();
+        const slots = state.profile.slots;
+        const lit = new Set(state.assignment.values());
+        ctx.save();
+        for (let index = 0; index < slots.length; index++) {
+            const slot = slots[index];
+            const [lx, ly] = slot.at || [];
+            if (!Number.isFinite(lx) || !Number.isFinite(ly) || !shouldDrawLocalY(ly)) continue;
+            const point = localPoint(lx, ly);
+            const w = Math.max(3, Math.round(slot.w || 6));
+            const h = Math.max(3, Math.round(slot.h || 8));
+            const left = Math.round(point.x - w / 2);
+            const top = Math.round(point.y - h / 2);
+            // Every room keeps its dark frame, so an unlit room reads as a
+            // room at rest rather than as missing art.
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(22, 15, 11, 0.9)';
+            ctx.fillRect(left - 1, top - 1, w + 2, h + 2);
+            if (!lit.has(index)) {
+                ctx.fillStyle = 'rgba(74, 62, 58, 0.75)';
+                ctx.fillRect(left, top, w, h);
+                continue;
+            }
+            ctx.fillStyle = `rgba(255, 214, 138, ${0.5 + gate * 0.34})`;
+            ctx.fillRect(left, top, w, h);
+            ctx.fillStyle = `rgba(255, 244, 206, ${0.5 + gate * 0.4})`;
+            ctx.fillRect(Math.round(point.x - 1), top + 1, 2, Math.max(2, h - 2));
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = `rgba(255, 190, 96, ${0.16 + gate * 0.14})`;
+            ctx.fillRect(left - 3, top - 2, w + 6, h + 4);
+        }
+        ctx.restore();
+        if (!withCount) return;
+        const at = state.profile.countAt;
+        if (!Array.isArray(at) || !shouldDrawLocalY(at[1])) return;
+        const point = localPoint(at[0], at[1]);
+        const overflow = state.overflow > 0 ? ` · +${state.overflow} more` : '';
+        const text = `${state.working} working · ${state.waiting} waiting${overflow}`;
+        ctx.save();
+        ctx.font = `6px ${WORLD_BODY_FONT}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const width = Math.ceil(ctx.measureText(text).width) + 6;
+        ctx.fillStyle = 'rgba(18, 14, 20, 0.82)';
+        ctx.fillRect(Math.round(point.x - width / 2), point.y - 5, width, 10);
+        ctx.fillStyle = 'rgba(232, 228, 236, 0.94)';
+        ctx.fillText(text, point.x, point.y);
+        ctx.restore();
+    }
+
+    // 4.6 — the canonical sleeping town. Only READY_EMPTY earns it, and only
+    // while the village really is empty of sprites.
+    _villageAtRest() {
+        // The reducer emits `village:state` on each dispatch, and the first
+        // dispatch can land before this renderer exists, so until an event
+        // arrives the shell's own current phase is read directly. Either way
+        // the phase is the canonical one from VillageState, never a guess from
+        // an empty sprite list — and the sprite list still has to agree.
+        const phase = this._villagePhase
+            ?? (typeof window !== 'undefined' ? window.__claudeVilleApp?.villageState?.phase : null)
+            ?? null;
+        return phase === VillagePhase.READY_EMPTY && !(this.agentSprites?.length);
+    }
+
+    // 4.6 — the banked mouth. The hearth fire is painted into base.png, so rest
+    // lays the authored `banked.png` mask over exactly those pixels: stepped
+    // charcoal over one ember course. A workshop between shifts, not a dead one.
+    _drawForgeBankedMouth(ctx, entry, wx, wy) {
+        const name = getBuildingRestLayer('forge');
+        if (!name) return;
+        const id = `${entry.id}.${name}`;
+        if (!this.assets.get(id)) return;
+        const anchor = this.assets.getAnchor(entry.id);
+        this.sprites.drawSprite(ctx, id, wx, wy, { anchor });
+    }
+
+    // 4.6 — the slate between shifts: the authored rack with nothing pinned to
+    // it, instead of the last run's papers left hanging as phantom work.
+    _drawTaskboardEmptyRack(ctx, localPoint) {
+        const origin = localPoint(TASKBOARD_SLATE_RECT.x, TASKBOARD_SLATE_RECT.y);
+        const railY = origin.y + Math.round(TASKBOARD_SLATE_RECT.h * 0.34);
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(24, 28, 26, 0.55)';
+        ctx.fillRect(origin.x + 4, origin.y + 4, TASKBOARD_SLATE_RECT.w - 8, TASKBOARD_SLATE_RECT.h - 8);
+        ctx.fillStyle = 'rgba(120, 104, 74, 0.85)';
+        ctx.fillRect(origin.x + 8, railY, TASKBOARD_SLATE_RECT.w - 16, 1);
+        ctx.fillStyle = 'rgba(196, 178, 132, 0.9)';
+        for (let i = 0; i < 3; i++) {
+            const x = origin.x + 14 + i * Math.round((TASKBOARD_SLATE_RECT.w - 28) / 2);
+            ctx.fillRect(x, railY - 2, 2, 3);
+        }
+        ctx.restore();
     }
 
     _buildingActivityInfo(building, { alert = this._buildingAlertFor(building) } = {}) {

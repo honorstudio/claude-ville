@@ -17,6 +17,7 @@ const { getJsonlDiagnostics, trimCache, readFailures } = require('./shared');
 const { decorateSessionPresentation } = require('./sessionPresentation');
 const { normalizeDialogue, normalizeObservedSources } = require('./dialogue');
 const { hookOverlay, mergeOverlay } = require('./hooks');
+const { normalizeToolResults } = require('./toolResults');
 const {
   getGitEnrichmentPerfStats,
   invalidateGitStatusCaches,
@@ -233,6 +234,7 @@ function normalizeSession(session, context = {}) {
       ? session.promptDetail.slice(0, 200)
       : undefined,
     workingSet,
+    lastResults: normalizeToolResults(session?.lastResults),
     waitReason: session?.waitReason ?? null,
     resident: session?.resident === true,
     sendMessages: Array.isArray(session?.sendMessages) ? session.sendMessages : [],

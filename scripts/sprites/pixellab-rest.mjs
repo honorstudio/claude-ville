@@ -328,6 +328,179 @@ export function clonePng(src) {
     return out;
 }
 
+// Centre a square source frame in a `cell`×`cell` window: crop when the source
+// is larger, pad with transparency when it is smaller. Shared by the character
+// sheet and action-strip assemblers so both keep the same feet/anchor.
+export function fitCenterToCell(src, cell) {
+    if (src.width !== src.height) throw new Error(`expected a square frame, got ${src.width}×${src.height}`);
+    const off = Math.floor((src.width - cell) / 2);
+    const out = new PNG({ width: cell, height: cell });
+    out.data.fill(0);
+    for (let y = 0; y < cell; y++) {
+        const sy = off + y;
+        if (sy < 0 || sy >= src.height) continue;
+        for (let x = 0; x < cell; x++) {
+            const sx = off + x;
+            if (sx < 0 || sx >= src.width) continue;
+            const si = (src.width * sy + sx) << 2;
+            const di = (cell * y + x) << 2;
+            out.data[di] = src.data[si];
+            out.data[di + 1] = src.data[si + 1];
+            out.data[di + 2] = src.data[si + 2];
+            out.data[di + 3] = src.data[si + 3];
+        }
+    }
+    return out;
+}
+
+export function blitPng(src, dst, dx, dy) {
+    for (let y = 0; y < src.height; y++) {
+        for (let x = 0; x < src.width; x++) {
+            const dxx = dx + x;
+            const dyy = dy + y;
+            if (dxx < 0 || dyy < 0 || dxx >= dst.width || dyy >= dst.height) continue;
+            const si = (src.width * y + x) << 2;
+            const di = (dst.width * dyy + dxx) << 2;
+            dst.data[di] = src.data[si];
+            dst.data[di + 1] = src.data[si + 1];
+            dst.data[di + 2] = src.data[si + 2];
+            dst.data[di + 3] = src.data[si + 3];
+        }
+    }
+}
+
+// ─── Character library (REST) ────────────────────────────────────────────────
+// The MCP mount in this harness carries no bearer header, so character reads
+// and animation requests go through REST with the .dev.vars token.
+
+async function characterApi(token, path, { method = 'GET', body = null, label = path } = {}) {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: {
+            Authorization: `Bearer ${token}`,
+            ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(`PixelLab ${response.status} for ${label}: ${JSON.stringify(json)}`);
+    return json;
+}
+
+// { credits, subscription: { generations, total, plan } }
+export function getBalance(token) {
+    return characterApi(token, '/balance', { label: 'balance' });
+}
+
+export function getCharacter(token, characterId) {
+    return characterApi(token, `/characters/${characterId}`, { label: `character ${characterId}` });
+}
+
+export async function listCharacters(token, { pageSize = 50 } = {}) {
+    const characters = [];
+    for (let offset = 0; ; offset += pageSize) {
+        const page = await characterApi(token, `/characters?limit=${pageSize}&offset=${offset}`, { label: 'characters' });
+        const batch = page?.characters || [];
+        characters.push(...batch);
+        if (!batch.length || characters.length >= Number(page?.total || 0)) break;
+    }
+    return characters;
+}
+
+// v3 custom animation: one background job per direction. `frameCount` must be
+// even, 4–16; `keepFirstFrame:false` stores exactly `frameCount` frames.
+export function createCharacterAnimation(token, {
+    characterId,
+    animationName,
+    actionDescription,
+    frameCount = 4,
+    directions,
+    keepFirstFrame = false,
+    seed = null,
+}) {
+    return characterApi(token, '/characters/animations', {
+        method: 'POST',
+        label: `animate ${animationName} on ${characterId}`,
+        body: {
+            character_id: characterId,
+            animation_name: animationName,
+            action_description: actionDescription,
+            mode: 'v3',
+            frame_count: frameCount,
+            keep_first_frame: keepFirstFrame,
+            directions,
+            ...(seed === null ? {} : { seed }),
+        },
+    });
+}
+
+// A named group's frames, merged across every record carrying that name: a
+// repaired direction arrives as its own record, so one direction's frames can
+// live in a later record than the rest. Later records win per direction.
+export function characterAnimationFrames(character, animationName, { frameCount = 1 } = {}) {
+    const byDirection = new Map();
+    const groupIds = [];
+    for (const animation of character?.animations || []) {
+        if (animation.display_name !== animationName && animation.animation_type !== animationName) continue;
+        if (animation.animation_group_id) groupIds.push(animation.animation_group_id);
+        for (const entry of animation.directions || []) {
+            if ((entry.frames?.length || 0) < frameCount) continue;
+            byDirection.set(entry.direction, entry.frames);
+        }
+    }
+    return { byDirection, groupIds };
+}
+
+// Resolves once every requested direction of `animationName` carries
+// `frameCount` frames. Throws after `maxWaitMs`, or after `stallMs` without a
+// single new direction — a failed background job never completes, so the caller
+// repairs the missing directions instead of waiting out the whole deadline.
+export async function waitForCharacterAnimation(token, characterId, {
+    animationName,
+    directions,
+    frameCount,
+    pollIntervalMs = 20_000,
+    maxWaitMs = 25 * 60 * 1000,
+    stallMs = 6 * 60 * 1000,
+    label = animationName,
+} = {}) {
+    const deadline = Date.now() + maxWaitMs;
+    let best = -1;
+    let lastProgress = Date.now();
+    for (;;) {
+        const character = await getCharacter(token, characterId);
+        const { byDirection, groupIds } = characterAnimationFrames(character, animationName, { frameCount });
+        const ready = directions.filter((direction) => byDirection.has(direction));
+        if (ready.length === directions.length) return { character, byDirection, groupIds };
+        if (ready.length > best) {
+            best = ready.length;
+            lastProgress = Date.now();
+        }
+        const stalled = Date.now() - lastProgress > stallMs;
+        if (stalled || Date.now() > deadline) {
+            const missing = directions.filter((direction) => !byDirection.has(direction));
+            throw new Error(`PixelLab animation ${label} ${stalled ? 'stalled' : 'timed out'} with ${ready.length}/${directions.length} directions complete (missing ${missing.join(', ')})`);
+        }
+        console.log(`[pixellab] ${label}: ${ready.length}/${directions.length} directions complete`);
+        await sleep(pollIntervalMs);
+    }
+}
+
+export async function fetchPng(url, { retries = 2, label = 'frame' } = {}) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        if (attempt > 0) await sleep(2000 * attempt);
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return PNG.sync.read(Buffer.from(await response.arrayBuffer()));
+        } catch (err) {
+            lastError = new Error(`download failed for ${label}: ${err.message}`);
+        }
+    }
+    throw lastError;
+}
+
 export function writePng(path, png) {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, PNG.sync.write(png));

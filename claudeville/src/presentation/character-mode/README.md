@@ -35,7 +35,7 @@ The directory is named `character-mode/` for historical reasons. In prose, the u
 | `RelationshipState.js` | Debounced relationship snapshot for parent/child, team, arrival/departure, and chat-pair consumers. |
 | `ArrivalDeparture.js`, `TrailRenderer.js` | Relationship arrival/departure cues and movement trails. |
 | `Chronicler.js`, `ChronicleEvents.js`, `ChronicleMonuments.js` | Chronicle event capture and monument rendering. |
-| `CouncilRing.js` | Team/council ring visuals around related agents. |
+| `CouncilRing.js` | Team/council ring visuals around related agents, plus the gather roll call: on a real `team:gather` one notch lands at each gathered member's feet on the council cue's successive bells (`shared/audio/CueScore`), and a static `team · N` mark states the whole membership on the final one. One ceremony at a time, held 8s, drawn in the upper overlay; reduced motion and a silent village draw every mark at once. |
 | `PulsePolicy.js` | Shared pulse-priority parser and defaults. |
 | `ObservationCertainty.js` | Pure resolver turning provider freshness/`signalStale`/residency into `{ state, observedAt, ageMs }`. Stale observation suppresses new ritual motion and earns the last-observed seal; it never becomes an execution status. |
 | `DebugOverlay.js` | Shift-D debug overlay for renderer diagnostics; Shift-P pathfinding overlay (planned-path breadcrumbs and glowing destination tiles). Both off by default. |

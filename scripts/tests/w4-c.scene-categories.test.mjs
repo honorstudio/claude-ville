@@ -108,6 +108,9 @@ test('mine ritual functional overlay draws once per frame in Canvas and GPU back
         enumerateDrawables: () => [drawable],
         _clipToSplitPass: () => {},
         _latestRitual: type => type === 'mine' ? ritual : null,
+        // 4.2 room instrument is a separate night/selection cue; this test is
+        // only about how many times the ritual mark reaches a backend.
+        _roomInstrumentFor: () => null,
         _mineSeamColor: () => '#ffc15a',
         _mineReserveRatio: () => 0.64,
         _mineRailSpan: mouth => ({

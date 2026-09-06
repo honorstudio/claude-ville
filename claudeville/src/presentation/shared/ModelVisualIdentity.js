@@ -288,3 +288,119 @@ export function formatModelLabel(model, effort, provider = '') {
         .replace('-20250929', '')
         .replace('-20251001', '');
 }
+
+// --- Stable agent signatures (plan 2.4) -------------------------------------
+//
+// A bounded personal mark, subordinate to the model silhouette and the team
+// trim, so an operator can follow one individual from the hero body through
+// the 28 px compact GPU body, the Canvas impostor diamond, and selection.
+// The index is a pure function of the agent id plus its canonical family; it
+// never carries mood, rank, or any other claim about the agent. Names remain
+// authoritative — 32 marks do not uniquely identify a hundred agents.
+
+// Eight two-tone clasps: accent motif ('1') on an ink plate ('0' cells stay
+// ink). Every motif differs in shape, so the mark survives monochrome.
+const SIGNATURE_CLASPS = Object.freeze([
+    Object.freeze(['1111', '0000', '0000', '1111']),
+    Object.freeze(['1001', '1001', '1001', '1001']),
+    Object.freeze(['1000', '0100', '0010', '0001']),
+    Object.freeze(['0001', '0010', '0100', '1000']),
+    Object.freeze(['1010', '0101', '1010', '0101']),
+    Object.freeze(['1111', '1001', '1001', '1111']),
+    Object.freeze(['0110', '0110', '1111', '0000']),
+    Object.freeze(['1100', '1100', '0011', '0011']),
+]);
+// Four silhouette trims: which corners of the 6x6 plate are cut away. The
+// outline reads at one device pixel per cell, where an interior motif alone
+// would not.
+const SIGNATURE_TRIMS = Object.freeze([
+    Object.freeze([]),
+    Object.freeze(['0,0', '5,5']),
+    Object.freeze(['0,0', '5,0', '0,5', '5,5']),
+    Object.freeze(['0,5', '5,5']),
+]);
+
+export const SIGNATURE_TRIM_COUNT = SIGNATURE_TRIMS.length;
+export const SIGNATURE_CLASP_COUNT = SIGNATURE_CLASPS.length;
+export const SIGNATURE_COUNT = SIGNATURE_TRIM_COUNT * SIGNATURE_CLASP_COUNT;
+export const SIGNATURE_CELLS = 6;
+
+const SIGNATURE_CACHE = new Map();
+const SIGNATURE_CACHE_LIMIT = 512;
+
+function signatureHash(text) {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function signatureRows(trim, clasp) {
+    const cuts = SIGNATURE_TRIMS[trim];
+    const motif = SIGNATURE_CLASPS[clasp];
+    const rows = [];
+    for (let y = 0; y < SIGNATURE_CELLS; y++) {
+        let row = '';
+        for (let x = 0; x < SIGNATURE_CELLS; x++) {
+            if (cuts.includes(`${x},${y}`)) row += '0';
+            else if (x === 0 || y === 0 || x === SIGNATURE_CELLS - 1 || y === SIGNATURE_CELLS - 1) row += '2';
+            else row += motif[y - 1][x - 1] === '1' ? '1' : '2';
+        }
+        rows.push(row);
+    }
+    return Object.freeze(rows);
+}
+
+/**
+ * Bounded personal signature for one agent inside one canonical family.
+ * Pure: the same (agentId, family) always yields the same frozen record, and
+ * `index` is always within [0, SIGNATURE_COUNT). `key` is namespaced by family,
+ * so the same index under a different silhouette is a different signature.
+ */
+export function agentSignature(agentId, family) {
+    const id = String(agentId ?? '');
+    const familyKey = String(family ?? '');
+    const cacheKey = `${familyKey}\u0000${id}`;
+    const cached = SIGNATURE_CACHE.get(cacheKey);
+    if (cached) return cached;
+    const index = signatureHash(`${id}:${familyKey}:signature`) % SIGNATURE_COUNT;
+    const trim = Math.floor(index / SIGNATURE_CLASP_COUNT);
+    const clasp = index % SIGNATURE_CLASP_COUNT;
+    const signature = Object.freeze({
+        index,
+        trim,
+        clasp,
+        family: familyKey,
+        key: `${familyKey}#${index}`,
+        rows: signatureRows(trim, clasp),
+    });
+    if (SIGNATURE_CACHE.size >= SIGNATURE_CACHE_LIMIT) {
+        SIGNATURE_CACHE.delete(SIGNATURE_CACHE.keys().next().value);
+    }
+    SIGNATURE_CACHE.set(cacheKey, signature);
+    return signature;
+}
+
+/**
+ * Stamps the signature centered on (x, y) at `pixel` device pixels per cell.
+ * The same call renders the mark on a hero body, a compact GPU body, an
+ * impostor diamond, and a dispatched child miniature.
+ */
+export function drawAgentSignature(ctx, signature, { x, y, pixel = 1, ink = '#150f0c', accent = '#f2d36b' } = {}) {
+    const rows = signature?.rows;
+    if (!ctx || !rows) return;
+    const step = Math.max(1, Math.round(pixel));
+    const left = Math.round(x) - Math.round(SIGNATURE_CELLS * step / 2);
+    const top = Math.round(y) - Math.round(SIGNATURE_CELLS * step / 2);
+    for (let y0 = 0; y0 < rows.length; y0++) {
+        const row = rows[y0];
+        for (let x0 = 0; x0 < row.length; x0++) {
+            const cell = row[x0];
+            if (cell === '0') continue;
+            ctx.fillStyle = cell === '1' ? accent : ink;
+            ctx.fillRect(left + x0 * step, top + y0 * step, step, step);
+        }
+    }
+}

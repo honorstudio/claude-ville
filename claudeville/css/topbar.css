@@ -596,6 +596,18 @@
     opacity: 0.45;
 }
 
+/* 5.3 — the working section beside the music control. A static count readout,
+   never a level meter: the music follows these numbers, it never replaces
+   them. */
+.topbar__sound-section {
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 0.4px;
+    padding: 0 2px;
+    color: rgba(187, 161, 122, 0.9);
+    white-space: nowrap;
+}
+
 /* Ambience volume slider — visible only while sound is on. */
 .topbar__sound-vol {
     width: 72px;

@@ -26,6 +26,7 @@ const {
 } = require('./shared');
 const { deriveTurnState, toEpochMs } = require('./turnState');
 const { emptyObservedSources, makeDialogue, pickDialogue } = require('./dialogue');
+const { TOOL_RESULT_LIMIT, toolResultId } = require('./toolResults');
 
 const CODEX_DIR = path.join(os.homedir(), '.codex');
 const SESSIONS_DIR = path.join(CODEX_DIR, 'sessions');
@@ -750,6 +751,8 @@ function parseRollout(filePath, scanContext = null) {
   const candidateCounts = { plan: 0, thinking: 0, assistant: 0 };
   const workingSet = [];
   const workingSetPaths = new Set();
+  const lastResults = [];
+  const sessionId = rolloutSessionId(path.basename(filePath));
   let tailPermissionMode = null;
   let collectDialogue = true;
   let foundPlan = false;
@@ -865,6 +868,9 @@ function parseRollout(filePath, scanContext = null) {
         detail.lastTool = typeof item.name === 'string' ? item.name : 'Bash';
         detail.lastToolInput = summarizeCodexToolPayload(item);
       }
+      if (lastResults.length < TOOL_RESULT_LIMIT) {
+        appendToolResult(lastResults, entry, sessionId);
+      }
 
       if (payload.type === 'agent_reasoning' || payload.type === 'agent_reasoning_raw_content') {
         addDialogue(
@@ -924,6 +930,7 @@ function parseRollout(filePath, scanContext = null) {
   rememberRolloutBoundary(filePath, entries);
   detail.signalSource = 'transcript';
   detail.workingSet = workingSet;
+  detail.lastResults = lastResults;
   detail.dialogue = pickDialogue(candidates, { now: Date.now() });
   detail.observedSources = observedSources;
 
@@ -1328,6 +1335,39 @@ function applyToolCompletion(item, completion) {
   if (Number.isFinite(completion.durationMs)) item.durationMs = completion.durationMs;
 }
 
+// `rollout-<id>.jsonl` names the session; the public id prefixes it. Both the
+// list build and the result records below derive from this one place so a
+// result id keeps naming the session that produced it.
+function rolloutSessionId(fileName) {
+  return `codex-${String(fileName || '').replace('rollout-', '').replace('.jsonl', '')}`;
+}
+
+// Codex reports a finished command as its own `item_completed` record with an
+// exit code and a duration. That record — never a `function_call`, never a call
+// vanishing from the tail — is what earns a result. `exit_code` may be absent
+// on an interrupted command; the outcome then stays explicitly unknown.
+function appendToolResult(results, entry, sessionId) {
+  const completion = completionFromItemCompleted(entry);
+  if (!completion || !completion.completedAt) return;
+  const detail = typeof completion.detail === 'string' ? completion.detail : '';
+  results.push({
+    id: toolResultId({
+      provider: 'codex',
+      sessionId,
+      callId: completion.callId,
+      tool: completion.tool,
+      detail,
+      completedAt: completion.completedAt,
+    }),
+    tool: completion.tool,
+    detail,
+    exitCode: completion.exitCode,
+    durationMs: completion.durationMs,
+    completedAt: completion.completedAt,
+    source: 'transcript',
+  });
+}
+
 function rememberGitEvents(events, bySourceId, byCommandHash) {
   for (const event of events) {
     if (event.sourceId) {
@@ -1712,8 +1752,8 @@ class CodexAdapter {
       const scanContext = createActiveRolloutScanContext(filePath);
       const detail = parseRollout(filePath, scanContext);
       // Extract session ID from the filename: rollout-2025-01-22T10-30-00-abc123.jsonl
-      const sessionId = fileName.replace('rollout-', '').replace('.jsonl', '');
-      const fullSessionId = `codex-${sessionId}`;
+      const fullSessionId = rolloutSessionId(fileName);
+      const sessionId = fullSessionId.slice('codex-'.length);
       _rolloutFileBySessionId.set(fullSessionId, filePath);
       const threadId = detail.agentId || sessionId;
       sessionIdByThreadId.set(threadId, fullSessionId);
@@ -1753,6 +1793,7 @@ class CodexAdapter {
         dialogue: detail.dialogue,
         observedSources: detail.observedSources,
         workingSet: detail.workingSet,
+        lastResults: detail.lastResults,
         lastPrompt: detail.lastPrompt,
         todos: detail.todos,
         gitBranch: detail.gitBranch,

@@ -132,6 +132,26 @@ body[data-cv-selected] .activity-panel__header::before {
 .activity-panel__hero-portrait--completed { --cv-hero-status: var(--cv-status-completed, #e8c96a); }
 .activity-panel__hero-portrait--idle { --cv-hero-status: var(--cv-blue-soft, #7aa6d6); }
 
+/* 2.6 — full-body identity witness beside the name. The hero niche now shows
+   a head-and-shoulders portrait, which cannot carry a held weapon or an
+   effort crown; this 26×32 body keeps both in view. */
+.activity-panel__witness {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 26px;
+    height: 32px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, rgba(54, 38, 24, 0.5), rgba(16, 11, 10, 0.66));
+    border: 1px solid rgba(199, 157, 76, 0.3);
+}
+
+.activity-panel__witness canvas {
+    display: block;
+    image-rendering: pixelated;
+}
+
 /* Name gets the full first header row, with compact Pin/X actions at its
    right edge, so even long villager names survive without truncating. */
 .activity-panel__name-row {
@@ -1409,6 +1429,138 @@ body[data-cv-selected] .activity-panel__header::before {
     text-shadow: 1px 1px 0 #2d1a12;
 }
 
+/* ─── 5.4 Work as a spatial score ────────────────── */
+
+.activity-panel__score {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding-top: 7px;
+    border-top: 1px solid var(--cv-divider);
+}
+
+.activity-panel__score-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.activity-panel__score-btn {
+    padding: 3px 7px;
+    color: var(--cv-gold-bright);
+    background: rgba(0, 0, 0, 0.34);
+    border: 1px solid rgba(199, 157, 76, 0.38);
+    border-radius: 2px;
+    font-family: var(--font-display);
+    font-size: var(--fs-label);
+    letter-spacing: 0.8px;
+    cursor: pointer;
+}
+
+.activity-panel__score-btn:disabled {
+    color: var(--cv-text-muted);
+    border-color: var(--cv-divider);
+    cursor: default;
+}
+
+/* LIVE is never dressed as decoration: it is the way back. */
+.activity-panel__score-btn--live {
+    color: #f8e7bd;
+    background: rgba(122, 44, 34, 0.88);
+    border-color: rgba(224, 108, 91, 0.62);
+}
+
+.activity-panel__score-scrub {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.activity-panel__score-strip {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.34);
+    border: 1px solid rgba(199, 157, 76, 0.16);
+    border-radius: 1px;
+}
+
+.activity-panel__score-tick {
+    position: absolute;
+    top: 2px;
+    min-width: 2px;
+    height: 6px;
+    padding: 0;
+    background: var(--cv-gold);
+    border: 0;
+    cursor: pointer;
+}
+
+.activity-panel__score-tick--permission {
+    background: var(--cv-status-waiting);
+}
+
+.activity-panel__score-tick--stall {
+    top: 5px;
+    height: 2px;
+    background: var(--cv-text-muted);
+}
+
+.activity-panel__score-tick--child {
+    background: var(--cv-blue-soft);
+}
+
+.activity-panel__score-tick--retry {
+    background: var(--cv-status-errored);
+}
+
+.activity-panel__score-tick.is-lit {
+    top: 0;
+    height: 10px;
+    background: var(--cv-gold-bright);
+    box-shadow: 0 0 0 1px rgba(246, 218, 130, 0.62);
+}
+
+.activity-panel__score-range {
+    width: 100%;
+    height: 12px;
+    margin: 0;
+    accent-color: var(--cv-gold-bright);
+}
+
+.activity-panel__score-caption {
+    min-width: 0;
+    color: var(--cv-gold-bright);
+    font-family: var(--font-body);
+    font-size: var(--fs-data);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.activity-panel__score-status {
+    color: var(--cv-text-muted);
+    font-size: var(--fs-label);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.activity-panel__score-overflow-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.activity-panel__score-overflow-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 5px;
+    min-width: 0;
+}
+
 .activity-panel__token-value--cost {
     color: var(--cv-green-soft);
 }
@@ -1701,3 +1853,77 @@ body[data-cv-selected] .activity-panel__header::before {
 .activity-panel__blocked { flex-direction: column; align-items: stretch; }
 .activity-panel__blocked .activity-panel__narration-provenance { flex: none; font: var(--fs-label)/var(--lh-body) var(--font-body); overflow-wrap: normal; }
 .activity-panel__empty { color: var(--cv-text-muted); }
+
+/* ─── 4.5 Working-set bench ──────────────────────── */
+/* Stepped file tiles: one generic sheet silhouette, the operation mark, the
+   relative path on the data face, and the full path in the native disclosure.
+   Static: no transition, no hover motion; the overlap tile steps one course
+   brighter instead of turning the panel red. */
+
+.activity-panel__bench-tile {
+    padding: 4px 7px;
+    background: rgba(45, 31, 20, 0.52);
+    border: 1px solid rgba(214, 169, 81, 0.08);
+    border-left: 3px solid rgba(214, 169, 81, 0.32);
+    border-radius: 2px;
+    contain: layout style;
+}
+
+.activity-panel__bench-tile > summary { display: block; }
+.activity-panel__bench-tile > summary::marker { color: var(--cv-tan); }
+
+.activity-panel__bench-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.activity-panel__bench-op {
+    color: var(--cv-gold);
+    font: var(--fs-label)/var(--lh-body) var(--font-body);
+    white-space: nowrap;
+}
+
+.activity-panel__bench-path {
+    color: #dfcfb8;
+    font: var(--fs-data)/var(--lh-body) var(--font-body);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.activity-panel__bench-overlap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+    padding-left: 22px;
+}
+
+.activity-panel__bench-overlap-mark {
+    color: var(--cv-gold-bright);
+    font: var(--fs-label)/var(--lh-body) var(--font-body);
+}
+
+.activity-panel__bench-overlap-note {
+    color: var(--cv-text-muted);
+    font: var(--fs-label)/var(--lh-body) var(--font-body);
+}
+
+.activity-panel__bench-tile--write-write { border-left-color: var(--cv-gold-bright); }
+.activity-panel__bench-tile--read-write { border-left-color: var(--cv-tan); }
+
+.activity-panel__bench-more > summary {
+    color: var(--cv-tan);
+    font: var(--fs-label)/var(--lh-body) var(--font-body);
+    padding: 2px 7px;
+}
+
+.activity-panel__bench-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}

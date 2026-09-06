@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { PNG } from 'pngjs';
 import { materialClassId } from '../../claudeville/src/presentation/character-mode/MaterialRegistry.js';
 import {
+    actionStripPathsForEntry,
     collectSpriteEntries,
     loadSpriteManifest,
     pathForEntry,
@@ -96,23 +97,27 @@ for (const [id, profile] of Object.entries(PROFILES)) {
     const entry = entries.get(id);
     if (!entry) throw new Error(`missing manifest entry ${id}`);
     if (id.startsWith('agent.') && !declaresSidecarFile(entry)) continue;
-    const sourcePath = pathForEntry(entry);
-    const albedo = PNG.sync.read(readFileSync(join(spritesRoot, sourcePath)));
-    const channels = authorChannels(albedo, profile);
-    for (const [channel, png] of Object.entries(channels)) {
-        const outputPath = join(spritesRoot, sourcePath.replace(/\.png$/, `.${channel}.png`));
-        const bytes = PNG.sync.write(png, { colorType: 6 });
-        if (check) {
-            if (!existsSync(outputPath) || !readFileSync(outputPath).equals(bytes)) {
-                console.error(`[author-roster-channels] STALE ${id}:${channel}`);
-                failures++;
+    // The same reviewed colour classification serves the base sheet and the
+    // optional C2 action strip; both are the same character's albedo pixels.
+    const sources = [pathForEntry(entry), ...actionStripPathsForEntry(entry).slice(0, 1)];
+    for (const sourcePath of sources) {
+        const albedo = PNG.sync.read(readFileSync(join(spritesRoot, sourcePath)));
+        const channels = authorChannels(albedo, profile);
+        for (const [channel, png] of Object.entries(channels)) {
+            const outputPath = join(spritesRoot, sourcePath.replace(/\.png$/, `.${channel}.png`));
+            const bytes = PNG.sync.write(png, { colorType: 6 });
+            if (check) {
+                if (!existsSync(outputPath) || !readFileSync(outputPath).equals(bytes)) {
+                    console.error(`[author-roster-channels] STALE ${sourcePath}:${channel}`);
+                    failures++;
+                }
+            } else {
+                writeFileSync(outputPath, bytes);
             }
-        } else {
-            writeFileSync(outputPath, bytes);
         }
+        const emissivePixels = channels.emissive ? countContributingPixels(channels.emissive) : 0;
+        console.log(`[author-roster-channels] ${check ? 'checked' : 'authored'} ${sourcePath}: ${profile.material}, ${emissivePixels} emissive pixels`);
     }
-    const emissivePixels = channels.emissive ? countContributingPixels(channels.emissive) : 0;
-    console.log(`[author-roster-channels] ${check ? 'checked' : 'authored'} ${id}: ${profile.material}, ${emissivePixels} emissive pixels`);
 }
 
 if (failures) {

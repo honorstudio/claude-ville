@@ -221,6 +221,9 @@ export function toolHistorySignature(tools, { limit, detailLength }) {
 const PIXEL_ICON_SHAPES = Object.freeze({
     read: 'read-page', search: 'search-lens', write: 'edit-strike',
     exec: 'shell-slate', task: 'task-slip', other: 'tool-unknown',
+    // 4.5 — the working-set bench tile silhouette (one generic sheet, never a
+    // language logo).
+    file: 'file-tile',
 });
 
 export function pixelIcon(kind = 'other') {

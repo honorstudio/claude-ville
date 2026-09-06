@@ -7,6 +7,7 @@ import { tileToWorld, worldToTile } from './Projection.js';
 import { getActiveMarkGovernor, MarkTier } from './MarkGovernor.js';
 import { pulseBand01 } from './PulsePolicy.js';
 import { gradeColor } from './AtmosphereState.js';
+import { cueNoteDue } from '../shared/audio/CueScore.js';
 
 const MAX_TALK_ARCS = 8;
 // #27 — slow band: one full mote traversal per ~1.8s travelling along the arc.
@@ -14,6 +15,15 @@ const TALK_MOTE_PERIOD_MS = 1800;
 const COMMAND_PLAZA = { tileX: 16, tileY: 21 };
 const TEAM_GATHER_COOLDOWN_MS = 5 * 60 * 1000;
 const TEAM_GATHER_RADIUS_TILES = 12;
+// 5.3 — one gather ceremony is legible at a time: its notches land on the
+// council cue's successive bells, the team mark on the final one, and the whole
+// roll call clears again so the default frame keeps only the quiet outline.
+const COUNCIL_CEREMONY_HOLD_MS = 8000;
+const COUNCIL_NOTCH_SIZE = 4;
+const COUNCIL_MARK_FONT = 'bold 7px "Press Start 2P", monospace';
+// Clear of the gathered bodies: the mark sits above the huddle, not inside it.
+const COUNCIL_MARK_LIFT = 96;
+let _councilCeremony = null;
 const _teamGatherCooldownsByOwner = new WeakMap();
 const _commandPlazaVisitTiles = (BUILDING_DEFS.find(def => def.type === 'command')?.visitTiles || []).map(tile => ({ ...tile }));
 
@@ -39,12 +49,15 @@ function teamGatherCooldowns(relationship, create = true) {
 export function releaseCouncilRingState(relationship) {
     if (!relationship || (typeof relationship !== 'object' && typeof relationship !== 'function')) return;
     _teamGatherCooldownsByOwner.delete(relationship);
+    _councilCeremony = null;
 }
 
 export function getCouncilRingDiagnostics(relationship) {
     return {
         teamGatherCooldowns: teamGatherCooldowns(relationship, false)?.size || 0,
         cooldownMs: TEAM_GATHER_COOLDOWN_MS,
+        ceremonyTeam: _councilCeremony?.teamName || null,
+        ceremonyMembers: _councilCeremony?.members.length || 0,
     };
 }
 
@@ -120,8 +133,11 @@ export function applyTeamGatherChoreography(snapshot, agentSprites, { now = perf
     }
 
     for (const [teamName, memberIds] of data.teamToMembers.entries()) {
-        const last = cooldowns?.get(teamName) || 0;
-        if (now - last < TEAM_GATHER_COOLDOWN_MS) continue;
+        // A team that has never gathered has no cooldown to serve. `now` is
+        // `performance.now()`, so treating a missing entry as 0 held every
+        // first gather back for the page's first five minutes.
+        const last = cooldowns?.get(teamName);
+        if (last != null && now - last < TEAM_GATHER_COOLDOWN_MS) continue;
 
         const idle = [];
         let blocked = false;
@@ -167,14 +183,101 @@ export function applyTeamGatherChoreography(snapshot, agentSprites, { now = perf
             };
         });
 
+        const members = sorted.map(entry => entry.sprite.agent.id);
         cooldowns?.set(teamName, now);
+        // 5.3 — the roll call this gather is about to draw. One ceremony at a
+        // time: a busier village gets the same quiet outline it has today.
+        _councilCeremony = { teamName, members, startedAt: now };
         eventBus.emit('team:gather', {
             teamName,
-            members: sorted.map(entry => entry.sprite.agent.id),
+            members: [...members],
             plazaTile: { tileX: centroidTile.tileX, tileY: centroidTile.tileY },
             centroidArc,
         });
     }
+}
+
+// 5.3 — the gather roll call. One static notch per gathered member, each on the
+// council cue's successive bell (members past the fifth land on the final one),
+// then a static `team · N` mark stating the whole membership. Reduced motion
+// and a silent village draw every mark at once: the roll call never waits on
+// sound, and the count is never carried by the music alone.
+//
+// Drawn in the upper overlay, not the ground pass: a notch under a body is a
+// notch nobody can read.
+function drawGatherRollCall(ctx, {
+    agentSprites,
+    zoom = 1,
+    now = performance.now(),
+    motionScale = 1,
+    grade = null,
+}) {
+    const ceremony = _councilCeremony;
+    if (!ceremony) return;
+    if (now - ceremony.startedAt > COUNCIL_CEREMONY_HOLD_MS) {
+        _councilCeremony = null;
+        return;
+    }
+
+    const teamName = ceremony.teamName;
+    const sprites = ceremony.members.map(id => agentSprites?.get?.(id) || null);
+    const present = sprites.filter(Boolean);
+    if (present.length < 2) return;
+
+    const governor = getActiveMarkGovernor();
+    const gate = governor
+        ? governor.admit(MarkTier.SECONDARY, present[0].x, present[0].y)
+        : { draw: true, alpha: 1 };
+    if (!gate.draw) return;
+
+    const total = ceremony.members.length;
+    const immediate = motionScale === 0;
+    const color = gradeColor(getTeamColor(teamName).accent, grade);
+    ctx.save();
+    const notchFill = rgba(color, Math.min(1, gate.alpha));
+    const notchSeat = `rgba(20, 14, 10, ${Math.min(0.85, 0.8 * gate.alpha).toFixed(2)})`;
+    for (let i = 0; i < total; i++) {
+        if (!immediate && !cueNoteDue('council', teamName, i, now)) continue;
+        const sprite = sprites[i];
+        if (!sprite) continue;
+        // At the shoes of the member the bell named. The dark seat keeps the
+        // square readable over a hem, a cobble or wet grass alike.
+        const left = Math.round(sprite.x) - Math.round(COUNCIL_NOTCH_SIZE / 2);
+        const top = Math.round(sprite.y) + 1;
+        ctx.fillStyle = notchSeat;
+        ctx.fillRect(left - 1, top - 1, COUNCIL_NOTCH_SIZE + 2, COUNCIL_NOTCH_SIZE + 2);
+        ctx.fillStyle = notchFill;
+        ctx.fillRect(left, top, COUNCIL_NOTCH_SIZE, COUNCIL_NOTCH_SIZE);
+    }
+
+    if (immediate || cueNoteDue('council', teamName, total - 1, now)) {
+        const plaza = tileToScreen(COMMAND_PLAZA);
+        const centroid = present.reduce(
+            (acc, sprite) => ({
+                x: acc.x + sprite.x / present.length,
+                y: acc.y + sprite.y / present.length,
+            }),
+            { x: 0, y: 0 },
+        );
+        const text = `${teamName} · ${total}`;
+        const width = 12 + text.length * 7;
+        ctx.translate(
+            (centroid.x * 0.75) + (plaza.x * 0.25),
+            (centroid.y * 0.75) + (plaza.y * 0.25) - COUNCIL_MARK_LIFT,
+        );
+        ctx.scale(1 / (zoom || 1), 1 / (zoom || 1));
+        ctx.font = COUNCIL_MARK_FONT;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(20, 14, 10, 0.85)';
+        ctx.fillRect(-width / 2, -7, width, 14);
+        ctx.strokeStyle = rgba(color, 0.8);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-width / 2, -7, width, 14);
+        ctx.fillStyle = rgba(color, Math.min(1, 0.95 * gate.alpha + 0.05));
+        ctx.fillText(text, 0, 0);
+    }
+    ctx.restore();
 }
 
 export function drawCouncilRings(ctx, {
@@ -492,8 +595,13 @@ export function drawTalkArcs(ctx, {
     lighting = null,
     grade = null,
 } = {}) {
+    if (!ctx || !agentSprites) return;
+    // 5.3 — the gather roll call shares this above-the-bodies pass; it is not a
+    // chat arc and must draw even when nobody is talking.
+    drawGatherRollCall(ctx, { agentSprites, zoom, now, motionScale, grade });
+
     const snapshot = relationshipSnapshot(relationship);
-    if (!ctx || !snapshot?.chatPairs || !agentSprites) return;
+    if (!snapshot?.chatPairs) return;
 
     const boost = lightBoost(lighting);
     // 3.9 — shimmer snapped onto the shared 'working' band; reduced motion

@@ -6,6 +6,10 @@ const MAX_WORKING_SET_ITEMS = 16;
 const MAX_COLLISIONS_PER_PROJECT = 32;
 const MAX_AGENTS_PER_COLLISION = 16;
 const DEPARTED_GRACE_MS = 10 * 60 * 1000;
+// 4.5 — two observations of the same path count as concurrent evidence only
+// when the adapters saw them within a minute of each other. Anything wider is
+// still real overlap, but it is *recent* overlap, not simultaneous work.
+const CONCURRENT_WINDOW_MS = 60 * 1000;
 
 function finiteTimestamp(value) {
   const number = Number(value);
@@ -41,9 +45,16 @@ function normalizedWorkingSet(session) {
     const path = typeof item?.path === 'string' ? item.path.trim() : '';
     const op = item?.op === 'write' ? 'write' : (item?.op === 'read' ? 'read' : null);
     if (!path || !op || path.includes('\0')) continue;
+    const at = finiteTimestamp(item?.at);
     const previous = byPath.get(path);
-    // One agent writing a path dominates its own read of that path.
-    if (!previous || op === 'write') byPath.set(path, op);
+    // One agent writing a path dominates its own read of that path; among
+    // entries of the same op the newest observation wins, so an edge carries
+    // the latest time this agent was actually seen on the path.
+    if (!previous || (op === 'write' && previous.op !== 'write')) {
+      byPath.set(path, { op, at });
+    } else if (previous.op === op && at !== null && (previous.at === null || at > previous.at)) {
+      byPath.set(path, { op, at });
+    }
   }
   return byPath;
 }
@@ -66,9 +77,9 @@ function detectCollisions(sessions, now = Date.now()) {
     if (!workingSet.size) continue;
     if (!projects.has(project)) projects.set(project, new Map());
     const paths = projects.get(project);
-    for (const [path, op] of workingSet) {
+    for (const [path, observation] of workingSet) {
       if (!paths.has(path)) paths.set(path, new Map());
-      paths.get(path).set(id, op);
+      paths.get(path).set(id, observation);
     }
   }
 
@@ -80,16 +91,28 @@ function detectCollisions(sessions, now = Date.now()) {
       const operations = paths.get(path);
       if (operations.size < 2) continue;
       const agents = [...operations.keys()].sort().slice(0, MAX_AGENTS_PER_COLLISION);
-      const ops = agents.map(id => operations.get(id));
-      const writeCount = ops.filter(op => op === 'write').length;
+      const observations = agents.map(id => ({
+        agentId: id,
+        op: operations.get(id).op,
+        at: operations.get(id).at,
+      }));
+      const writeCount = observations.filter(entry => entry.op === 'write').length;
       // Read/read is intentionally silent. A single writer plus readers is a
       // muted advisory; two or more writers is the loud collision.
       if (writeCount === 0) continue;
+      const times = observations.map(entry => entry.at);
+      const dated = times.every(at => at !== null);
       collisions.push({
         path,
         project,
         agents,
         kind: writeCount >= 2 ? 'write-write' : 'read-write',
+        // Overlap is always real; simultaneity is only claimed when every
+        // participant carries a time and those times sit inside one minute.
+        overlapKind: dated && Math.max(...times) - Math.min(...times) <= CONCURRENT_WINDOW_MS
+          ? 'concurrent'
+          : 'recent',
+        observations,
       });
       projectCount++;
       if (projectCount >= MAX_COLLISIONS_PER_PROJECT) break;
@@ -99,6 +122,7 @@ function detectCollisions(sessions, now = Date.now()) {
 }
 
 module.exports = {
+  CONCURRENT_WINDOW_MS,
   DEPARTED_GRACE_MS,
   MAX_COLLISIONS_PER_PROJECT,
   detectCollisions,

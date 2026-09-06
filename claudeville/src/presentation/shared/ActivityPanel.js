@@ -17,6 +17,7 @@ import {
     formatTokens,
     formatToolDetail,
     hashRows,
+    redactSecrets,
     shortenHomePath,
     subscribeElapsedText,
     truncateText,
@@ -45,12 +46,24 @@ import { buildExecutionTree } from '../dashboard-mode/DashboardRenderer.js';
 import { narrativeFeedEntries } from '../character-mode/VillageDirector.js';
 import { groupTodosByPhase } from '../character-mode/TaskboardBoardModel.js';
 import { buildBuildingInstrumentModel, BUILDING_INSTRUMENT_NAME_LIMIT } from './BuildingInstrumentModel.js';
+import { buildCausalWaterfall, causalTimestamp } from './WorkWaterfallModel.js';
+import {
+    buildSpatialWorkScore,
+    litScoreNode,
+    workScoreCaption,
+    SCORE_PLAYBACK_MS,
+    WORK_SCORE_REQUEST_EVENT,
+    WORK_SCORE_STATE_EVENT,
+} from '../character-mode/SpatialWorkScore.js';
 
 const PANEL_TOOL_LIMIT = 30;
 const PANEL_MESSAGE_LIMIT = 12;
 const PANEL_INTER_AGENT_MESSAGE_LIMIT = 5;
 const PANEL_GIT_EVENT_LIMIT = 6;
 const PANEL_RELATIONSHIP_LIMIT = 4;
+// 4.5 — the bench shows four tiles; the rest of the observed set stays exact
+// behind one overflow row.
+const WORKING_SET_TILE_LIMIT = 4;
 const DIRECTOR_FEED_LIMIT = 12;
 const BUILDING_SIGNAL_REFRESH_INTERVAL = 5000;
 const JOURNEY_BREADCRUMB_LIMIT = 5;
@@ -128,388 +141,6 @@ export const SECTION_ORDER = Object.freeze([
     'narration',
     'village-bonds',
 ]);
-
-export const CAUSAL_WATERFALL_WINDOW_MS = 20 * 60_000;
-const CAUSAL_WATERFALL_STALL_MIN_MS = 1_000;
-const CAUSAL_WATERFALL_RETRY_WINDOW_MS = 20_000;
-
-function causalTimestamp(value) {
-    if (value instanceof Date) {
-        const timestamp = value.getTime();
-        return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : null;
-    }
-    if (typeof value === 'string' && value.trim() && !/^-?\d+(?:\.\d+)?$/.test(value.trim())) {
-        const parsed = Date.parse(value);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    }
-    const timestamp = Number(value);
-    return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : null;
-}
-
-function causalDuration(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const duration = Number(value);
-    return Number.isFinite(duration) && duration >= 0 ? duration : null;
-}
-
-// Secrets never reach the DOM. The causal waterfall and the blocked banner
-// share one redaction so a command echoed into tool history cannot leak a
-// token that the banner would have stripped.
-function redactSecrets(text) {
-    return String(text)
-        .replace(/\b((?:[A-Za-z0-9_-]*?(?:key|token)))\s*=\s*(?:"[^"]*"|'[^']*'|[^\s&;,]+)/gi, '$1=[REDACTED]')
-        .replace(/[A-Za-z0-9_-]{32,}/g, '[REDACTED]');
-}
-
-function causalText(value, fallback = '') {
-    const text = typeof value === 'string'
-        ? value
-        : value === null || value === undefined ? '' : String(value);
-    const clean = redactSecrets(text)
-        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    if (!clean) return fallback;
-    return clean.length <= 96 ? clean : `${clean.slice(0, 95).trimEnd()}…`;
-}
-
-function causalCollection(value) {
-    return Array.isArray(value) ? value : [];
-}
-
-function causalFirstTimestamp(...values) {
-    for (const value of values) {
-        const timestamp = causalTimestamp(value);
-        if (timestamp !== null) return timestamp;
-    }
-    return null;
-}
-
-function causalToolName(entry) {
-    return causalText(entry?.tool || entry?.name || entry?.type, 'tool');
-}
-
-function causalRetryFlag(entry) {
-    return entry?.retry === true
-        || entry?.isRetry === true
-        || entry?.retried === true
-        || causalDuration(entry?.retryCount) > 0
-        || causalDuration(entry?.attempt) > 1
-        || String(entry?.kind || entry?.type || entry?.event || '').toLowerCase() === 'retry';
-}
-
-function causalExitCode(value) {
-    if (value === null || value === undefined || value === '') return undefined;
-    const exitCode = Number(value);
-    return Number.isFinite(exitCode) ? exitCode : undefined;
-}
-
-function causalToolHistory(session, options) {
-    return causalCollection(
-        options?.toolHistory
-        || session?.toolHistory
-        || session?.detail?.toolHistory
-        || session?.sessionDetail?.toolHistory,
-    );
-}
-
-function causalChildren(session, options) {
-    return causalCollection(
-        options?.children
-        || session?.children
-        || session?.childSessions
-        || session?.subagents,
-    );
-}
-
-function causalAddEvent(events, event) {
-    const at = causalTimestamp(event.at);
-    if (at === null) return;
-    const durationMs = causalDuration(event.durationMs);
-    const endAt = causalTimestamp(event.endAt);
-    events.push({
-        ...event,
-        at,
-        durationMs,
-        endAt,
-        durationReported: event.durationReported === true
-            || durationMs !== null
-            || endAt !== null,
-        order: events.length,
-    });
-}
-
-function causalBaseEvents(session, options) {
-    const events = [];
-    const boundaries = causalCollection(
-        session?.turnBoundaries
-        || session?.turns
-        || session?.turnHistory,
-    );
-    if (boundaries.length) {
-        for (const boundary of boundaries) {
-            causalAddEvent(events, {
-                kind: 'turn',
-                at: causalFirstTimestamp(
-                    boundary?.at,
-                    boundary?.ts,
-                    boundary?.startedAt,
-                    boundary?.startAt,
-                    boundary?.turnStartedAt,
-                ),
-                durationMs: boundary?.durationMs ?? boundary?.lastTurnDurationMs,
-                endAt: causalFirstTimestamp(boundary?.endedAt, boundary?.endAt, boundary?.turnEndedAt),
-                label: 'Turn',
-                detail: causalText(boundary?.label || boundary?.status || session?.turnState),
-            });
-        }
-    } else {
-        causalAddEvent(events, {
-            kind: 'turn',
-            at: causalFirstTimestamp(session?.turnStartedAt),
-            durationMs: session?.lastTurnDurationMs,
-            endAt: causalFirstTimestamp(session?.turnEndedAt, session?.turnEndedAtMs),
-            label: 'Turn',
-            detail: causalText(session?.turnState),
-        });
-    }
-
-    const permissionAt = causalFirstTimestamp(
-        session?.awaitingSince,
-        session?.waitReason ? session?.pendingSince : null,
-    );
-    if (permissionAt !== null) {
-        causalAddEvent(events, {
-            kind: 'permission',
-            at: permissionAt,
-            durationMs: session?.permissionDurationMs
-                ?? session?.awaitingDurationMs
-                ?? session?.waitDurationMs,
-            endAt: causalFirstTimestamp(session?.permissionEndedAt, session?.awaitingEndedAt),
-            label: 'Permission wait',
-            detail: causalText(
-                session?.pendingTool
-                    ? `${session.waitReason || 'waiting'} · ${session.pendingTool}`
-                    : session?.waitReason || 'waiting',
-            ),
-        });
-    }
-
-    const tools = causalToolHistory(session, options);
-    const previousToolAt = new Map();
-    tools.forEach((entry, index) => {
-        const at = causalFirstTimestamp(
-            entry?.ts,
-            entry?.timestamp,
-            entry?.startedAt,
-            entry?.startAt,
-            entry?.at,
-        );
-        const completedAt = causalFirstTimestamp(entry?.completedAt, entry?.endedAt, entry?.endAt);
-        const durationMs = causalDuration(entry?.durationMs ?? entry?.duration_ms);
-        const tool = causalToolName(entry);
-        const detail = causalText(entry?.detail ?? entry?.input ?? entry?.command, tool);
-        causalAddEvent(events, {
-            kind: 'tool',
-            at,
-            durationMs,
-            endAt: completedAt,
-            label: tool,
-            detail,
-            toolExitCode: causalExitCode(entry?.toolExitCode),
-            retry: causalRetryFlag(entry),
-            id: `tool:${index}`,
-        });
-
-        const previous = previousToolAt.get(tool);
-        const retryInferred = previous
-            && at !== null
-            && at - previous.at >= 0
-            && at - previous.at <= CAUSAL_WATERFALL_RETRY_WINDOW_MS;
-        if (causalRetryFlag(entry) || retryInferred) {
-            causalAddEvent(events, {
-                kind: 'retry',
-                at,
-                durationMs: causalDuration(entry?.retryDurationMs),
-                label: 'Retry',
-                detail: tool,
-                durationReported: causalDuration(entry?.retryDurationMs) !== null,
-                id: `retry:${index}`,
-            });
-        }
-        if (at !== null) previousToolAt.set(tool, { at });
-    });
-
-    const retryEntries = [
-        ...causalCollection(session?.retryHistory),
-        ...causalCollection(session?.retryEvents),
-        ...causalCollection(session?.retries),
-    ];
-    retryEntries.forEach((entry, index) => {
-        causalAddEvent(events, {
-            kind: 'retry',
-            at: causalFirstTimestamp(entry?.at, entry?.ts, entry?.timestamp, entry?.retryAt),
-            durationMs: entry?.durationMs,
-            endAt: causalFirstTimestamp(entry?.endAt, entry?.endedAt),
-            label: 'Retry',
-            detail: causalText(entry?.tool || entry?.name, 'retry'),
-            id: `retry-history:${index}`,
-        });
-    });
-    const lastRetryAt = causalFirstTimestamp(session?.lastRetryAt, session?.retryAt);
-    if (lastRetryAt !== null) {
-        causalAddEvent(events, {
-            kind: 'retry',
-            at: lastRetryAt,
-            durationMs: session?.lastRetryDurationMs,
-            label: 'Retry',
-            detail: causalText(session?.lastRetryTool, 'retry'),
-            id: 'retry:last',
-        });
-    }
-
-    causalChildren(session, options).forEach((child, index) => {
-        const at = causalFirstTimestamp(
-            child?.turnStartedAt,
-            child?.startedAt,
-            child?.startAt,
-            child?.sessionStartedAt,
-            child?.statusSince,
-            child?.lastSessionActivity,
-            child?.timestamp,
-        );
-        const name = causalText(child?.name || child?.agentName || child?.id, 'child');
-        const explicitDuration = child?.durationMs ?? child?.lastTurnDurationMs;
-        causalAddEvent(events, {
-            kind: 'child',
-            at,
-            durationMs: explicitDuration,
-            endAt: causalFirstTimestamp(child?.endedAt, child?.endAt, child?.completedAt),
-            label: 'Child activity',
-            detail: `${name}${child?.status ? ` · ${causalText(child.status)}` : ''}`,
-            childId: child?.id ?? child?.sessionId ?? null,
-            id: `child:${index}`,
-        });
-    });
-
-    return events;
-}
-
-function causalEventPriority(kind) {
-    return {
-        turn: 0,
-        permission: 1,
-        tool: 2,
-        retry: 3,
-        child: 4,
-        stall: 5,
-    }[kind] ?? 9;
-}
-
-/**
- * Build a dependency-free, chronological waterfall model from the selected
- * session and its already-projected detail fields. No DOM, persistence, or
- * provider access is involved; callers may supply fetched tool/child arrays
- * through the options object without attaching them to the session payload.
- *
- * `width` is a 0..1 ratio against the longest elapsed row. `provenance` keeps
- * the panel's existing exact/inferred vocabulary while `source` and `derived`
- * make the timing distinction explicit to consumers.
- */
-export function buildCausalWaterfall(session, { now = Date.now(), toolHistory, children } = {}) {
-    const current = causalTimestamp(now) || Date.now();
-    const cutoff = current - CAUSAL_WATERFALL_WINDOW_MS;
-    const candidates = causalBaseEvents(session, { toolHistory, children })
-        .filter(event => event.at >= cutoff && event.at <= current)
-        .sort((a, b) => (
-            (a.at - b.at)
-            || (causalEventPriority(a.kind) - causalEventPriority(b.kind))
-            || (a.order - b.order)
-        ));
-    if (!candidates.length) return [];
-
-    const resolved = [];
-    for (let index = 0; index < candidates.length; index++) {
-        const event = candidates[index];
-        const nextAt = candidates[index + 1]?.at ?? current;
-        const inferredToNow = event.durationReported !== true
-            && event.endAt === null
-            && nextAt >= current;
-        let endAt = event.endAt;
-        if (endAt === null) {
-            // An event with no reported end or duration must not absorb the
-            // silence that follows it: stretching it to the next timestamp
-            // would repaint a stall as a long tool bar. It ends where it
-            // began (the stall pass owns the gap), except for the final
-            // ongoing event, which honestly extends to now.
-            endAt = event.durationMs !== null
-                ? event.at + event.durationMs
-                : (inferredToNow ? current : event.at);
-        }
-        endAt = Math.min(current, Math.max(event.at, endAt));
-        const durationMs = Math.max(0, endAt - event.at);
-        resolved.push({
-            ...event,
-            endAt,
-            durationMs,
-            ongoing: inferredToNow,
-            provenance: event.durationReported ? 'exact' : 'inferred',
-        });
-    }
-
-    const withStalls = [];
-    let previousEnd = null;
-    for (const event of resolved) {
-        if (previousEnd !== null && event.at - previousEnd >= CAUSAL_WATERFALL_STALL_MIN_MS) {
-            withStalls.push({
-                kind: 'stall',
-                at: previousEnd,
-                endAt: event.at,
-                durationMs: event.at - previousEnd,
-                durationReported: false,
-                provenance: 'inferred',
-                label: 'Stall',
-                detail: 'No recorded activity',
-                order: event.order - 0.5,
-            });
-        }
-        withStalls.push(event);
-        previousEnd = previousEnd === null ? event.endAt : Math.max(previousEnd, event.endAt);
-    }
-
-    const maxDuration = Math.max(...withStalls.map(event => event.durationMs), 0);
-    return withStalls
-        .sort((a, b) => (
-            (a.at - b.at)
-            || (causalEventPriority(a.kind) - causalEventPriority(b.kind))
-            || (a.order - b.order)
-        ))
-        .map((event, index) => {
-            const width = maxDuration > 0 ? event.durationMs / maxDuration : 0;
-            const row = {
-                id: event.id || `${event.kind}:${event.at}:${index}`,
-                kind: event.kind,
-                at: event.at,
-                ts: event.at,
-                endAt: event.endAt,
-                durationMs: event.durationMs,
-                elapsedMs: event.durationMs,
-                width,
-                widthPercent: width * 100,
-                label: event.label,
-                detail: event.detail || event.label,
-                provenance: event.provenance || (event.durationReported ? 'exact' : 'inferred'),
-                source: event.durationReported ? 'reported' : 'derived',
-                timingSource: event.durationReported ? 'reported' : 'derived',
-                derived: event.durationReported !== true,
-                providerReported: event.durationReported === true,
-                ongoing: event.ongoing === true,
-            };
-            if (Number.isFinite(event.toolExitCode)) row.toolExitCode = event.toolExitCode;
-            if (event.childId !== null && event.childId !== undefined) row.childId = String(event.childId);
-            return row;
-        });
-}
 
 function safePromptDetail(agent, limit = PROMPT_DETAIL_MAX_LENGTH) {
     const source = agent?.promptDetail
@@ -887,6 +518,15 @@ export class ActivityPanel {
         this._journeyWhyEl = null;
         this._journeyDetailsEl = null;
         this._journeyDetailsBodyEl = null;
+        // 5.4 — the frozen work-score copy plus its cursor and playback timer.
+        // Presentation only: nothing here is written back to an agent.
+        this._workScore = null;
+        this._workScoreAgentId = null;
+        this._workScoreCursorAt = 0;
+        this._workScorePlaying = false;
+        this._workScoreTimer = null;
+        this._workScoreOwnerLost = false;
+        this._workScorePositions = null;
         this._harborLogSectionEl = null;
         this._harborLogBodyEl = null;
         this._chronicleSectionEl = null;
@@ -938,6 +578,10 @@ export class ActivityPanel {
         this._ensurePromptPlanSection();
         this._ensureExecutionTreeSection();
         this._ensureCausalWaterfallSection();
+        // 4.5 — the bench section was declared in SECTION_ORDER and built by
+        // _ensureWorkingSetSection, but never mounted: the working set has been
+        // invisible in the panel. Mount it beside the other agent sections.
+        this._ensureWorkingSetSection();
         this._ensureJourneySection();
         this._ensureNarrationSection();
         this._ensureHarborLogSection();
@@ -996,11 +640,28 @@ export class ActivityPanel {
         };
         this._onAgentSelected = (agent) => {
             if (!agent) return;
+            // A score belongs to one run: selecting somebody else leaves it,
+            // without re-selecting the frozen subject the operator just left.
+            if (this._workScore && String(agent.id || '') !== this._workScoreAgentId) {
+                this._closeWorkScore({ restoreSelection: false });
+            }
             if (this._viewMode === 'dashboard') {
                 this.currentAgent = agent;
                 return;
             }
             this.show(agent);
+        };
+        // 5.4 — the director answers with the resolved position provenance and
+        // tells us when genuine input took the camera back; playback stops
+        // there and never re-acquires the claim on a timer.
+        this._onWorkScoreState = (state = {}) => {
+            if (!this._workScore) return;
+            if (state.counts) this._workScorePositions = state.counts;
+            if (state.ownerLost) {
+                this._workScoreOwnerLost = true;
+                this._stopWorkScorePlayback();
+            }
+            this._renderWorkScoreCursor();
         };
         this._onAgentDeselected = () => {
             if (this._viewMode === 'dashboard') {
@@ -1148,6 +809,7 @@ export class ActivityPanel {
         eventBus.on('affinity:changed', this._onAffinityChanged);
         eventBus.on('affinity:ready', this._onAffinityReady);
         eventBus.on('mode:changed', this._onModeChanged);
+        eventBus.on(WORK_SCORE_STATE_EVENT, this._onWorkScoreState);
         document.addEventListener('visibilitychange', this._onVisibilityChange);
     }
 
@@ -1666,6 +1328,9 @@ export class ActivityPanel {
         this._pinFetchSeq++;
         this._focusRequestVersion++;
         this._stopPanelKeyboardHandling();
+        // Closing the panel leaves the score: the badge must never outlive the
+        // surface that owns its cursor.
+        this._closeWorkScore({ restoreSelection: false });
         this.panelEl.style.display = 'none';
         document.body.classList.remove('cv-panel-open');
         this._teardownHeroPortrait();
@@ -1758,10 +1423,13 @@ export class ActivityPanel {
         this._blockedBannerEl.style.display = 'flex';
     }
 
-    // ─── Hero portrait (#46) ────────────────────────────
+    // ─── Hero portrait (#46, portrait crop 2.6) ─────────
     // A 96×96 integer-scaled pixel avatar in the panel header, framed by an
     // effort-aura color and a status-tinted ground. Created on open, destroyed
-    // on close, so only the watched villager ever holds a canvas.
+    // on close, so only the watched villager ever holds a canvas. When the
+    // hero niche shows a head-and-shoulders portrait, a small full-body
+    // witness joins the name row so held weapons and effort crowns stay
+    // visible.
 
     _mountHeroPortrait(agent) {
         const info = this.panelEl?.querySelector('.activity-panel__agent-info');
@@ -1773,21 +1441,61 @@ export class ActivityPanel {
         // Sit the portrait ahead of the name/status text.
         info.insertBefore(frame, info.firstChild);
         this._heroPortraitEl = frame;
+        this._syncHeroWitness(agent);
     }
 
     _refreshHeroPortrait(agent, statusInfo = statusPresentation(agent.status)) {
         if (!this._heroAvatar || !this._heroPortraitEl) return;
-        // AvatarCanvas tracks the same agent reference; redraw for sprite/mood
-        // changes and restyle the aura/status frame.
+        // AvatarCanvas tracks the same agent reference; draw() repaints only
+        // when the identity signature changed, and restyle the aura/status
+        // frame.
         this._heroAvatar.agent = agent;
         this._heroAvatar.draw();
         const aura = this._heroAvatar.auraColor();
         this._heroPortraitEl.style.setProperty('--cv-hero-aura', aura);
         this._heroPortraitEl.className =
             `activity-panel__hero-portrait activity-panel__hero-portrait--${statusInfo.status}`;
+        this._syncHeroWitness(agent);
+    }
+
+    // The witness exists only while the hero is a portrait; a full-body hero
+    // is already its own witness. Portrait availability can arrive with the
+    // sheet or the manifest, so this is re-checked on every refresh.
+    _syncHeroWitness(agent) {
+        const wanted = Boolean(this._heroAvatar?.isPortrait());
+        if (!wanted) {
+            this._teardownHeroWitness();
+            return;
+        }
+        if (this._witnessAvatar) {
+            this._witnessAvatar.agent = agent;
+            this._witnessAvatar.draw();
+            return;
+        }
+        const nameRow = this.panelEl?.querySelector('.activity-panel__name-row');
+        if (!nameRow) return;
+        const frame = el('span', { className: 'activity-panel__witness' });
+        this._witnessAvatar = new AvatarCanvas(agent, 'witness');
+        this._witnessAvatar.canvas.setAttribute('role', 'img');
+        this._witnessAvatar.canvas.setAttribute('aria-label', 'Full body');
+        frame.appendChild(this._witnessAvatar.canvas);
+        nameRow.insertBefore(frame, nameRow.firstChild);
+        this._witnessEl = frame;
+    }
+
+    _teardownHeroWitness() {
+        if (this._witnessAvatar) {
+            this._witnessAvatar.destroy();
+            this._witnessAvatar = null;
+        }
+        if (this._witnessEl) {
+            this._witnessEl.remove();
+            this._witnessEl = null;
+        }
     }
 
     _teardownHeroPortrait() {
+        this._teardownHeroWitness();
         if (this._heroAvatar) {
             this._heroAvatar.destroy();
             this._heroAvatar = null;
@@ -2221,6 +1929,11 @@ export class ActivityPanel {
         this._registerAgentSection(section);
     }
 
+    // 4.5 — the working-set bench. At most four stepped file tiles, each with
+    // its operation mark, a relative path, and the full path in a native
+    // disclosure; every remaining observed path lives behind one `+N files`
+    // row. An overlap is named on the tile of the path it actually affects and
+    // is called an overlap, never a conflict: it is observation evidence.
     _updateWorkingSet(agent) {
         if (!this._workingSetSectionEl || !this._workingSetBodyEl) return;
         const workingSet = workingSetForAgent(agent);
@@ -2229,36 +1942,128 @@ export class ActivityPanel {
         if (signature === this._renderSignatures.workingSet) return;
         this._renderSignatures.workingSet = signature;
 
-        const rows = workingSet.length
-            ? workingSet.map(item => el('div', {
-                className: 'activity-panel__tool-item',
-                title: item.path,
-            }, [
-                el('span', {
-                    className: 'activity-panel__tool-item-name',
-                    text: String(item.op).toUpperCase(),
-                }),
+        if (!workingSet.length) {
+            replaceChildren(this._workingSetBodyEl, [this._emptyState('no file activity recorded')]);
+            return;
+        }
+
+        const overlapByPath = new Map();
+        for (const collision of collisions) {
+            const path = typeof collision?.path === 'string' ? collision.path : '';
+            if (path && !overlapByPath.has(path)) overlapByPath.set(path, collision);
+        }
+
+        const entries = [];
+        const byPath = new Map();
+        for (const item of workingSet) {
+            const path = typeof item?.path === 'string' ? item.path : '';
+            if (!path) continue;
+            const known = byPath.get(path);
+            if (known) {
+                if (item.op === 'write') known.op = 'write';
+                continue;
+            }
+            const entry = {
+                path,
+                op: item.op === 'write' ? 'write' : 'read',
+                overlap: overlapByPath.get(path) || null,
+            };
+            byPath.set(path, entry);
+            entries.push(entry);
+        }
+        // Provider recency order, except that a path someone else is also on is
+        // the reason to look at the bench at all, so those tiles come first.
+        const ordered = entries
+            .map((entry, index) => ({ entry, index }))
+            .sort((a, b) => (Number(Boolean(b.entry.overlap)) - Number(Boolean(a.entry.overlap)))
+                || (a.index - b.index))
+            .map(item => item.entry);
+
+        const nodes = ordered.slice(0, WORKING_SET_TILE_LIMIT)
+            .map(entry => this._workingSetTile(entry, agent));
+        const rest = ordered.slice(WORKING_SET_TILE_LIMIT);
+        if (rest.length) nodes.push(this._workingSetOverflow(rest, agent));
+        replaceDetailRows(this._workingSetBodyEl, nodes);
+    }
+
+    _workingSetOverlap(collision, agent) {
+        const others = (Array.isArray(collision?.agents) ? collision.agents : [])
+            .filter(id => String(id) !== String(agent?.id))
+            .map(id => this._getWorld()?.agents?.get?.(String(id))?.name || String(id));
+        const observations = Array.isArray(collision?.observations) ? collision.observations : [];
+        const writers = observations.length
+            ? observations.filter(entry => entry?.op === 'write').length
+            : null;
+        const parts = ['overlap'];
+        if (writers === null) parts.push(`${(collision?.agents || []).length} agents`);
+        else if (collision.kind === 'write-write') parts.push(`${writers} writers`);
+        else parts.push(`${writers} writer`);
+        if (others.length) {
+            parts.push(others.length > 2
+                ? `${others.slice(0, 2).join(', ')} +${others.length - 2}`
+                : others.join(', '));
+        }
+        return {
+            text: parts.join(' · '),
+            // Overlapping working sets prove a shared file, not simultaneous
+            // editing. Only matching observation times inside one minute do.
+            note: collision?.overlapKind === 'concurrent' ? 'both observed within 60s' : 'recent shared file',
+            kind: collision?.kind === 'write-write' ? 'write-write' : 'read-write',
+        };
+    }
+
+    _workingSetTile(entry, agent) {
+        const projectPath = agent?.projectPath || '';
+        const overlap = entry.overlap ? this._workingSetOverlap(entry.overlap, agent) : null;
+        const head = el('div', { className: 'activity-panel__bench-head' }, [
+            pixelIcon('file'),
+            el('span', { className: 'activity-panel__bench-op', text: entry.op.toUpperCase() }),
+            el('span', {
+                className: 'activity-panel__bench-path',
+                text: formatToolDetail(entry.path, { max: 34, projectPath }) || entry.path,
+            }),
+        ]);
+        const overlapRow = overlap
+            ? el('div', { className: 'activity-panel__bench-overlap' }, [
+                el('span', { className: 'activity-panel__bench-overlap-mark', text: overlap.text }),
+                el('span', { className: 'activity-panel__bench-overlap-note', text: overlap.note }),
+            ])
+            : null;
+        return el('details', {
+            className: `activity-panel__bench-tile cv-inspection${overlap ? ` activity-panel__bench-tile--${overlap.kind}` : ''}`,
+            dataset: {
+                detailKey: `bench:${entry.path}`,
+                detailSignature: JSON.stringify([entry.op, overlap?.text || '', overlap?.note || '']),
+            },
+        }, [
+            el('summary', {}, [head, overlapRow]),
+            el('pre', { className: 'cv-inspection__text', text: entry.path }),
+        ]);
+    }
+
+    _workingSetOverflow(rest, agent) {
+        const projectPath = agent?.projectPath || '';
+        const rows = rest.map(entry => {
+            const overlap = entry.overlap ? this._workingSetOverlap(entry.overlap, agent) : null;
+            return el('div', { className: 'activity-panel__tool-item', title: entry.path }, [
+                el('span', { className: 'activity-panel__tool-item-name', text: entry.op.toUpperCase() }),
                 el('span', {
                     className: 'activity-panel__tool-item-detail',
-                    text: item.path,
+                    text: formatToolDetail(entry.path, { max: 44, projectPath }) || entry.path,
                 }),
-            ]))
-            : [this._emptyState('no file activity recorded')];
-        for (const collision of collisions) {
-            const others = collision.agents
-                .filter(id => String(id) !== String(agent.id))
-                .map(id => this._getWorld()?.agents?.get?.(String(id))?.name || String(id));
-            rows.push(el('div', {
-                className: 'activity-panel__tool-item',
-                text: `OVERLAP: ${collision.path} with ${others.join(', ')}`,
-                style: {
-                    color: collision.kind === 'write-write'
-                        ? 'var(--cv-status-errored, #e06c5b)'
-                        : 'var(--cv-text-muted, #8b8b9e)',
-                },
-            }));
-        }
-        replaceChildren(this._workingSetBodyEl, rows);
+                overlap ? el('span', { className: 'activity-panel__bench-overlap-mark', text: overlap.text }) : null,
+            ]);
+        });
+        return el('details', {
+            className: 'activity-panel__bench-more cv-inspection',
+            dataset: {
+                detailKey: 'bench:overflow',
+                detailSignature: JSON.stringify(rest.map(entry => [entry.path, entry.op, Boolean(entry.overlap)])),
+            },
+        }, [
+            el('summary', { text: `+${rest.length} ${rest.length === 1 ? 'file' : 'files'}` }),
+            el('div', { className: 'activity-panel__bench-list' }, rows),
+        ]);
     }
 
     // ─── Live polling ────────────────────────────────
@@ -3273,7 +3078,11 @@ export class ActivityPanel {
             el('summary', { className: 'activity-panel__journey-summary', text: 'More detail' }),
             detailsBody,
         ]);
-        const body = el('div', { className: 'activity-panel__journey-body' }, [whyEl, details]);
+        const body = el('div', { className: 'activity-panel__journey-body' }, [
+            whyEl,
+            details,
+            this._buildWorkScoreControl(),
+        ]);
         const section = el('div', {
             className: 'activity-panel__section',
             style: { display: 'none' },
@@ -3290,12 +3099,295 @@ export class ActivityPanel {
         this._registerAgentSection(section);
     }
 
+    // ─── 5.4 Work as a spatial score ───────────────────
+    //
+    // The panel owns the frozen row copy, the scrub cursor and the optional
+    // playback timer; the village draws what this publishes. Scrubbing emits a
+    // presentation request and nothing else — no world, domain or provider
+    // write happens on this path, so an agent's status cannot move because the
+    // operator dragged the cursor.
+
+    _buildWorkScoreControl() {
+        const openBtn = el('button', {
+            className: ['activity-panel__score-btn', 'activity-panel__score-btn--open'],
+            text: 'SCORE',
+            title: 'Draw the last 20 minutes of this run over the village',
+        });
+        openBtn.type = 'button';
+        openBtn.addEventListener('click', () => this._openWorkScore());
+
+        const liveBtn = el('button', {
+            className: ['activity-panel__score-btn', 'activity-panel__score-btn--live'],
+            text: 'LIVE',
+            title: 'Leave the score: restore the live selection and the camera',
+        });
+        liveBtn.type = 'button';
+        liveBtn.addEventListener('click', () => this._closeWorkScore());
+
+        const playBtn = el('button', {
+            className: ['activity-panel__score-btn', 'activity-panel__score-btn--play'],
+            text: 'PLAY',
+            title: 'Walk the cursor through the score once',
+        });
+        playBtn.type = 'button';
+        playBtn.addEventListener('click', () => this._toggleWorkScorePlayback());
+
+        const controls = el('div', { className: 'activity-panel__score-controls' }, [openBtn, liveBtn, playBtn]);
+        const strip = el('div', { className: 'activity-panel__score-strip' });
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.className = 'activity-panel__score-range';
+        range.setAttribute('aria-label', 'Work score time cursor');
+        range.addEventListener('input', () => {
+            this._stopWorkScorePlayback();
+            this._setWorkScoreCursor(Number(range.value));
+        });
+        const caption = el('div', { className: 'activity-panel__score-caption' });
+        const status = el('div', { className: 'activity-panel__score-status' });
+        const overflowBody = el('div', { className: 'activity-panel__score-overflow-body' });
+        const overflow = el('details', {
+            className: ['activity-panel__journey-details', 'activity-panel__score-overflow'],
+        }, [
+            el('summary', { className: 'activity-panel__journey-summary', text: 'Earlier rows' }),
+            overflowBody,
+        ]);
+        const scrub = el('div', {
+            className: 'activity-panel__score-scrub',
+            style: { display: 'none' },
+        }, [strip, range, caption, status, overflow]);
+
+        this._workScoreOpenBtn = openBtn;
+        this._workScoreLiveBtn = liveBtn;
+        this._workScorePlayBtn = playBtn;
+        this._workScoreStripEl = strip;
+        this._workScoreRangeEl = range;
+        this._workScoreCaptionEl = caption;
+        this._workScoreStatusEl = status;
+        this._workScoreOverflowEl = overflow;
+        this._workScoreOverflowBodyEl = overflowBody;
+        this._workScoreScrubEl = scrub;
+        return el('div', { className: 'activity-panel__score' }, [controls, scrub]);
+    }
+
+    // Reduced motion means manual scrub only: the playback control is not
+    // offered at all, so no timer is ever allocated.
+    _workScoreReducedMotion() {
+        if (typeof window === 'undefined') return true;
+        return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    }
+
+    // Exactly the rows the panel's waterfall prints, so the score's
+    // exact/inferred labels are the waterfall's by construction.
+    _workScoreRows(agent, now = Date.now()) {
+        if (!agent) return [];
+        return buildCausalWaterfall(agent, {
+            now,
+            toolHistory: this._causalWaterfallToolHistory.length
+                ? this._causalWaterfallToolHistory
+                : undefined,
+            children: this._causalWaterfallChildren(agent),
+        });
+    }
+
+    _openWorkScore() {
+        const agent = this.currentAgent;
+        if (!agent) return;
+        const rows = this._workScoreRows(agent);
+        const score = buildSpatialWorkScore(rows, {
+            agentId: agent.id,
+            agentName: agent.agentName || agent.name || agent.id,
+        });
+        if (!score) {
+            this._workScore = null;
+            this._renderWorkScoreControl();
+            Toast.show('No recorded rows in the last 20 minutes');
+            return;
+        }
+        this._workScore = score;
+        this._workScoreAgentId = String(agent.id || '');
+        this._workScoreCursorAt = score.startAt;
+        this._workScoreOwnerLost = false;
+        this._workScorePositions = null;
+        this._publishWorkScore();
+        this._renderWorkScoreControl();
+    }
+
+    _closeWorkScore({ restoreSelection = true } = {}) {
+        const frozenId = this._workScoreAgentId;
+        const wasActive = Boolean(this._workScore);
+        this._stopWorkScorePlayback();
+        this._workScore = null;
+        this._workScoreOwnerLost = false;
+        this._workScorePositions = null;
+        if (wasActive) eventBus.emit(WORK_SCORE_REQUEST_EVENT, { active: false, ts: Date.now() });
+        if (wasActive && restoreSelection && frozenId) {
+            const agent = this._getWorld()?.agents?.get?.(frozenId);
+            if (agent && String(this.currentAgent?.id || '') !== frozenId) emitAgentSelected(agent);
+        }
+        this._workScoreAgentId = null;
+        this._renderWorkScoreControl();
+    }
+
+    _publishWorkScore() {
+        if (!this._workScore) return;
+        eventBus.emit(WORK_SCORE_REQUEST_EVENT, {
+            active: true,
+            score: this._workScore,
+            cursorAt: this._workScoreCursorAt,
+            playing: this._workScorePlaying,
+            ts: Date.now(),
+        });
+    }
+
+    _setWorkScoreCursor(at) {
+        const score = this._workScore;
+        if (!score) return;
+        const clamped = Math.max(score.startAt, Math.min(score.endAt, Number(at) || score.startAt));
+        this._workScoreCursorAt = clamped;
+        this._publishWorkScore();
+        this._renderWorkScoreCursor();
+    }
+
+    _toggleWorkScorePlayback() {
+        if (!this._workScore || this._workScoreReducedMotion()) return;
+        if (this._workScorePlaying) {
+            this._stopWorkScorePlayback();
+            return;
+        }
+        const score = this._workScore;
+        const stepMs = 120;
+        const advance = Math.max(1, (score.endAt - score.startAt) / (SCORE_PLAYBACK_MS / stepMs));
+        if (this._workScoreCursorAt >= score.endAt) this._workScoreCursorAt = score.startAt;
+        this._workScorePlaying = true;
+        this._workScoreTimer = setInterval(() => {
+            const next = this._workScoreCursorAt + advance;
+            if (next >= score.endAt) {
+                this._setWorkScoreCursor(score.endAt);
+                this._stopWorkScorePlayback();
+                return;
+            }
+            this._setWorkScoreCursor(next);
+        }, stepMs);
+        this._publishWorkScore();
+        this._renderWorkScoreControl();
+    }
+
+    _stopWorkScorePlayback() {
+        clearInterval(this._workScoreTimer);
+        this._workScoreTimer = null;
+        if (!this._workScorePlaying) return;
+        this._workScorePlaying = false;
+        this._publishWorkScore();
+        this._renderWorkScoreControl();
+    }
+
+    _renderWorkScoreControl() {
+        if (!this._workScoreOpenBtn) return;
+        const score = this._workScore;
+        const active = Boolean(score);
+        const reduced = this._workScoreReducedMotion();
+        this._workScoreOpenBtn.style.display = active ? 'none' : '';
+        this._workScoreLiveBtn.style.display = active ? '' : 'none';
+        this._workScorePlayBtn.style.display = active && !reduced ? '' : 'none';
+        this._workScorePlayBtn.textContent = this._workScorePlaying ? 'PAUSE' : 'PLAY';
+        this._workScoreScrubEl.style.display = active ? '' : 'none';
+        if (!active) {
+            replaceChildren(this._workScoreStripEl, []);
+            replaceChildren(this._workScoreOverflowBodyEl, []);
+            this._workScoreCaptionEl.textContent = '';
+            this._workScoreStatusEl.textContent = '';
+            return;
+        }
+
+        const span = Math.max(1, score.endAt - score.startAt);
+        this._workScoreRangeEl.min = String(score.startAt);
+        this._workScoreRangeEl.max = String(score.endAt);
+        this._workScoreRangeEl.step = '250';
+        this._workScoreRangeEl.value = String(this._workScoreCursorAt);
+        replaceChildren(this._workScoreStripEl, score.nodes.map((node) => {
+            const left = ((node.at - score.startAt) / span) * 100;
+            const width = Math.max(0.8, (node.durationMs / span) * 100);
+            const tick = el('button', {
+                className: [
+                    'activity-panel__score-tick',
+                    `activity-panel__score-tick--${node.kind}`,
+                ],
+                style: { left: `${left}%`, width: `${Math.min(100 - left, width)}%` },
+                ariaLabel: `${node.label} at ${formatRelative(node.at)}, ${node.provenance}`,
+                title: `${node.label} · ${node.detail} · ${formatElapsed(node.durationMs)} · ${node.provenance}`,
+            });
+            tick.type = 'button';
+            tick.dataset.nodeId = node.id;
+            tick.addEventListener('click', () => {
+                this._stopWorkScorePlayback();
+                this._setWorkScoreCursor(node.at + Math.min(node.durationMs, 500));
+            });
+            return tick;
+        }));
+        replaceChildren(this._workScoreOverflowBodyEl, score.overflowRows.map(row => el('div', {
+            className: 'activity-panel__score-overflow-row',
+        }, [
+            el('span', { className: 'activity-panel__waterfall-label', text: row.label }),
+            el('span', { className: 'activity-panel__waterfall-detail', text: row.detail }),
+            el('span', {
+                className: [
+                    'activity-panel__execution-provenance',
+                    `activity-panel__execution-provenance--${row.provenance}`,
+                ],
+                text: row.provenance.toUpperCase(),
+            }),
+            el('span', { className: 'activity-panel__waterfall-duration', text: formatElapsed(row.durationMs) }),
+        ])));
+        this._workScoreOverflowEl.style.display = score.overflow ? '' : 'none';
+        this._workScoreOverflowEl.querySelector('summary').textContent =
+            `${score.overflow} earlier row${score.overflow === 1 ? '' : 's'}`;
+        this._renderWorkScoreCursor();
+    }
+
+    _renderWorkScoreCursor() {
+        const score = this._workScore;
+        if (!score || !this._workScoreCaptionEl) return;
+        this._workScoreRangeEl.value = String(this._workScoreCursorAt);
+        const lit = litScoreNode(score, this._workScoreCursorAt);
+        for (const tick of this._workScoreStripEl.children) {
+            tick.classList.toggle('is-lit', Boolean(lit) && tick.dataset.nodeId === lit.id);
+        }
+        this._workScoreCaptionEl.textContent = workScoreCaption(score, this._workScoreCursorAt);
+        const counts = score.counts || {};
+        const positions = this._workScorePositions;
+        const parts = [
+            `${counts.nodes} of ${counts.total} nodes`,
+            `${counts.placed} placed`,
+            `${counts.children} children`,
+            `${counts.intervals} intervals`,
+        ];
+        if (positions) {
+            parts.push(`${positions.recorded} recorded position${positions.recorded === 1 ? '' : 's'}`);
+            parts.push(`${positions.semantic} semantic`);
+            if (positions.unplaced) parts.push(`${positions.unplaced} unplaced`);
+        }
+        if (this._workScoreOwnerLost) parts.push('camera released — playback paused');
+        this._workScoreStatusEl.textContent = parts.join(' · ');
+    }
+
+    // The SCORE control offers itself only when the waterfall it reads has
+    // rows; an open score keeps the Journey section visible on its own.
+    _syncWorkScoreAvailability() {
+        if (!this._workScoreOpenBtn) return;
+        const available = this._causalWaterfallRows.length > 0;
+        this._workScoreOpenBtn.disabled = !available;
+        this._workScoreOpenBtn.title = available
+            ? 'Draw the last 20 minutes of this run over the village'
+            : 'No recorded rows in the last 20 minutes';
+    }
+
     _updateJourney(agent) {
         if (!this._journeySectionEl || !this._journeyBodyEl) return;
         if (this._mode !== 'agent' || !agent) {
             this._journeySectionEl.style.display = 'none';
             return;
         }
+        this._syncWorkScoreAvailability();
 
         const snapshot = this._getAgentBehaviorSnapshot(agent);
         const { why, rows } = this._agentJourneyRows(agent, snapshot);
@@ -3303,7 +3395,7 @@ export class ActivityPanel {
             row => row.label,
             row => row.value,
         ])}`;
-        if (!why && !rows.length) {
+        if (!why && !rows.length && !this._workScore) {
             this._journeySectionEl.style.display = 'none';
             this._renderSignatures.journey = '';
             return;
@@ -4282,6 +4374,7 @@ export class ActivityPanel {
         this._elapsedUnsubscribe?.();
         this._elapsedUnsubscribe = null;
         this._clearCausalWaterfallSubscriptions();
+        this._closeWorkScore({ restoreSelection: false });
         if (this.panelEl) this.panelEl.style.display = 'none';
         document.body.classList.remove('cv-panel-open');
         this.currentAgent = null;
@@ -4310,6 +4403,7 @@ export class ActivityPanel {
         eventBus.off('affinity:changed', this._onAffinityChanged);
         eventBus.off('affinity:ready', this._onAffinityReady);
         eventBus.off('mode:changed', this._onModeChanged);
+        eventBus.off(WORK_SCORE_STATE_EVENT, this._onWorkScoreState);
         document.removeEventListener('visibilitychange', this._onVisibilityChange);
         this._villageSectionEl?.removeEventListener('toggle', this._onVillageToggle);
 

@@ -120,6 +120,34 @@ Registry metadata treats adapter-backed providers as detail-capable when `getSes
 | `resident` | boolean | True when the server is serving a frozen snapshot of a session that has left the active window (see `services/sessionResidency.js`). |
 | `sendMessages` | array | Claude-only sender→recipient edges from `SendMessage` tool calls; the carrying session is the sender. Up to 10 most recent edges of `{ recipient, messageType, summary, ts }`: `recipient` is the raw alias from the tool input (match against `agentName`/`name`/`agentId`), `messageType` is the tool input `type` (default `'message'`), `summary` is truncated to 80 chars or null, `ts` is the transcript entry timestamp. Edges without a resolvable recipient (e.g. `shutdown_response` replies keyed by `request_id`) are skipped. Registry normalization sets this to `[]` when adapters omit it. |
 | `gitEvents` | array | Backend-extracted git `commit` / `push` events from raw tool records. Registry normalization sets this to `[]` when adapters omit it. Dry-run events are omitted. Events include `id`, `type`, `project`, `provider`, `sessionId`, `sourceId`, `ts`, and `commandHash`; `command`, `targetRef`, `success`, `exitCode`, and `completedAt` are optional metadata when the adapter can derive them. |
+| `lastResults` | array | Up to 5 most recent provider-reported outcomes of calls that already finished, newest first: `{ id, tool, detail, exitCode, durationMs, completedAt, source }`. See "Command results" below. Registry normalization sets this to `[]` when adapters omit it. |
+
+### Command results
+
+`lastResults` answers a question invocation cannot: how a call ended. A record
+exists only where the provider wrote one down.
+
+- **Codex** — `item_completed` records of type `CommandExecution` (`codex.js`). `exit_code` may be absent on an interrupted command; `exitCode` is then `null` and the outcome stays explicitly unknown.
+- **Kimi Code** — `tool.result` loop events carrying an exit code, or an explicit `isError`/`is_error`/`error` flag (`kimi.js`). A result that only carries output is not an outcome and produces nothing.
+- **OpenCode** — tool parts with a numeric `state.metadata.exit` (`opencode.js`).
+- **Claude, Gemini, Grok, OMP** — no result record is published. Nothing downstream may synthesize one.
+
+`id` is derived from provider, session, and call identity in `toolResults.js`, so
+re-reading the same transcript yields the same id and consumers deduplicate
+across polls instead of stamping a completion twice. Providers without a call id
+fall back to the recorded completion time plus the call's own shape — still read
+from the record, never from receipt time. `durationMs` is the provider's own
+duration or the span between the call and its result in the same transcript;
+`completedAt` is required and an entry without one is dropped. `detail` is the
+existing bounded tool-input summary (≤ 80 chars) and carries the classification
+the world uses to place the result at a building. The list is capped at
+`TOOL_RESULT_LIMIT` (5) per session, deduplicated by id and sorted newest first
+by `normalizeToolResults`, so a busy session cannot grow the list payload.
+
+A tool disappearing from a transcript tail is not a result, and neither is a
+session leaving the roster. The client mirrors this cap in `Agent.lastResults`
+and emits one `tool:result` event per newly observed id
+(`character-mode/AgentEventStream.js`).
 
 ### Observation and signal certainty
 

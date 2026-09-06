@@ -4,9 +4,29 @@ import { worldToTile } from './Projection.js';
 const ARRIVAL_WINDOW_MS = 8000;
 const DEPARTURE_WINDOW_MS = 12000;
 const MAX_RECENT_DEPARTURES = 6;
+// 4.5 — a dense project's remaining shared files are named by building count,
+// never by one thread per pair. Three buildings plus an exact remainder.
+const OVERLAP_BUILDING_LIMIT = 3;
 
 function pairKey(aId, bId) {
     return [aId, bId].sort().join('|');
+}
+
+function basenameOf(pathText) {
+    const segments = String(pathText || '').split(/[\\/]+/).filter(Boolean);
+    return segments.at(-1) || String(pathText || '');
+}
+
+// Which single peer edge a selected agent shows. Explicit operator intent wins
+// (a hovered peer), then a drawable peer, then the loud kind, then established
+// concurrency, then the most recent observation, then the path for stability.
+function compareOverlapCandidates(a, b) {
+    return (a.hoverRank - b.hoverRank)
+        || (a.availableRank - b.availableRank)
+        || (a.kindRank - b.kindRank)
+        || (a.overlapRank - b.overlapRank)
+        || ((b.at ?? 0) - (a.at ?? 0))
+        || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 }
 
 export class RelationshipState {
@@ -19,6 +39,10 @@ export class RelationshipState {
         this.recentArrivals = [];
         this.recentDepartures = [];
         this.chatPairs = [];
+        // 4.5 — the shared-file overlap snapshot. Separately named: it is
+        // observation evidence about files, not a family/team/advisor bond, and
+        // it never stacks onto those rings.
+        this.fileOverlap = null;
         this._lastSpriteTiles = new Map();
         this._membershipDirty = true;
         this._lastMembership = new Map();
@@ -96,6 +120,7 @@ export class RelationshipState {
             this._membershipDirty = false;
         }
         this._rebuildChatPairs(sprites);
+        this._rebuildFileOverlap(sprites);
         this._snapshot = {
             parentToChildren: this.parentToChildren,
             childToParent: this.childToParent,
@@ -104,6 +129,7 @@ export class RelationshipState {
             recentDepartures: this.recentDepartures.map(item => ({ ...item, sinceMs: now - item.at })),
             chatPairs: this.chatPairs.map(pair => ({ ...pair })),
             advisorPairs: this.advisorPairs.map(pair => ({ ...pair })),
+            fileOverlap: this.fileOverlap,
         };
         return this;
     }
@@ -122,6 +148,8 @@ export class RelationshipState {
             recentDepartures: this.recentDepartures.length,
             chatPairs: this.chatPairs.length,
             advisorPairs: this.advisorPairs.length,
+            overlapFiles: this.fileOverlap?.files || 0,
+            overlapPeers: this.fileOverlap?.peers || 0,
             rememberedSpriteTiles: this._lastSpriteTiles.size,
             rememberedMemberships: this._lastMembership.size,
             disposed: this._disposed,
@@ -179,6 +207,129 @@ export class RelationshipState {
             out.push({ aId, bId });
         }
         this.chatPairs = out;
+    }
+
+    /**
+     * 4.5 — the shared-file overlap snapshot for the selected agent.
+     *
+     * Server-detected `agent.collisions` are exact canonical-path overlaps with
+     * per-edge observation times. This picks *one* peer edge (a hovered peer
+     * first, so the operator cycles edges by explicit selection/hover) and
+     * reduces every remaining shared file to exact per-building counts, so a
+     * hundred agents can never produce pairwise threads.
+     */
+    _rebuildFileOverlap(sprites) {
+        let selected = null;
+        let hoveredId = '';
+        for (const sprite of sprites) {
+            const id = sprite.agent?.id ? String(sprite.agent.id) : '';
+            if (!id) continue;
+            if (sprite.selected) selected = sprite;
+            else if (sprite.hovered) hoveredId = id;
+        }
+        const collisions = Array.isArray(selected?.agent?.collisions) ? selected.agent.collisions : [];
+        if (!selected || !collisions.length) {
+            this.fileOverlap = null;
+            return;
+        }
+
+        const selectedId = String(selected.agent.id);
+        const drawable = new Set();
+        for (const sprite of sprites) {
+            const id = sprite.agent?.id ? String(sprite.agent.id) : '';
+            if (id && !sprite.isArrivalPending?.()) drawable.add(id);
+        }
+
+        const paths = new Set();
+        const peers = new Set();
+        const candidates = [];
+        for (const collision of collisions) {
+            const path = typeof collision?.path === 'string' ? collision.path.trim() : '';
+            if (!path || !Array.isArray(collision.agents)) continue;
+            const observations = Array.isArray(collision.observations) ? collision.observations : [];
+            const writers = observations.length
+                ? observations.filter(entry => entry?.op === 'write').length
+                : null;
+            const readers = observations.length
+                ? observations.filter(entry => entry?.op === 'read').length
+                : null;
+            paths.add(path);
+            for (const rawId of collision.agents) {
+                const peerId = String(rawId ?? '');
+                if (!peerId || peerId === selectedId) continue;
+                peers.add(peerId);
+                const observation = observations.find(entry => String(entry?.agentId ?? '') === peerId) || null;
+                const at = Number.isFinite(observation?.at) ? observation.at : null;
+                const available = drawable.has(peerId);
+                candidates.push({
+                    peerId,
+                    path,
+                    kind: collision.kind === 'write-write' ? 'write-write' : 'read-write',
+                    overlapKind: collision.overlapKind === 'concurrent' ? 'concurrent' : 'recent',
+                    writers,
+                    readers,
+                    participants: collision.agents.length,
+                    peerOp: observation?.op === 'write' || observation?.op === 'read' ? observation.op : null,
+                    at,
+                    available,
+                    hoverRank: peerId === hoveredId ? 0 : 1,
+                    availableRank: available ? 0 : 1,
+                    kindRank: collision.kind === 'write-write' ? 0 : 1,
+                    overlapRank: collision.overlapKind === 'concurrent' ? 0 : 1,
+                });
+            }
+        }
+        if (!candidates.length) {
+            this.fileOverlap = null;
+            return;
+        }
+
+        candidates.sort(compareOverlapCandidates);
+        const edge = candidates[0];
+        const agents = this.world?.agents;
+
+        // Remaining files: one exact count per building where a peer is working.
+        const filesByBuilding = new Map();
+        const placed = new Set();
+        for (const candidate of candidates) {
+            if (candidate.path === edge.path) continue;
+            const peer = agents?.get?.(candidate.peerId) || null;
+            const building = peer?.targetBuildingType || peer?.lastKnownBuildingType || null;
+            if (!building) continue;
+            let bucket = filesByBuilding.get(building);
+            if (!bucket) { bucket = new Set(); filesByBuilding.set(building, bucket); }
+            bucket.add(candidate.path);
+            placed.add(candidate.path);
+        }
+        const aggregates = [...filesByBuilding.entries()]
+            .map(([building, bucket]) => ({ building, files: bucket.size }))
+            .sort((a, b) => (b.files - a.files) || (a.building < b.building ? -1 : a.building > b.building ? 1 : 0));
+        const shown = aggregates.slice(0, OVERLAP_BUILDING_LIMIT);
+        const remainder = aggregates.slice(OVERLAP_BUILDING_LIMIT)
+            .reduce((total, entry) => total + entry.files, 0);
+        const unplaced = [...paths].filter(path => path !== edge.path && !placed.has(path)).length;
+
+        this.fileOverlap = {
+            selectedId,
+            edge: {
+                peerId: edge.peerId,
+                peerName: agents?.get?.(edge.peerId)?.name || edge.peerId,
+                path: edge.path,
+                basename: basenameOf(edge.path),
+                kind: edge.kind,
+                overlapKind: edge.overlapKind,
+                writers: edge.writers,
+                readers: edge.readers,
+                participants: edge.participants,
+                peerOp: edge.peerOp,
+                observedAt: edge.at,
+                available: edge.available,
+            },
+            files: paths.size,
+            peers: peers.size,
+            aggregates: shown,
+            otherFiles: remainder + unplaced,
+        };
     }
 
     _rememberSpriteTiles(sprites) {

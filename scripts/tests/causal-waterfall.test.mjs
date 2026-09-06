@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildCausalWaterfall } from '../../claudeville/src/presentation/shared/ActivityPanel.js';
+import { buildCausalWaterfall } from '../../claudeville/src/presentation/shared/WorkWaterfallModel.js';
 
 const MINUTE = 60_000;
 const NOW = 20 * MINUTE;

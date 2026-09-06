@@ -68,6 +68,7 @@ const AGENT_SIGNATURE_FIELDS = Object.freeze([
     'signalStale',
     'freshness',
     'workingSet',
+    'lastResults',
     'collisions',
     'resident',
     'sendMessages',
@@ -87,9 +88,11 @@ const SIGNATURE_COLLECTION_VALUE_BUDGET = 1024;
 const SIGNATURE_FIELD_CHARACTER_BUDGET = 1024;
 const SIGNATURE_COLLECTION_CHARACTER_BUDGET = 15 * 1024;
 const SIGNATURE_CHARACTER_BUDGET = 64 * 1024;
-const SIGNATURE_COLLECTION_FIELDS = new Set(['gitEvents', 'sendMessages', 'workingSet', 'collisions', 'tasks', 'todos']);
+const SIGNATURE_COLLECTION_FIELDS = new Set(['gitEvents', 'sendMessages', 'workingSet', 'lastResults', 'collisions', 'tasks', 'todos']);
 const VERIFIED_OUTCOME_KEY_LIMIT = 512;
 const EXECUTION_TASK_LIMIT = 12;
+// Mirrors the adapter contract's bounded last-result summary (adapters/toolResults.js).
+const LAST_RESULT_LIMIT = 5;
 
 function normalizeExecutionTaskSubject(value) {
     if (typeof value !== 'string') return '';
@@ -655,6 +658,9 @@ export class AgentManager {
             signalStale: session.signalStale === true,
             freshness: session.freshness || null,
             workingSet: Array.isArray(session.workingSet) ? session.workingSet.slice(0, 16) : [],
+            lastResults: Array.isArray(session.lastResults)
+                ? session.lastResults.slice(0, LAST_RESULT_LIMIT)
+                : [],
             collisions: Array.isArray(collisions) ? collisions : [],
             resident: session.resident === true,
             sendMessages: Array.isArray(session.sendMessages) ? session.sendMessages : [],

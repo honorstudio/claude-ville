@@ -75,9 +75,16 @@ function captureDirectorCalls(world = null) {
     return { director, calls };
 }
 
-test('spatial agent cues map normalized screen X to a StereoPanner pan', () => {
+// Arrival and departure bells belong to a moving body: they wait out the
+// current event dispatch so the renderer can declare its accent, then ring on
+// it (CueScore.CUE_ACCENT_NOTE). One macrotask drains that wait; the panning
+// contract itself is the same voice path for every cue kind.
+const nextTick = () => new Promise(resolve => { setTimeout(resolve, 0); });
+
+test('spatial agent cues map normalized screen X to a StereoPanner pan', async () => {
     const left = fakeAudioKit();
     left.kit.play('arrival', { screenX: 0, provider: 'claude' });
+    await nextTick();
     assert.equal(left.panners.length, 2);
     assert.ok(left.panners.every(node => node.pan.value === -1));
 

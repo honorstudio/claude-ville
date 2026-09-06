@@ -27,16 +27,48 @@ const GAINS = {
     perc: 0.005,
 };
 
+// 5.3 — arrangement sections. Each band admits one more of the piece's already
+// compiled voices: no extra oscillators, no transposition, no tempo change. A
+// resting village keeps the tune and the bass; work adds the written counter
+// line back, then the eighth-note engine, then the percussion.
+const SECTION_VOICES = Object.freeze({
+    rest: new Set(['lead', 'bell', 'bass']),
+    light: new Set(['lead', 'bell', 'bass', 'counter', 'pad']),
+    steady: new Set(['lead', 'bell', 'bass', 'counter', 'pad', 'arp']),
+    full: new Set(['lead', 'bell', 'bass', 'counter', 'pad', 'arp', 'hat']),
+});
+export const BGM_SECTIONS = Object.freeze(Object.keys(SECTION_VOICES));
+
 export class BgmPlayer extends BaseLayer {
     constructor(engine) {
         super(engine, { trim: 0.55 });
         this.phase = 'day';
         this.nowPlaying = null;
+        this.section = 'steady';
+        this._pendingSection = null;
         this._buses = null;
         this._delaySend = null;
         this._songSources = new Set();
         this._current = null; // { piece, events, beatSec, totalBeats, loop, loopsPlanned }
         this._lastPieceName = null;
+    }
+
+    // The section the counts asked for, waiting for the next four-bar chunk.
+    get pendingSection() {
+        return this._pendingSection;
+    }
+
+    // Queue an arrangement density. It lands on the next four-bar boundary, so
+    // a change never cuts a bar in half.
+    setSection(name) {
+        if (!SECTION_VOICES[name]) return false;
+        if (name === (this._pendingSection ?? this.section)) return false;
+        this._pendingSection = name === this.section ? null : name;
+        return this._pendingSection != null;
+    }
+
+    _voiceEnabled(voice) {
+        return SECTION_VOICES[this.section]?.has(voice) !== false;
     }
 
     _start(ctx) {
@@ -169,6 +201,13 @@ export class BgmPlayer extends BaseLayer {
         const cur = this._current;
         if (!ctx || !cur || !this.running) return;
 
+        // Four-bar boundary: the moment a queued section is allowed to change
+        // the arrangement.
+        if (this._pendingSection) {
+            this.section = this._pendingSection;
+            this._pendingSection = null;
+        }
+
         const chunkEnd = Math.min(chunkStart + CHUNK_BEATS, cur.totalBeats);
         for (const ev of cur.events) {
             if (ev.beat < chunkStart || ev.beat >= chunkEnd) continue;
@@ -180,6 +219,7 @@ export class BgmPlayer extends BaseLayer {
             bars: cur.piece.chords.length,
             loop: cur.loop + 1,
             of: cur.loopsPlanned,
+            section: this.section,
         };
 
         // Generous lookahead: browsers clamp timers in throttled tabs to ~1 s,
@@ -209,6 +249,9 @@ export class BgmPlayer extends BaseLayer {
     _playEvent(t, ev, cur) {
         const ctx = this.engine.context;
         if (!ctx) return;
+        // Voices the current section does not admit are never synthesised: a
+        // resting village costs less than a working one.
+        if (!this._voiceEnabled(ev.voice)) return;
         // A slightly late event plays "now" (one smeared onset beats a hole
         // in the music); anything later than a beat is genuinely lost.
         if (t < ctx.currentTime) {

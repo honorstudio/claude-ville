@@ -4,7 +4,8 @@ import {
     gpuResourceAccounting,
     unifiedRendererResourceAccounting,
 } from '../CanvasBudget.js';
-import { localLightPhaseForLighting, WORLD_PHASE_GRADES } from '../gpu/GpuWorldPolicy.js';
+import { localLightPhaseForLighting, worldPhaseGrade } from '../gpu/GpuWorldPolicy.js';
+import { sourceEnergyFor } from '../AtmosphereState.js';
 
 const MAX_LIGHTS = 48;
 const MAX_HAZE_ANCHORS = 8;
@@ -782,9 +783,10 @@ class PostFxInstance {
         const reducedMotion = Boolean(feed?.reducedMotion);
         const motionScale = reducedMotion ? 0 : clamp(finite(feed?.motionScale, 1), 0, 2);
         const phase = typeof feed?.phase === 'string' ? feed.phase : 'day';
-        const phaseGrade = WORLD_PHASE_GRADES[phase] || WORLD_PHASE_GRADES.day;
-        const grade = feed?.grade || {};
+        // 3.4 — the hybrid path selects the same reviewed night moon course.
         const lighting = feed?.lighting || {};
+        const phaseGrade = worldPhaseGrade(phase, lighting.moonFill);
+        const grade = feed?.grade || {};
         const worldTint = parseColor(grade.worldTint, [0.5, 0.5, 0.5]);
         const edge = phaseGrade.edge;
         const base = phaseGrade.base;
@@ -821,20 +823,19 @@ class PostFxInstance {
         gl.uniform1f(uniforms.u_edgeAlpha, clamp(finite(phaseGrade.edgeAlpha), 0, 1));
         gl.uniform3f(uniforms.u_tint, worldTint[0], worldTint[1], worldTint[2]);
         gl.uniform1f(uniforms.u_tintAlpha, parseColorAlpha(grade.worldTint));
-        const lightBoost = clamp(finite(lighting.lightBoost, finite(grade.buildingGlowScale, 1)), 0.3, 2);
-        // Local lights follow the same darkness response in every renderer.
-        // Authored emissive pixels stay identifiable by day, but point-light
-        // halos do not compete with the sun.
+        // 3.1 — one exposure envelope: the hybrid glow spends the same core
+        // share as the Canvas stamps it must match, and nothing multiplies
+        // lightBoost, the beacon factor, and the glow scale together any more.
+        const core = clamp(finite(sourceEnergyFor(lighting).core, 1), 0, 2);
         const beacon = Number(lighting.beaconIntensity);
         const ambient = Number(lighting.ambientLight);
         const nightFactor = clamp(Number.isFinite(beacon) ? beacon
             : (Number.isFinite(ambient) ? 1 - ambient : 0), 0, 1);
         this._glowNightFactor = nightFactor;
         this._localLightPhase = localLightPhaseForLighting(lighting);
-        // 2D parity: _drawLightGlowStamps composites at globalAlpha
-        // 0.14 * lightBoost over a stamp whose stop alphas already carry
-        // another lightBoost factor (glowScale) — hence boost squared.
-        const glowScale = 0.14 * lightBoost * lightBoost;
+        // 2D parity: `_drawLightGlowStamps` composites at 0.14 * core over a
+        // stamp whose stop alphas already carry the same core — hence squared.
+        const glowScale = 0.14 * core * core;
         this._glowScale = glowScale;
         gl.uniform1f(uniforms.u_lightGlowScale, glowScale);
         gl.uniform1f(uniforms.u_time, finite(feed?.timeMs));

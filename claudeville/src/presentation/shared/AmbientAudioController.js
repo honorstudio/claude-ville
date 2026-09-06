@@ -5,7 +5,12 @@
 
 import { AudioEngine, clamp01 } from './audio/AudioEngine.js';
 import { AudioDirector } from './audio/AudioDirector.js';
-import { BgmDirector } from './audio/BgmDirector.js';
+import {
+    BgmDirector,
+    workingSectionCounts,
+    workingSectionLabel,
+} from './audio/BgmDirector.js';
+import { eventBus } from '../../domain/events/DomainEvent.js';
 
 const STORAGE_KEY = 'claudeville.sound.enabled';
 const VOLUME_KEY = 'claudeville.sound.volume';
@@ -14,6 +19,10 @@ const LAYER_LEVELS_KEY = 'claudeville.sound.layers';
 const DEFAULT_VOLUME = 0.5;
 const MODES = ['ambient', 'bgm'];
 const HIDDEN_SUMMONS_HOLD_MS = 3200;
+// Agent updates arrive in bursts; one coalesced read per burst keeps the label
+// within a beat of the world, and it is written only when its counts actually
+// change, so a busy poll never touches the DOM.
+const SECTION_LABEL_COALESCE_MS = 150;
 
 export const AUDIO_MIXER_DEFAULTS = Object.freeze({
     wind: 1,
@@ -128,12 +137,19 @@ export class AmbientAudioController {
         this._destroyPromise = null;
         this._destroyed = false;
         this._windowBlurred = false;
+        // The working-section label lives beside the music control; the topbar
+        // markup owns the element, this controller owns its counts.
+        this.sectionLabel = typeof document !== 'undefined'
+            ? document.getElementById('topbarSoundSection')
+            : null;
+        this._sectionLabelText = '';
+        this._sectionLabelTimer = null;
 
         this.engine = new AudioEngine();
         this.engine.setVolume(this.volume);
         this.directors = {
             ambient: new AudioDirector({ engine: this.engine, world: this.world }),
-            bgm: new BgmDirector({ engine: this.engine }),
+            bgm: new BgmDirector({ engine: this.engine, world: this.world }),
         };
         this.directors.ambient.setHiddenSummonsHandler?.((payload) => {
             this._handleHiddenSummons(payload);
@@ -168,6 +184,10 @@ export class AmbientAudioController {
         if (typeof window !== 'undefined') {
             window.addEventListener('blur', this._onWindowBlur);
             window.addEventListener('focus', this._onWindowFocus);
+        }
+        this._onWorldCountsChanged = () => this._scheduleSectionLabel();
+        for (const event of ['agent:added', 'agent:updated', 'agent:removed']) {
+            eventBus.on(event, this._onWorldCountsChanged);
         }
 
         this._renderControls();
@@ -524,6 +544,32 @@ export class AmbientAudioController {
             }
         }
         for (const name of Object.keys(AUDIO_MIXER_DEFAULTS)) this._renderLayerControl(name);
+        this._renderSectionLabel();
+    }
+
+    _scheduleSectionLabel() {
+        if (this._destroyed || this._sectionLabelTimer) return;
+        this._sectionLabelTimer = setTimeout(() => {
+            this._sectionLabelTimer = null;
+            this._renderSectionLabel();
+        }, SECTION_LABEL_COALESCE_MS);
+    }
+
+    // `Working 7 · Waiting 2` — the counts the arrangement follows, written
+    // only when they change. The music is never the only place they appear.
+    _renderSectionLabel() {
+        const label = this.sectionLabel;
+        if (!label) return;
+        const shown = this.enabled && this.available;
+        label.hidden = !shown;
+        if (!shown) return;
+        const counts = workingSectionCounts(this.world);
+        const text = workingSectionLabel(counts);
+        if (text === this._sectionLabelText) return;
+        this._sectionLabelText = text;
+        label.textContent = text;
+        label.title = `${counts.working} working · ${counts.needsYou} waiting on you`
+            + ` · ${counts.watchlist} waiting on work`;
     }
 
     _renderLayerControl(name) {
@@ -554,6 +600,8 @@ export class AmbientAudioController {
             layerLevels: { ...this.layerLevels },
             rms: this.engine.rms(),
             mode: this.mode,
+            sectionLabel: this._sectionLabelText,
+            sectionCounts: workingSectionCounts(this.world),
             ...this.director.snapshot(),
             setVolume: (v) => this.setVolume(v),
             setLayerLevel: (name, level) => this.setLayerLevel(name, level),
@@ -582,6 +630,11 @@ export class AmbientAudioController {
             this._hiddenSummonsTimer = null;
         }
         this._hiddenSummonsPending.clear();
+        clearTimeout(this._sectionLabelTimer);
+        this._sectionLabelTimer = null;
+        for (const event of ['agent:added', 'agent:updated', 'agent:removed']) {
+            eventBus.off(event, this._onWorldCountsChanged);
+        }
         this.directors.ambient.destroy?.();
 
         if (this.button) this.button.removeEventListener('click', this._onButtonClick);

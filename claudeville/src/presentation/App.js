@@ -444,6 +444,7 @@ export class App {
         this._bindWorldEmptyState();
         this._initFirstRunHint();
         this._initReadControl();
+        this._initAmbientControl();
 
         // 4. Initialize application services
         if (!this.agentManager) {
@@ -992,6 +993,50 @@ export class App {
             for (const [target, name, handler] of bindings) target.removeEventListener(name, handler);
             this._readControlCleanup = null;
         };
+    }
+
+    // 5.1 (C6) — the only way into Ambient. The control also carries the
+    // revocation state: once a genuine input hands the frame back, it reads
+    // RESUME AMBIENT and waits to be asked again. Nothing here is on a timer.
+    _initAmbientControl() {
+        const button = document.getElementById('worldAmbient');
+        if (!button || this._ambientControlCleanup) return;
+        const apply = state => {
+            const on = state === 'on';
+            button.dataset.state = state;
+            button.textContent = state === 'resume' ? 'RESUME AMBIENT' : 'AMBIENT CAM';
+            button.setAttribute('aria-pressed', String(on));
+            button.classList.toggle('topbar__sound-btn--on', on);
+        };
+        const onClick = () => {
+            const director = this.renderer?.cameraDirector;
+            if (!director?.setAmbient) return;
+            if (button.dataset.state === 'on') {
+                director.setAmbient(false);
+                apply('off');
+                return;
+            }
+            apply(director.setAmbient(true) ? 'on' : 'off');
+        };
+        button.addEventListener('click', onClick);
+        const onOwner = payload => {
+            if (payload?.owner === 'ambient') { apply('on'); return; }
+            if (payload?.previous !== 'ambient') return;
+            apply(payload.reason === 'release' ? 'off' : 'resume');
+        };
+        this._eventUnsubscribers.push(eventBus.on('camera:owner', onOwner));
+        this._eventUnsubscribers.push(eventBus.on('mode:changed', mode => {
+            // The World stops while Dashboard is up; a broadcast cannot run
+            // behind a hidden canvas, so the claim is dropped, not parked.
+            this.renderer?.cameraDirector?.setAmbient?.(false);
+            apply('off');
+            button.hidden = mode === 'dashboard';
+        }));
+        this._ambientControlCleanup = () => {
+            button.removeEventListener('click', onClick);
+            this._ambientControlCleanup = null;
+        };
+        apply('off');
     }
 
     _initFirstRunHint() {
@@ -1773,6 +1818,7 @@ export class App {
         }
         this._deferredSelectionIntent = null;
         this._readControlCleanup?.();
+        this._ambientControlCleanup?.();
         if (this._onFirstRunHintDismiss) {
             document.getElementById('firstRunHintDismiss')?.removeEventListener(
                 'click',

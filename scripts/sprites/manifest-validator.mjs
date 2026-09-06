@@ -44,6 +44,15 @@ const REFERENCE_CHECK_GROUPS = ['props', 'vegetation', 'bridges', 'atmosphere'];
 // into ChronicleMonuments (plan 6.1) and intentionally NOT allowlisted.
 const UNREFERENCED_ALLOWLIST = new Set([
     'bridge.ew', // reserved for a future EW plank crossing (manifest comment)
+    // 4.1 inspection interior kit: the six props are baked into
+    // buildings/building.command/interior.png rather than drawn at runtime, so
+    // no code path names them; they stay inventoried for the next aperture.
+    'prop.interior.readingDesk',
+    'prop.interior.anvilBench',
+    'prop.interior.planningTable',
+    'prop.interior.archiveShelf',
+    'prop.interior.instrumentStand',
+    'prop.interior.cargoBench',
 ]);
 // Visually verified non-cubes that the fill heuristic still flags (bulky by
 // design); keeps the warning channel free of explained noise.
@@ -224,6 +233,7 @@ function validateManifestEntry(entry) {
             errors++;
         }
         errors += validateCharacterLedger(entry);
+        errors += validateActionStrip(entry);
     }
 
     if (REQUIRED_PRO_CHARACTER_IDS.has(entry.id) && entry.generationMode !== 'pro') {
@@ -278,6 +288,100 @@ function validateCharacterLedger(entry) {
             }
             const mode = entry.provenance.generationMode;
             if (mode !== undefined && !CHARACTER_GENERATION_MODES.has(mode)) invalid('provenance.generationMode must be standard or pro');
+        }
+    }
+    // Optional head-and-shoulders crop, in cell-local pixels of the composed
+    // south idle frame, consumed by the Dashboard/panel avatar surfaces.
+    if (entry.portraitCrop !== undefined) {
+        const crop = entry.portraitCrop;
+        if (!record(crop)) invalid('portraitCrop must be a mapping of x, y, w, h');
+        else {
+            const cell = Number(entry.size) || CHARACTER_CELL;
+            const values = ['x', 'y', 'w', 'h'].map((key) => crop[key]);
+            if (!values.every(Number.isInteger) || values.some((value) => value < 0)) {
+                invalid('portraitCrop x, y, w, h must be non-negative integers');
+            } else if (crop.w <= 0 || crop.h <= 0 || crop.x + crop.w > cell || crop.y + crop.h > cell) {
+                invalid(`portraitCrop must be a positive rectangle inside the ${cell}px cell`);
+            }
+        }
+    }
+    return errors;
+}
+
+// C2: the strip is optional, but a declared strip must be servable — 8 direction
+// columns of the engine cell, named groups inside the PNG's real row count, and
+// a hold row inside its own group.
+function validateActionStrip(entry) {
+    if (entry.actionStrip === undefined) return 0;
+    let errors = 0;
+    const invalid = (message) => {
+        console.error(`INVALID MANIFEST: ${entry.id} actionStrip ${message}`);
+        errors++;
+    };
+    const strip = entry.actionStrip;
+    if (strip === null || typeof strip !== 'object' || Array.isArray(strip)) {
+        invalid('must be a mapping');
+        return errors;
+    }
+    const expectedPath = `characters/${entry.id}/actions.png`;
+    if (strip.path !== expectedPath) invalid(`path must be ${expectedPath}`);
+    if (strip.cell !== CHARACTER_CELL) invalid(`cell must be ${CHARACTER_CELL}`);
+    if (strip.grip !== undefined) {
+        if (!['right', 'left', 'both'].includes(strip.grip?.hand)) invalid('grip.hand must be right, left or both');
+        if (typeof strip.grip?.sheathe !== 'boolean') invalid('grip.sheathe must be a boolean');
+    }
+    if (strip.provenance !== undefined) {
+        const { characterId, animationGroupId, generationSize } = strip.provenance || {};
+        if (typeof characterId !== 'string' || !characterId.trim()) invalid('provenance.characterId must be a non-empty string');
+        if (animationGroupId !== undefined && (typeof animationGroupId !== 'string' || !animationGroupId.trim())) {
+            invalid('provenance.animationGroupId must be a non-empty string');
+        }
+        // v3 animates at the source rig's export canvas, which can exceed the
+        // 128px character request range and is capped at 256px.
+        if (!Number.isInteger(generationSize) || generationSize < 16 || generationSize > 256) {
+            invalid('provenance.generationSize must be an integer from 16 through 256');
+        }
+    }
+
+    const abs = join(spritesRoot, expectedPath);
+    let png = null;
+    if (existsSync(abs)) {
+        try {
+            png = PNG.sync.read(readFileSync(abs));
+        } catch (err) {
+            invalid(`PNG cannot be decoded (${err.message})`);
+        }
+    }
+    const cell = Number.isInteger(strip.cell) && strip.cell > 0 ? strip.cell : CHARACTER_CELL;
+    if (png) {
+        if (png.width !== CHARACTER_DIRECTIONS * cell) {
+            invalid(`PNG is ${png.width}px wide, expected ${CHARACTER_DIRECTIONS * cell}`);
+        }
+        if (png.height < cell || png.height % cell !== 0) {
+            invalid(`PNG height ${png.height} is not whole ${cell}px rows`);
+        }
+    }
+    const rows = png && png.height % cell === 0 ? png.height / cell : null;
+    const groups = strip.groups;
+    if (groups === null || typeof groups !== 'object' || Array.isArray(groups) || !Object.keys(groups).length) {
+        invalid('groups must be a non-empty named mapping');
+        return errors;
+    }
+    const occupied = new Set();
+    for (const [name, group] of Object.entries(groups)) {
+        const range = group?.rows;
+        if (!name.trim() || !Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger)
+            || range[0] < 0 || range[1] < range[0] || (rows !== null && range[1] >= rows)) {
+            invalid(`groups.${name} rows must be an inclusive range inside the strip's ${rows ?? 'declared'} rows`);
+            continue;
+        }
+        for (let row = range[0]; row <= range[1]; row++) {
+            if (occupied.has(row)) invalid(`groups.${name} overlaps row ${row}`);
+            occupied.add(row);
+        }
+        const hold = group.hold;
+        if (hold !== undefined && (!Number.isInteger(hold) || hold < range[0] || hold > range[1])) {
+            invalid(`groups.${name} hold must be a row inside ${range.join('–')}`);
         }
     }
     return errors;

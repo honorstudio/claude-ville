@@ -28,7 +28,7 @@ Existing local pulse math can migrate gradually as nearby features are touched. 
 | `slow` | More than 1 second | Selection ring | Observatory sweep, lighthouse beam, directional chat flow | Competing pulse claimants when selection is active on the same agent |
 | `medium` | Around 600 ms | Working-status glow | Forge burst, archive page flip, mine pickaxe, portal rune boost, mote orbit, carrier-bird flight | A second medium pulse on an entity already showing working glow |
 | `fast` | Less than 300 ms | Recent-event flash | Spark ring, taskboard pin, re-merge sparkle, wisp landing pulse | Continuous use |
-| `static` | No pulse | Idle agents, building lights, hearth glow | Command flag, harbor crate, mine seam tint, council ring, departure sigil, monument freshness, manifest plank weathering | Replacing these static cues with repeating motion |
+| `static` | No pulse | Idle agents, building lights, hearth glow | Command flag, harbor crate, mine seam tint, council ring, council gather notches and team mark, recovery bracket and relief diamond, departure sigil, monument freshness, manifest plank weathering | Replacing these static cues with repeating motion |
 
 ## Priority Iteration
 

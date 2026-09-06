@@ -260,7 +260,11 @@ export class AudioDirector {
             const teamSize = Array.isArray(payload?.members)
                 ? payload.members.length
                 : payload?.teamSize ?? payload?.size;
-            this.cue('council', { agentId: payload?.agentId ?? null, teamSize });
+            this.cue('council', {
+                agentId: payload?.agentId ?? null,
+                teamName: payload?.teamName ?? null,
+                teamSize,
+            });
         });
         on('chronicle:aurora', (payload) => {
             if (this._signalRouting) this.cue('aurora', { agentId: payload?.agentId ?? null });

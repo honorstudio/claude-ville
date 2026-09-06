@@ -5,11 +5,14 @@ import {
   GPU_MATERIAL_CLASSES,
   buildStableGpuBatches,
   clampGpuLights,
-  emissivePhaseForAmbientLight,
   estimateGpuWorldTextureBytes,
+  isAttentionLight,
   localLightPhaseForLighting,
   materialClassId,
+  nightMoonCourse,
   resolveGpuWorldRendererMode,
+  worldPhaseGrade,
+  WORLD_PHASE_GRADES,
 } from '../../claudeville/src/presentation/character-mode/gpu/GpuWorldPolicy.js';
 import {
   buildGpuWorldRecords,
@@ -49,10 +52,25 @@ test('material ids and light admission are deterministic', () => {
   assert.equal(admitted[0].id, 'a');
 });
 
-test('authored emitters stay restrained by day and recover toward night', () => {
-  assert.equal(emissivePhaseForAmbientLight(1), 0.12);
-  assert.equal(emissivePhaseForAmbientLight(0), 1);
-  assert.ok(emissivePhaseForAmbientLight(0.4) > emissivePhaseForAmbientLight(0.8));
+test('the moon selects one reviewed night course and never relights the day', () => {
+  assert.equal(nightMoonCourse(0), 'night-new-moon');
+  assert.equal(nightMoonCourse(0.3), 'night');
+  assert.equal(nightMoonCourse(0.9), 'night-moonlit');
+  const dark = worldPhaseGrade('night', 0);
+  const shipped = worldPhaseGrade('night', 0.3);
+  const moonlit = worldPhaseGrade('night', 0.95);
+  assert.ok(dark.base[2] < shipped.base[2] && shipped.base[2] < moonlit.base[2]);
+  // A dark night still has to be readable ground, not a black screen.
+  assert.ok(dark.base[0] >= 0.4);
+  // Daylight phases ignore the moon entirely.
+  assert.equal(worldPhaseGrade('day', 1), WORLD_PHASE_GRADES.day);
+  assert.equal(worldPhaseGrade('dusk', 1), WORLD_PHASE_GRADES.dusk);
+});
+
+test('action-needed lights are recognised so the exposure budget can skip them', () => {
+  assert.equal(isAttentionLight({ id: 'attention:waiting:a1' }), true);
+  assert.equal(isAttentionLight({ attention: 'errored' }), true);
+  assert.equal(isAttentionLight({ id: 'building.harbor.point.1.2' }), false);
 });
 
 test('local point lights disappear at noon and rise with darkness or weather beacons', () => {

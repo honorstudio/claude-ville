@@ -51,9 +51,21 @@ export class AgentGpuOverlayRenderer {
         }
 
         // Modular action props stay in the ungraded overlay. They add to the
-        // complete GPU body frame and can never punch holes in its alpha.
+        // complete GPU body frame and can never punch holes in its alpha. The
+        // 2.4 signature rides the same geometry, so the resident renderer shows
+        // the identical mark on hero and 28 px compact bodies. The nine
+        // building rituals were reachable only on the Canvas backend before
+        // 2.2; the resident renderer now draws the same gesture.
+        //
+        // This block is the sole owner of these marks on the resident backend:
+        // AgentSprite's Canvas body pass stands down while gpuWorldEnabled, so
+        // the order here is the Canvas order and each mark is struck once.
         if (record.frameGeometry && !host.agent?.isDeparted) {
+            host._drawSignatureMark(ctx, record.frameGeometry);
+            host._drawReceiveBeat(ctx, record.frameGeometry);
+            host._drawStanceOverlay(ctx, record.frameGeometry);
             host._drawActionPoseOverlay(ctx, record.frameGeometry);
+            host._drawToolRitualOverlay(ctx, record.frameGeometry);
         }
 
         // Static-band cue: departed agents never pulse or allocate animation
@@ -118,13 +130,17 @@ export class AgentGpuOverlayRenderer {
         alpha = 1,
         contentTopY = null,
         frameGeometry = null,
+        pose = null,
     }) {
         const host = this.host;
         if (!host.gpuWorldEnabled || !host.spriteCanvas || !cell) {
             host._gpuFrameRecord = null;
             return;
         }
-        const source = host._gpuBaseSpriteCanvas || host.spriteCanvas;
+        // 2.2 — an authored C2 pose replaces both the sampled sheet and the
+        // source rect, so the resident body shows the same hands the Canvas
+        // body does. Equipment padding never applies: the strip owns its grip.
+        const source = pose ? pose.source : (host._gpuBaseSpriteCanvas || host.spriteCanvas);
         const status = host.agent?.status;
         // Equipped codex sheets are re-laid on a padded cell grid so baked
         // blade tips survive past the 92px body cell; remap the cell UVs and
@@ -136,10 +152,11 @@ export class AgentGpuOverlayRenderer {
         const padded = pad ? cellSize + pad * 2 : 0;
         const col = pad ? Math.floor(cell.sx / cellSize) : 0;
         const row = pad ? Math.floor(cell.sy / cellSize) : 0;
-        const frameKey = agentFrameKeyFromCell(cell);
+        const bodyCell = pose ? pose.cell : cell;
+        const frameKey = agentFrameKeyFromCell(bodyCell);
         const equippedMaterial = pad ? host._gpuEquippedMaterialSheet : null;
         const equippedEmissive = pad ? host._gpuEquippedEmissiveSheet : null;
-        const resolved = (equippedMaterial || equippedEmissive)
+        const resolved = (equippedMaterial || equippedEmissive || pose)
             ? null
             : host.assets?.resolveMaterialChannels?.(spriteId, frameKey, {
                 kind: 'agent',
@@ -148,36 +165,44 @@ export class AgentGpuOverlayRenderer {
                 onScreen: true,
             });
         const resolvedReady = resolved?.ready && resolved.origin !== 'fallback';
-        const materialSource = equippedMaterial
-            || (resolvedReady ? resolved.material : null)
-            || (pad ? null : host.assets?.getSidecar?.(spriteId, 'material')
-                || host.assets?.getMaterialSidecar?.(spriteId, 'material'))
-            || null;
-        const emissiveSource = equippedEmissive
-            || (resolvedReady ? resolved.emissive : null)
-            || (pad ? null : host.assets?.getSidecar?.(spriteId, 'emissive')
-                || host.assets?.getMaterialSidecar?.(spriteId, 'emissive'))
-            || null;
+        // A strip carries its own optional material companions; it never
+        // borrows the base sheet's, whose cells describe a different pose.
+        const materialSource = pose
+            ? pose.strip?.channels?.material || null
+            : equippedMaterial
+                || (resolvedReady ? resolved.material : null)
+                || (pad ? null : host.assets?.getSidecar?.(spriteId, 'material')
+                    || host.assets?.getMaterialSidecar?.(spriteId, 'material'))
+                || null;
+        const emissiveSource = pose
+            ? pose.strip?.channels?.emissive || null
+            : equippedEmissive
+                || (resolvedReady ? resolved.emissive : null)
+                || (pad ? null : host.assets?.getSidecar?.(spriteId, 'emissive')
+                    || host.assets?.getMaterialSidecar?.(spriteId, 'emissive'))
+                || null;
         host._gpuFrameRecord = {
             id: `agent:${host.agent?.id || profileKey}`,
             stableKey: host.agent?.id || profileKey,
-            textureKey: `agent-sheet:${profileKey}`,
-            sidecarKey: materialSource || emissiveSource ? `${spriteId}:channels` : '',
+            textureKey: pose ? `agent-strip:${profileKey}:${pose.group}` : `agent-sheet:${profileKey}`,
+            sidecarKey: materialSource || emissiveSource ? `${spriteId}:${pose ? 'strip' : 'channels'}` : '',
             source,
             materialSource,
             emissiveSource,
-            occluderSource: pad ? host._gpuEquippedOccluderSheet : resolved?.occluder || host.assets?.getSidecar?.(spriteId, 'occluder') || null,
+            occluderSource: pose
+                ? pose.strip?.channels?.occluder || null
+                : pad ? host._gpuEquippedOccluderSheet : resolved?.occluder || host.assets?.getSidecar?.(spriteId, 'occluder') || null,
             channelRevision: resolved?.revision || host.assets?.assetVersion || null,
             sourceWidth: source.width,
             sourceHeight: source.height,
-            sx: pad ? col * padded : cell.sx,
-            sy: pad ? row * padded : cell.sy,
-            sw: pad ? padded : cell.sw,
-            sh: pad ? padded : cell.sh,
+            sx: pad ? col * padded : bodyCell.sx,
+            sy: pad ? row * padded : bodyCell.sy,
+            sw: pad ? padded : bodyCell.sw,
+            sh: pad ? padded : bodyCell.sh,
             x: dx - pad * drawScale,
             y: dy - pad * drawScale,
-            width: (pad ? padded : cell.sw) * drawScale,
-            height: (pad ? padded : cell.sh) * drawScale,
+            width: (pad ? padded : bodyCell.sw) * drawScale,
+            height: (pad ? padded : bodyCell.sh) * drawScale,
             alpha: host.agent?.isDeparted ? alpha * 0.58 : alpha,
             material: gpuMaterialNameForProvider(host.agent?.provider),
             elevation: 0.52,
@@ -193,10 +218,12 @@ export class AgentGpuOverlayRenderer {
                             : 0,
             // The equipped-sheet key folds in the asset version, so a weapon
             // asset arriving after a fallback-vector bake re-uploads the sheet.
-            textureRevision: host._gpuEquippedSheetKey || profileKey,
+            textureRevision: pose
+                ? `strip:${profileKey}:${pose.group}`
+                : host._gpuEquippedSheetKey || profileKey,
             sidecarRevision: resolved?.revision || host.assets?.assetVersion || null,
             contentTopY,
-            poseKey: `${host.animState}:${host.direction}:${host.agent?.currentTool || ''}`,
+            poseKey: `${pose ? `${pose.group}:${bodyCell.sy}` : host.animState}:${host.direction}:${host.agent?.currentTool || ''}`,
             urgentPose: host.selected || host.hovered
                 || [AgentStatus.WAITING_ON_USER, AgentStatus.ERRORED, AgentStatus.RATE_LIMITED].includes(status),
             frameGeometry,

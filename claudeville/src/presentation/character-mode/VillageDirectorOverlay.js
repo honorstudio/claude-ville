@@ -5,6 +5,7 @@ import { pulseBand01 } from './PulsePolicy.js';
 import { strokeAgedTrailSegments } from './TrailRenderer.js';
 import { attentionCandidateBounds } from './AttentionFraming.js';
 import { eventBus } from '../../domain/events/DomainEvent.js';
+import { cueNoteDue } from '../shared/audio/CueScore.js';
 
 const TAU = Math.PI * 2;
 
@@ -315,13 +316,31 @@ function drawHandoffSpark(ctx, x, y, rgb, alpha) {
     drawScrollMote(ctx, x, y, rgb, alpha);
 }
 
-// Recovery is an incident closure, never a successful tool outcome.
+// A five-step relief diamond: the mark that lands on the recovery cue's
+// octave. Integer rows keep it on the pixel grid at every zoom.
+function drawReliefDiamond(ctx, x, y, rgb, alpha) {
+    const widths = [1, 3, 5, 7, 5, 3, 1];
+    const left = Math.round(x);
+    const top = Math.round(y) - 3;
+    ctx.fillStyle = rgba(rgb, alpha);
+    for (let row = 0; row < widths.length; row++) {
+        const width = widths[row];
+        ctx.fillRect(left - ((width - 1) / 2), top + row, width, 1);
+    }
+}
+
+// Recovery is an incident closure, never a successful tool outcome. Its two
+// marks are the two notes of the recovery cue: the bracket closes on the first
+// bell, the relief diamond lifts on the octave. With no cue admitted — muted,
+// budget-suppressed, or reduced motion — both are due at once, so a silent
+// village still sees the whole closure.
 function drawRecoveries(ctx, recoveries, motionScale, grade = null) {
     if (!recoveries?.length) return;
     const rgb = gradeRgb('134, 239, 172', grade);
     // 3.9 — recovery beats are SECONDARY: a welcome release of tension, but
     // never more important than a live incident or selection nearby.
     const governor = getActiveMarkGovernor();
+    const noteNow = performance.now();
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     for (const recovery of recoveries) {
@@ -334,14 +353,15 @@ function drawRecoveries(ctx, recoveries, motionScale, grade = null) {
         const progress = clamp(recovery.progress ?? 0);
         const fade = (motionScale ? (1 - progress) : 1) * gate.alpha;
         if (fade <= 0.02) continue;
+        const agentId = recovery.agentId ?? null;
+        if (motionScale && !cueNoteDue('recovery', agentId, 0, noteNow)) continue;
         // The relief lifts as it fades, echoing the agent straightening up.
         const lift = motionScale ? progress * 12 : 0;
         const y = center.y - 16 - lift;
-        ctx.fillStyle = rgba(rgb, 0.18 * fade);
-        ctx.beginPath();
-        ctx.ellipse(center.x, y, 13, 8, 0, 0, TAU);
-        ctx.fill();
         drawEventShape(ctx, 'incident-bracket', center.x - 8, y - 8, 1, rgba(rgb, fade));
+        if (!motionScale || cueNoteDue('recovery', agentId, 1, noteNow)) {
+            drawReliefDiamond(ctx, center.x, y - 11, rgb, fade);
+        }
     }
     ctx.restore();
 }

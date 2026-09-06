@@ -22,6 +22,7 @@ const crypto = require('crypto');
 const { dedupeGitEvents, extractGitEventsFromCommandSource, stableHash } = require('./gitEvents');
 const { emptyObservedSources, makeDialogue, pickDialogue } = require('./dialogue');
 const { deriveTurnState } = require('./turnState');
+const { TOOL_RESULT_LIMIT, toolResultId } = require('./toolResults');
 const {
   createDetailResponse,
   fileSignature,
@@ -1217,6 +1218,62 @@ function kimiCodeResultCompletion(entry) {
   };
 }
 
+// Only an explicitly reported outcome earns a result record. A `tool.result`
+// that merely carries output says the call returned, not that it succeeded, so
+// it produces nothing rather than an invented `exit 0`.
+function kimiCodeExplicitExitCode(result) {
+  if (!result || typeof result !== 'object') return undefined;
+  const rawExitCode = result.exitCode ?? result.exit_code ?? result.code;
+  if (rawExitCode !== null && rawExitCode !== undefined && rawExitCode !== '' && Number.isFinite(Number(rawExitCode))) {
+    return Math.trunc(Number(rawExitCode));
+  }
+  const rawError = result.isError ?? result.is_error ?? result.error;
+  if (rawError === true || (typeof rawError === 'string' && rawError.trim())) return 1;
+  if (rawError === false) return 0;
+  return undefined;
+}
+
+// Newest-first bounded result records for one Kimi Code wire. Duration is the
+// span between the call and its own result in the same transcript, never a
+// difference of event-bus receipt times.
+function kimiCodeToolResults(wireEntries, sessionId) {
+  const entries = Array.isArray(wireEntries) ? wireEntries : [];
+  const callsById = new Map();
+  for (const entry of entries) {
+    const call = loopEvent(entry, 'tool.call');
+    if (!call) continue;
+    const callId = kimiCodeToolCallId(call);
+    if (!callId) continue;
+    callsById.set(callId, { name: call.name, args: call.args, at: kimiCodeEventTime(entry, call) });
+  }
+
+  const results = [];
+  for (let i = entries.length - 1; i >= 0 && results.length < TOOL_RESULT_LIMIT; i--) {
+    const entry = entries[i];
+    const event = loopEvent(entry, 'tool.result');
+    if (!event) continue;
+    const exitCode = kimiCodeExplicitExitCode(event.result);
+    if (exitCode === undefined) continue;
+    const completedAt = kimiCodeEventTime(entry, event);
+    if (!completedAt) continue;
+    const callId = kimiCodeToolCallId(event);
+    const call = callId ? callsById.get(callId) : null;
+    const tool = call?.name || event.name || null;
+    if (!tool) continue;
+    const detail = call ? (summarizeToolInput(call.args, { maxLength: 80, basenameFile: false }) || '') : '';
+    results.push({
+      id: toolResultId({ provider: 'kimi', sessionId, callId, tool, detail, completedAt }),
+      tool,
+      detail,
+      exitCode,
+      durationMs: call?.at ? Math.max(0, completedAt - call.at) : null,
+      completedAt,
+      source: 'transcript',
+    });
+  }
+  return results;
+}
+
 function getRecentMessagesV2(filePath, maxItems = 5) {
   const messages = [];
   try {
@@ -1556,6 +1613,7 @@ function getActiveSessionsV2(activeThresholdMs, now) {
           sessionId,
           project,
         }, wireEntries),
+        lastResults: kimiCodeToolResults(wireEntries, sessionId),
         ...turnState,
         parentSessionId: kimiCodeParentSessionId(sessionDirName, agentName, stateMeta.agents, activeAgentNames),
       });

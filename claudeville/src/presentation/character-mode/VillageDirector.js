@@ -3,6 +3,14 @@ import { BUILDING_EVENTS, eventBus } from '../../domain/events/DomainEvent.js';
 import { AgentBiography } from '../../domain/value-objects/AgentBiography.js';
 import { AgentStatus } from '../../domain/value-objects/AgentStatus.js';
 import { buildingCenterToWorld } from './Projection.js';
+import { shortProjectName } from '../shared/Formatters.js';
+import {
+    replaySampleLookup,
+    resolveWorkScoreGeometry,
+    workScoreWorldBox,
+    WORK_SCORE_REQUEST_EVENT,
+    WORK_SCORE_STATE_EVENT,
+} from './SpatialWorkScore.js';
 
 const SCENE_LIMIT = 8;
 const OVERFLOW_BUCKET_MS = 1_000;
@@ -14,6 +22,10 @@ const BUILDING_SIGNAL_TTL_MS = 45_000;
 const SOCIAL_TTL_MS = 14_000;
 const INCIDENT_TTL_MS = 18_000;
 const RELEASE_TTL_MS = 26_000;
+// 5.2 — how long a reported push failure can still earn a chapter. Matches the
+// harbor's own failure summary window (SCREEN_SUMMARY_MS + FINALE_EFFECT_MS),
+// so the camera and the harbor chrome talk about the same recent failures.
+const PUSH_FAILURE_WINDOW_MS = 25_000;
 const BIOGRAPHY_BANNER_TTL_MS = 9_000;
 const LIFE_TTL_MS = 12_000;
 // #40 — how long a recovery relief cue stays on the snapshot so the overlay
@@ -83,6 +95,19 @@ function incidentLabel(status) {
     return String(status || 'Incident').replace(/_/g, ' ');
 }
 
+// 5.1 — a cohort reads as its place: the authored short label, title-cased so
+// a caption is a sentence ("Forge · 4 working"), never a shout.
+function cohortLabel(building, type) {
+    const raw = String(building?.shortLabel || building?.label || type || '').trim();
+    if (!raw) return 'Village';
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+// 5.2 — coalesced incidents keep an exact count, never a vague plural.
+function chapterCaption(text, count) {
+    return count > 1 ? `${text} · ${count} incidents` : text;
+}
+
 export class VillageDirector {
     constructor(world) {
         this.world = world;
@@ -93,6 +118,10 @@ export class VillageDirector {
         this.harborState = null;
         this.replayActive = false;
         this.replaySamples = [];
+        // 5.4 — the panel's frozen score request and the camera handle taken
+        // while it is open. Both are presentation state with no world writes.
+        this.workScoreRequest = null;
+        this._workScoreClaim = null;
         this.toolEvents = [];
         this.scenes = [];
         // #40 — agents currently storming the watchtower (errored / rate-limited),
@@ -132,6 +161,7 @@ export class VillageDirector {
             eventBus.on(BUILDING_EVENTS.SELECTED, (building) => this.setSelectedBuilding(building)),
             eventBus.on(BUILDING_EVENTS.DESELECTED, () => this.setSelectedBuilding(null)),
             eventBus.on(BUILDING_EVENTS.ACTIVE_AGENTS, (payload) => this._onBuildingPresence(payload)),
+            eventBus.on(WORK_SCORE_REQUEST_EVENT, (request) => this.setWorkScoreRequest(request)),
         ];
     }
 
@@ -148,6 +178,8 @@ export class VillageDirector {
         this._recoveries.clear();
         this.buildingPresence.clear();
         this.hoveredBuilding = null;
+        this.workScoreRequest = null;
+        this._workScoreClaim = null;
         this._lastCueSignatures?.clear?.();
     }
 
@@ -215,6 +247,103 @@ export class VillageDirector {
 
     toggleReplay() {
         return this.setReplayActive(!this.replayActive);
+    }
+
+    // 5.4 — the spatial work score. The Activity Panel owns the frozen row
+    // copy, the scrub cursor and the playback timer; the director owns only
+    // presentation: it resolves world anchors for the frozen nodes, holds the
+    // explicit `replay` camera claim, and publishes the resolved diagram on
+    // the snapshot. Nothing here writes world, domain, or simulator state, so
+    // scrubbing cannot change an agent's status.
+    setWorkScoreRequest(request = {}) {
+        const score = request?.score?.nodes?.length ? request.score : null;
+        if (!request?.active || !score) {
+            this.workScoreRequest = null;
+            return null;
+        }
+        const cursorAt = Number(request.cursorAt);
+        this.workScoreRequest = {
+            score,
+            cursorAt: Number.isFinite(cursorAt) ? cursorAt : score.startAt,
+            playing: Boolean(request.playing),
+        };
+        return this.workScoreRequest;
+    }
+
+    // Recorded positions come only from the retained replay minute. Nodes
+    // older than that have no physical position and fall back to their
+    // semantic building anchor, which the badge counts separately.
+    replayPositionFor(agentId, at) {
+        return replaySampleLookup(this.replaySamples, agentId, at);
+    }
+
+    // The score's semantic anchor is the building's forecourt, not its centre:
+    // ground cues are occluded by the building sprite, so a glyph placed under
+    // the roof would be a diagram nobody can read.
+    _buildingAnchor(type) {
+        const building = this._buildingFor(type);
+        if (!building) return null;
+        const center = buildingCenterToWorld(building);
+        const footprint = ((building.width ?? 1) + (building.height ?? 1)) / 2;
+        return { x: center.x, y: center.y + footprint * TILE_HALF_HEIGHT + 16 };
+    }
+
+    _syncWorkScore(renderer, now) {
+        const camera = renderer?.camera || null;
+        const request = this.workScoreRequest;
+        if (!request) {
+            if (this._workScoreClaim) {
+                // Leaving the score restores the frame the operator left.
+                if (camera && this._workScoreClaim.pose) camera.restorePose?.(this._workScoreClaim.pose);
+                camera?.releaseOwner?.('replay');
+                this._workScoreClaim = null;
+                eventBus.emit(WORK_SCORE_STATE_EVENT, { active: false, ts: now });
+            }
+            return null;
+        }
+
+        const agentId = request.score.agentId;
+        const geometry = resolveWorkScoreGeometry(request.score, {
+            buildingAnchor: type => this._buildingAnchor(type),
+            replayPosition: node => (agentId ? this.replayPositionFor(agentId, node.at) : null),
+        });
+
+        if (!this._workScoreClaim) {
+            // One explicit framing move, because the operator asked for the
+            // score. Never re-taken on a timer afterwards.
+            const pose = camera?.capturePose?.() || null;
+            camera?.claimOwner?.('replay');
+            const box = workScoreWorldBox(geometry);
+            if (box) camera?.fitToWorldBox?.(box, { paddingPx: 120, maxZoom: 2 });
+            this._workScoreClaim = { pose, ownerLost: false };
+            eventBus.emit(WORK_SCORE_STATE_EVENT, {
+                active: true,
+                ts: now,
+                owner: camera?.owner ?? null,
+                counts: geometry?.counts || null,
+            });
+        } else if (!this._workScoreClaim.ownerLost && camera && (camera.owner ?? 'replay') !== 'replay') {
+            // Genuine input revoked the claim. The score stays open — it is an
+            // explicit mode — but playback stops and nothing re-acquires it.
+            this._workScoreClaim.ownerLost = true;
+            eventBus.emit(WORK_SCORE_STATE_EVENT, {
+                active: true,
+                ts: now,
+                owner: camera.owner ?? null,
+                ownerLost: true,
+                counts: geometry?.counts || null,
+            });
+        }
+
+        return {
+            score: request.score,
+            cursorAt: request.cursorAt,
+            playing: request.playing,
+            geometry,
+            ownerLost: this._workScoreClaim?.ownerLost === true,
+            cameraOwner: camera?.owner ?? null,
+            signature: `${request.score.agentId}:${request.score.startAt}:${Math.round(request.cursorAt)}:${geometry?.signature || ''}`,
+        };
     }
 
     triggerReleaseParade(payload = {}) {
@@ -304,6 +433,13 @@ export class VillageDirector {
         const releaseParade = this._releaseScene(now, agents);
         const replaySamples = this.replayActive ? this._recentReplaySamples(now) : [];
         const sceneOverflow = this._sceneOverflowSummary(now);
+        // 5.1/5.2 — the two facts Ambient composes from: where real work is
+        // concentrated right now, and whether an incident has earned a chapter.
+        const workCohorts = this._workCohorts(agents);
+        const incidentChapter = this._incidentChapter(agents, incidents, now);
+        // 5.4 — the requested score, resolved against real building anchors
+        // and the retained replay minute. Null whenever nobody asked.
+        const workScore = this._syncWorkScore(renderer, now);
 
         this.lastSnapshot = {
             now,
@@ -327,6 +463,9 @@ export class VillageDirector {
             weatherInfluence,
             activeSceneCount: this.scenes.length,
             sceneOverflow,
+            workCohorts,
+            incidentChapter,
+            workScore,
         };
         this._lastStats = this._statsForSnapshot(this.lastSnapshot);
 
@@ -344,6 +483,146 @@ export class VillageDirector {
 
     getSnapshot() {
         return this.lastSnapshot;
+    }
+
+    // 5.1 — group live agents into work cohorts by the building they are at.
+    // A hundred agents produce at most one cohort per building, never one shot
+    // per agent, and a cohort with nobody working is not a cohort at all: the
+    // broadcast never visits an empty building to fill time. `contextKey` is
+    // the real-context test Ambient uses before it replaces a settled shot.
+    _workCohorts(agents) {
+        const groups = new Map();
+        for (const agent of agents || []) {
+            const type = agent.building;
+            if (!type || !Number.isFinite(agent.x) || !Number.isFinite(agent.y)) continue;
+            const group = groups.get(type) || {
+                type,
+                members: [],
+                working: 0,
+                waiting: 0,
+                errored: 0,
+                tools: new Set(),
+                teams: new Set(),
+            };
+            group.members.push(agent);
+            if (agent.status === AgentStatus.WORKING) group.working += 1;
+            else if (agent.status === AgentStatus.WAITING || agent.status === AgentStatus.WAITING_ON_USER) group.waiting += 1;
+            else if (agent.status === AgentStatus.ERRORED || agent.status === AgentStatus.RATE_LIMITED) group.errored += 1;
+            if (agent.currentTool) group.tools.add(agent.currentTool);
+            const team = agent.teamName || (agent.parentSessionId ? `parent:${agent.parentSessionId}` : null);
+            if (team) group.teams.add(team);
+            groups.set(type, group);
+        }
+
+        const out = [];
+        for (const group of groups.values()) {
+            if (group.working < 1) continue;
+            const building = this._buildingFor(group.type);
+            const center = building ? buildingCenterToWorld(building) : null;
+            const points = center ? [...group.members, center] : group.members;
+            out.push({
+                id: group.type,
+                type: group.type,
+                label: cohortLabel(building, group.type),
+                working: group.working,
+                waiting: group.waiting,
+                errored: group.errored,
+                total: group.members.length,
+                teamCount: group.teams.size,
+                toolCount: group.tools.size,
+                agentIds: group.members.map(agent => agent.id).sort(),
+                center: center || { x: group.members[0].x, y: group.members[0].y },
+                box: this._boxForPoints(points, 150),
+                contextKey: [
+                    group.type,
+                    group.working,
+                    group.waiting,
+                    group.members.map(agent => `${agent.id}:${agent.status}:${agent.currentTool || ''}`).sort().join(','),
+                ].join('|'),
+            });
+        }
+        return out.sort((a, b) => (
+            b.working - a.working
+            || b.total - a.total
+            || a.type.localeCompare(b.type)
+        ));
+    }
+
+    // 5.2 — the incident chapter Ambient may earn: a real rejected/failed push
+    // carried by the git payload the harbor itself reads, or a real
+    // errored/rate-limited worker. Identity is stable across snapshots so one
+    // failure earns one chapter, and concurrent incidents coalesce into this
+    // single chapter with an exact count. Waiting agents are deliberately
+    // absent: the attention frame already owns them.
+    _incidentChapter(agents, incidents, now) {
+        const errored = (agents || []).filter(agent => (
+            (agent.status === AgentStatus.ERRORED || agent.status === AgentStatus.RATE_LIMITED)
+            && Number.isFinite(agent.x)
+            && Number.isFinite(agent.y)
+        ));
+        const pushes = this._recentPushFailures(now);
+        const count = errored.length + pushes.length;
+        if (!count) return null;
+
+        const push = pushes[0] || null;
+        if (push) {
+            // The alert lands where the shipped failed-push scene lands.
+            const scene = (incidents || []).find(entry => entry.kind === 'failed-push');
+            const building = this._buildingFor(scene?.building || 'watchtower');
+            const center = scene?.center || (building ? buildingCenterToWorld(building) : null);
+            if (center) {
+                const project = push.project ? shortProjectName(push.project, '') : '';
+                const label = push.status === 'rejected' ? 'Push rejected' : 'Push failed';
+                return {
+                    id: `push-failure:${push.id}`,
+                    kind: 'failed-push',
+                    caption: chapterCaption(project ? `${label} · ${project}` : label, count),
+                    count,
+                    building: scene?.building || 'watchtower',
+                    center,
+                    box: this._boxForPoints([center], 200),
+                    startedAt: push.ts || now,
+                };
+            }
+        }
+
+        const worst = errored.find(agent => agent.status === AgentStatus.ERRORED) || errored[0];
+        if (!worst) return null;
+        return {
+            id: `${worst.status}:${worst.id}`,
+            kind: worst.status,
+            caption: chapterCaption(`${incidentLabel(worst.status)} · ${worst.name}`, count),
+            count,
+            building: worst.building || null,
+            center: { x: worst.x, y: worst.y },
+            box: this._boxForPoints([{ x: worst.x, y: worst.y }], 190),
+            startedAt: now,
+        };
+    }
+
+    // The real push records the harbor reads: `Agent.gitEvents` push entries
+    // whose reported outcome is a failure, inside the same recency window the
+    // harbor's own failure summary uses. Never an outcome the payload did not
+    // state — an unknown result stays unknown and earns nothing.
+    _recentPushFailures(now) {
+        const source = this.world?.agents?.values ? this.world.agents.values() : [];
+        const failures = new Map();
+        for (const agent of source) {
+            for (const event of agent?.gitEvents || []) {
+                if (String(event?.type || '') !== 'push') continue;
+                const status = String(
+                    event.status
+                    || (event.success === false ? 'failed' : event.success === true ? 'success' : 'unknown'),
+                ).toLowerCase();
+                if (status !== 'failed' && status !== 'rejected') continue;
+                const ts = Number(event.timestamp) || 0;
+                if (!ts || now - ts > PUSH_FAILURE_WINDOW_MS) continue;
+                const id = String(event.id || `${event.project || ''}:${ts}`);
+                if (failures.has(id)) continue;
+                failures.set(id, { id, status, project: event.project || '', ts });
+            }
+        }
+        return [...failures.values()].sort((a, b) => b.ts - a.ts);
     }
 
     // #21 — resolve frame-worthy moments into camera cues. We dedupe per cue
@@ -442,6 +721,9 @@ export class VillageDirector {
             weatherInfluence: null,
             activeSceneCount: 0,
             sceneOverflow: null,
+            workCohorts: [],
+            incidentChapter: null,
+            workScore: null,
         };
     }
 

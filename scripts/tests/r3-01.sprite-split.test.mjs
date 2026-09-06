@@ -30,6 +30,53 @@ test('AgentSprite keeps compatibility entry points while delegating GPU overlay 
     ]);
 });
 
+// The five body-frame marks have exactly one owner per backend: the Canvas body
+// pass, or this resident overlay. Striking one twice compounds its alpha, and
+// dropping one (stance, before this) silently costs the resident backend a cue.
+test('the resident overlay strikes every body-frame mark exactly once, in Canvas order', () => {
+    const marks = [];
+    const frameGeometry = { dx: 4, dy: 6, bounds: { minX: 0, maxX: 92, minY: 0, maxY: 92 }, drawScale: 1 };
+    const host = {
+        agent: { id: 'work-1', provider: 'claude', status: 'working', isDeparted: false },
+        gpuWorldEnabled: true,
+        selected: false,
+        hovered: false,
+        chatting: false,
+        motionScale: 1,
+        overlaySlot: null,
+        nameTagSlot: null,
+        gpuActionOverlay: false,
+        x: 100,
+        y: 80,
+        _gpuFrameRecord: { frameGeometry, contentTopY: 40 },
+        _drawSignatureMark: (_ctx, geometry) => marks.push(['signature', geometry]),
+        _drawReceiveBeat: (_ctx, geometry) => marks.push(['receive-beat', geometry]),
+        _drawStanceOverlay: (_ctx, geometry) => marks.push(['stance', geometry]),
+        _drawActionPoseOverlay: (_ctx, geometry) => marks.push(['action-pose', geometry]),
+        _drawToolRitualOverlay: (_ctx, geometry) => marks.push(['tool-ritual', geometry]),
+        _drawStatus: () => {},
+        _drawStatusEmote: () => {},
+        _drawPlanModeGlyph: () => {},
+        _drawRetryGlyph: () => {},
+        _drawCompactNameStatus: () => {},
+        _drawNameTag: () => {},
+    };
+    const renderer = new AgentGpuOverlayRenderer(host);
+
+    renderer.draw({}, 2, 'full');
+
+    assert.deepEqual(marks.map(([name]) => name), [
+        'signature',
+        'receive-beat',
+        'stance',
+        'action-pose',
+        'tool-ritual',
+    ]);
+    // Every mark reads the record's own frame geometry, so the resident body
+    // and the Canvas body place the identical mark.
+    assert.ok(marks.every(([, geometry]) => geometry === frameGeometry));
+});
+
 test('departed GPU records are dim, non-emissive, and retain the same source geometry', () => {
     const source = { width: 736, height: 736 };
     const host = {

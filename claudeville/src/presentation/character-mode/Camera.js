@@ -111,6 +111,18 @@ export class Camera {
         this._userAdjusted = false;
         this._cameraOwner = 'system';
 
+        // C6 (5.1) — frame ownership. `_cameraOwner` above names which motion
+        // family moved the camera last; this names WHO is allowed to compose
+        // the frame. An exclusive claim ('ambient', 'replay') is granted only
+        // by an explicit operator control, is revoked by any genuine input, and
+        // is never re-acquired on a timer. `auto`/`user` stay derived from the
+        // fields above, so today's Auto timers are untouched.
+        this._frameClaim = null;
+        this._inputEpoch = 0;
+        // 5.2 — letterbox bars held for a beat after an ambient chapter settles
+        // ({ until, grade, owner }); cue glides keep their arrival-only bars.
+        this._letterboxHold = null;
+
         // #50 — inertial idle drift. After ~45s with no input (and nothing else
         // owning the camera) the view breathes along a tiny bounded Lissajous
         // path so a left-open ClaudeVille feels alive, not frozen. The offset is
@@ -266,6 +278,74 @@ export class Camera {
         return NOMINAL_ZOOM_STEPS[currentIndex];
     }
 
+    // C6 — the frame owner an operator can reason about: 'user' while their own
+    // pose stands, 'auto' for today's timed director, or the exclusive claim
+    // held by Ambient (5.1/5.2) or the spatial replay (5.4).
+    get owner() {
+        if (this._frameClaim) return this._frameClaim;
+        return this._cameraOwner === 'user' || this._userAdjusted ? 'user' : 'auto';
+    }
+
+    // Monotonic count of genuine operator inputs. A saved shot compares this
+    // instead of a timestamp so "nothing happened since" is exact.
+    get inputEpoch() {
+        return this._inputEpoch;
+    }
+
+    // Grant an exclusive claim from an explicit control. Returns { owner, epoch }
+    // or false for anything that is not a claimable owner.
+    claimOwner(owner) {
+        const next = owner === 'ambient' || owner === 'replay' ? owner : null;
+        if (!next) return false;
+        const previous = this.owner;
+        this._frameClaim = next;
+        // The new claimant composes from wherever the frame is now: an in-flight
+        // move that belongs to someone else is dropped, never fought. (A system
+        // re-frame is often still running when the operator asks for Ambient.)
+        const glideOwner = String(this._directorGlide?.owner || '');
+        if (this._directorGlide && glideOwner !== next && !glideOwner.startsWith(`${next}:`)) {
+            this._directorGlide = null;
+            this._cameraOwner = next;
+        }
+        if (previous !== next) this._emitOwner(previous, 'claim');
+        return { owner: next, epoch: this._inputEpoch };
+    }
+
+    // Release a claim the caller still holds. A stale release is a no-op, so a
+    // revoked owner can never yank the frame back from whoever took it.
+    releaseOwner(owner) {
+        if (!this._frameClaim || this._frameClaim !== owner) return false;
+        const previous = this._frameClaim;
+        this._frameClaim = null;
+        this._letterboxHold = null;
+        this._emitOwner(previous, 'release');
+        return true;
+    }
+
+    // C6 — revoke a claim on a genuine operator action that is not a camera
+    // input (a selection, an explicit frame command). The epoch advances, so a
+    // saved shot's return address is correctly invalidated, but the auto
+    // camera's own idle clock is untouched: Auto keeps today's timings.
+    revokeClaim(reason = 'input') {
+        const claim = this._frameClaim;
+        if (!claim) return false;
+        this._frameClaim = null;
+        this._letterboxHold = null;
+        this._inputEpoch += 1;
+        this._emitOwner(claim, reason);
+        return true;
+    }
+
+
+    _emitOwner(previous, reason) {
+        eventBus.emit('camera:owner', {
+            owner: this.owner,
+            previous,
+            epoch: this._inputEpoch,
+            reason,
+        });
+    }
+
     // #21 — start a director glide to frame `box`. Reduced motion (or a missing
     // viewport) cuts directly. The move releases `_userAdjusted` only while it
     // runs, then re-frames cleanly. `grade` is a {vignette, worldTint} hint the
@@ -282,6 +362,10 @@ export class Camera {
         preferPan = false,
         zoomHysteresis = 0.85,
         allowZoomIn = true,
+        // 5.2 — bars this move owns, held this long after it settles. Zero keeps
+        // the shipped cue behaviour (bars ride the glide and end on arrival).
+        letterbox = false,
+        letterboxHoldMs = 0,
     } = {}) {
         const pose = this._poseForWorldBox(box, {
             paddingPx,
@@ -329,6 +413,52 @@ export class Camera {
             // before the glide begins). Counts down before `elapsed` advances.
             hold: Math.max(0, Number(holdMs) || 0),
             grade: grade || null,
+            letterbox: Boolean(letterbox) || letterboxHoldMs > 0,
+            letterboxHoldMs: Math.max(0, Number(letterboxHoldMs) || 0),
+        };
+        return true;
+    }
+
+    // C6 — glide back to an exact saved pose (5.2's return address). A box glide
+    // would re-solve the framing; a chapter has to land on the composition the
+    // operator was already reading.
+    glideToPose(pose, { duration = 4200, owner = 'director', grade = null, letterbox = false, letterboxHoldMs = 0 } = {}) {
+        if (!pose || ![pose.x, pose.y, pose.zoom].every(Number.isFinite)) return false;
+        const zoom = this.resolveRestingZoom(pose.zoom);
+        this._endVillageTour({ restore: false });
+        this.stopFollow();
+        this._momentum = null;
+        this._zoomAnimation = null;
+        this._snapZoom = null;
+        if (this._reducedMotion) {
+            this.zoom = zoom;
+            this.x = pose.x;
+            this.y = pose.y;
+            this._directorGlide = null;
+            this._cameraOwner = owner;
+            this._userAdjusted = true;
+            this._clampToBounds();
+            return true;
+        }
+        this._cameraOwner = owner;
+        this._userAdjusted = false;
+        this._directorGlide = {
+            fromX: this.x,
+            fromY: this.y,
+            fromZoom: this.zoom,
+            toX: pose.x,
+            toY: pose.y,
+            toZoom: zoom,
+            elapsed: 0,
+            duration: Math.max(1, Number(duration) || 4200),
+            owner,
+            // A restored composition is deliberate: a relayout must keep it
+            // instead of re-framing to content behind the caller's back.
+            userAdjustedOnComplete: true,
+            hold: 0,
+            grade: grade || null,
+            letterbox: Boolean(letterbox) || letterboxHoldMs > 0,
+            letterboxHoldMs: Math.max(0, Number(letterboxHoldMs) || 0),
         };
         return true;
     }
@@ -365,14 +495,30 @@ export class Camera {
 
     // #attract — record genuine operator input and report how long since the last.
     // Used by the CameraDirector's idle-attract mode for engage/yield decisions.
+    //
+    // C6 — this is also the revocation point: a genuine input bumps the input
+    // epoch and drops any exclusive claim (Ambient, replay) on the spot. Nothing
+    // re-acquires a claim on a timer; the operator has to ask again.
     noteUserInput() {
         const now = performance.now();
         this._lastInputAt = now;
         this._lastUserInputAt = now;
+        this._inputEpoch += 1;
         // #54 — operator input yields the dusk tour instantly, right where it stands.
         this._endVillageTour({ restore: false });
+        const claim = this._frameClaim;
+        this._frameClaim = null;
+        this._letterboxHold = null;
         this._cameraOwner = 'user';
         this._userAdjusted = true;
+        if (claim) this._emitOwner(claim, 'input');
+    }
+
+    // C6 — a selection is a genuine operator action: it revokes Ambient without
+    // pretending the operator touched the camera, so Auto's idle clock is
+    // unchanged and only the claim is handed back.
+    noteSelectionInput() {
+        this.revokeClaim('selection');
     }
 
     getUserIdleMs(now = performance.now()) {
@@ -403,6 +549,27 @@ export class Camera {
         return { ...glide.grade, weight: Math.max(0, weight) };
     }
 
+    // 5.2 — the letterbox the frame renderer should draw right now: the shipped
+    // cue bars while a cue glide runs, or an ambient chapter's bars held for a
+    // beat after the move settles so the caption can be read at rest. The hold
+    // counts down in dt inside update(), never against a wall clock: the frame
+    // pass and the camera do not share one.
+    getLetterboxState() {
+        const hold = this._letterboxHold;
+        if (hold && !this._directorGlide) {
+            return { weight: 1, grade: hold.grade || null, owner: hold.owner, held: true };
+        }
+        const glide = this._directorGlide;
+        if (!glide || this._reducedMotion) return null;
+        const owner = String(this._cameraOwner || '');
+        // The shipped cue bars ride a graded cue glide and nothing else; a cue
+        // reframe without a grade drew no bars before and still draws none.
+        const cueBars = (owner === 'cue:release' || owner === 'cue:incident') && Boolean(glide.grade);
+        if (!cueBars && !glide.letterbox) return null;
+        const weight = Math.max(0, Math.sin(Math.PI * Math.min(1, glide.elapsed / glide.duration)));
+        return { weight, grade: glide.grade || null, owner, held: false };
+    }
+
     attach() {
         this.canvas.addEventListener('mousedown', this._onMouseDown);
         window.addEventListener('mousemove', this._onMouseMove);
@@ -428,6 +595,7 @@ export class Camera {
 
     followAgent(sprite) {
         if (this.followTarget === sprite) return;
+        this.noteSelectionInput();
         this._endVillageTour({ restore: false });
         this._directorGlide = null;
         this._cameraOwner = 'follow';
@@ -454,7 +622,16 @@ export class Camera {
     }
 
     capturePose() {
-        return { x: this.x, y: this.y, zoom: this.zoom, owner: this._cameraOwner, inputAt: this._lastUserInputAt };
+        return {
+            x: this.x,
+            y: this.y,
+            zoom: this.zoom,
+            owner: this._cameraOwner,
+            inputAt: this._lastUserInputAt,
+            // C6 — the exact "nothing happened since" test for a saved shot.
+            frameOwner: this.owner,
+            epoch: this._inputEpoch,
+        };
     }
 
     restorePose(pose) {
@@ -517,6 +694,12 @@ export class Camera {
     }
 
     update(dt = 16, renderNow = performance.now()) {
+        // 5.2 — the held chapter bars expire in frame time, so a paused World
+        // never leaves them standing and no second clock is involved.
+        if (this._letterboxHold) {
+            this._letterboxHold.remaining -= dt;
+            if (this._letterboxHold.remaining <= 0) this._letterboxHold = null;
+        }
         this._updateVillageTour(dt, renderNow);
         if (this._updateDirectorGlide(dt)) return;
         this._updateMomentum(dt);
@@ -903,9 +1086,11 @@ export class Camera {
         // Anything else owning the camera defers the drift and resets the clock.
         // The #54 dusk tour counts as an owner: it IS the idle motion, and the
         // drift's base-restore would fight its glide sequencing.
+        // C6 — an exclusive claim (Ambient, replay) is the deliberate motion
+        // now; the breath would fight its holds and pollute its logged pose.
         if (this.dragging || this._momentum || this._directorGlide
             || this.followTarget || this._zoomAnimation || this._snapZoom
-            || this._villageTour) {
+            || this._villageTour || this._frameClaim) {
             this._endIdleDrift();
             this._lastInputAt = renderNow;
             return;
@@ -959,6 +1144,7 @@ export class Camera {
     // `_updateDirectorGlide` owns the move and the rest of update() parks.
     _updateVillageTour(dt, renderNow = performance.now()) {
         const tour = this._villageTour;
+        if (this._frameClaim) { this._endVillageTour({ restore: false }); return; }
         if (!tour) {
             if (!this._villageEmpty || !this._villageEmptySince) return;
             if (renderNow - this._villageEmptySince < TOUR_EMPTY_DELAY_MS) return;
@@ -1066,6 +1252,15 @@ export class Camera {
             this.x = glide.toX;
             this.y = glide.toY;
             this._clampToBounds();
+            // 5.2 — bars that belong to this move keep standing for their hold,
+            // so the caption is read at rest instead of at arrival speed.
+            this._letterboxHold = glide.letterboxHoldMs > 0
+                ? {
+                    remaining: glide.letterboxHoldMs,
+                    grade: glide.grade || null,
+                    owner: glide.owner || 'director',
+                }
+                : null;
             this._directorGlide = null;
             this._cameraOwner = glide.owner || 'director';
             this._userAdjusted = Boolean(glide.userAdjustedOnComplete);

@@ -12,11 +12,18 @@ export const GPU_WORLD_RENDERER_MODES = Object.freeze({
 // Measured with the 0.1 per-pass sampler on `ANGLE Metal Renderer: Apple M5 Pro`,
 // 1680x1026, fixed 22:00 clear, FULL, 13-24 rotating samples per pass, 2026-09-05;
 // bands span the dense-24 and dense-100 observations. Bands are observed pass
-// means on a shared host, not portable entitlements. `shared-scene-envelope`
-// effects are branches inside the scene pass: their band is the whole pass, so
-// shedding one does not free its band. Attachment bytes stay allocated across
-// levels (`GpuWorldRenderer._ensureTargets`); `bytes` prices what an effect
-// keeps resident, not what it returns when shed.
+// means on a shared host, not portable entitlements.
+//
+// `cost.scope` says how to read the band. `own-pass`: the effect is its own
+// pass, so the band is what shedding returns. `shared-scene-envelope`: the
+// effect is a branch inside the scene pass, so shedding it returns nothing of
+// its band; where a paired A/B never resolved the branch above the host noise
+// floor the band is written `[0, ceiling]` — the resolvable limit, not a claim
+// of zero cost. A row prices added time as `cost.gpuMsBand` or removed time as
+// `cost.gpuMsSavedBand`, never both: work that a substitution *removes* is not
+// an optional effect, ships at every level, and is never shed. Attachment
+// bytes stay allocated across levels (`GpuWorldRenderer._ensureTargets`);
+// `bytes` prices what an effect keeps resident, not what it returns when shed.
 //
 // Key order is the shedding order: embellishment first, depth cues last. Every
 // level entry states what ships at that ladder level, so the table is the only
@@ -25,7 +32,7 @@ export const EFFECT_BUDGET = Object.freeze({
     bloom: Object.freeze({
         id: 'bloom',
         levels: Object.freeze({ FULL: 'on', REDUCED: 'reduced', MINIMAL: 'off' }),
-        cost: Object.freeze({ gpuMsBand: [1.131, 2.232], cpuMsBand: [0.003, 0.085], bytes: 8830080 }),
+        cost: Object.freeze({ gpuMsBand: [1.131, 2.232], cpuMsBand: [0.003, 0.085], bytes: 8830080, scope: 'own-pass' }),
         staticFallback: 'authored-emission',
         canvas: 'authored-emission',
     }),
@@ -39,7 +46,7 @@ export const EFFECT_BUDGET = Object.freeze({
     occlusion: Object.freeze({
         id: 'occlusion',
         levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'off' }),
-        cost: Object.freeze({ gpuMsBand: [0.134, 0.608], cpuMsBand: [0.059, 0.128], bytes: 967680 }),
+        cost: Object.freeze({ gpuMsBand: [0.134, 0.608], cpuMsBand: [0.059, 0.128], bytes: 967680, scope: 'own-pass' }),
         staticFallback: 'direct-light',
         canvas: 'authored-shading',
     }),
@@ -56,6 +63,62 @@ export const EFFECT_BUDGET = Object.freeze({
         cost: Object.freeze({ gpuMsBand: [1.392, 2.155], cpuMsBand: [0.100, 0.150], bytes: 0, scope: 'shared-scene-envelope' }),
         staticFallback: 'authored-water',
         canvas: 'authored-water',
+    }),
+    // Wave 3 rows. Same rig as the Wave 0 rows but re-measured at 1920x1080,
+    // forced FULL, `dense-24-agents`, fixed 22:00 clear, 30 s per sample,
+    // 32 samples per pass, 2026-09-06, on `ANGLE Metal Renderer: Apple M5 Pro`.
+    // The host was shared with seven concurrent capture agents: the bands are
+    // wide for that reason, and any delta under ~0.35 ms sits inside the noise
+    // floor rather than being resolvable.
+    //
+    // 3.1 is a substitution, not an optional effect: it replaces the stacked
+    // `lightBoost` x emissive-phase x beacon products and caps halo area, so
+    // its row prices the work it *removes* (`gpuMsSavedBand`) and ships at
+    // every ladder level — there is nothing here to shed. Before (neutral
+    // envelope, uncapped halos): scene 1.197-1.731, bloom 1.511-2.040,
+    // whole-frame 2.335-2.790. After: scene 1.054-1.466, bloom 1.080-1.723,
+    // whole-frame 1.560-2.264, with the same 25 admitted lights and the same
+    // 124,969,776 texture bytes.
+    'exposure-envelope': Object.freeze({
+        id: 'exposure-envelope',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'on' }),
+        cost: Object.freeze({ gpuMsSavedBand: [0.143, 0.679], cpuMsBand: [0, 0.005], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'same-envelope',
+        canvas: 'same-envelope',
+    }),
+    // 3.4 picks one of three authored night grade courses and, at FULL only,
+    // one extra stepped water course. No band separable from the scene
+    // envelope: it is a uniform selection, not new per-fragment work.
+    'moon-course': Object.freeze({
+        id: 'moon-course',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'ambient-course-only', MINIMAL: 'ambient-course-only' }),
+        cost: Object.freeze({ gpuMsBand: [0, 0.05], cpuMsBand: [0, 0.005], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'ambient-course-only',
+        canvas: 'ambient-course-only',
+    }),
+    // 3.2 lays the real source hue on approved wet cobble/stone/earth. Paired
+    // in-session A/B at storm 23:00 forced FULL (`storm-night-reduced-motion`):
+    // on scene 0.956 / 2.091, off 2.112 / 2.431; across separate sessions on
+    // 1.506-2.234, off 0.870-2.685. The branch never resolved above the host
+    // noise floor, so the band is an upper bound, not a measured mean.
+    'wet-reflection': Object.freeze({
+        id: 'wet-reflection',
+        levels: Object.freeze({ FULL: 'eight-sources', REDUCED: 'four-sources', MINIMAL: 'static-wet-darkening' }),
+        cost: Object.freeze({ gpuMsBand: [0, 0.35], cpuMsBand: [0, 0.02], bytes: 0, scope: 'shared-scene-envelope' }),
+        staticFallback: 'static-wet-darkening',
+        canvas: 'cached-stepped-stamps',
+    }),
+    // 3.5 quantizes the Command pilot's admitted light to an authored ramp.
+    // The table is 11x3 RGBA (132 B) plus one extra vertex float; the resident
+    // texture ceiling is unchanged because `MAX_CACHED_TEXTURE_BYTES` gives up
+    // exactly those bytes. Measured at 22:00 clear FULL, zoom 3 on Command:
+    // scene 1.054-1.466 with the table, 1.099-1.461 without it.
+    'palette-ramp': Object.freeze({
+        id: 'palette-ramp',
+        levels: Object.freeze({ FULL: 'on', REDUCED: 'on', MINIMAL: 'off' }),
+        cost: Object.freeze({ gpuMsBand: [0, 0.05], cpuMsBand: [0, 0.005], bytes: 132, scope: 'shared-scene-envelope' }),
+        staticFallback: 'authored-albedo',
+        canvas: 'authored-albedo',
     }),
 });
 
@@ -93,11 +156,27 @@ export const WORLD_PHASE_GRADES = Object.freeze({
         edgeAlpha: 0.28,
         fog: Object.freeze([0.55, 0.68, 0.74]),
     }),
+    // 3.4 — `night` is the middle of three reviewed night ambient courses;
+    // `moonFill` picks between them (see `worldPhaseGrade`). The courses differ
+    // by one authored step in base/edge/fog, never by a continuous fade, and
+    // the darkest keeps enough base to read unlit ground.
     night: Object.freeze({
         base: Object.freeze([0.50, 0.59, 0.77]),
         edge: Object.freeze([0.32, 0.42, 0.60]),
         edgeAlpha: 0.46,
         fog: Object.freeze([0.08, 0.12, 0.22]),
+    }),
+    'night-new-moon': Object.freeze({
+        base: Object.freeze([0.43, 0.51, 0.69]),
+        edge: Object.freeze([0.28, 0.37, 0.55]),
+        edgeAlpha: 0.50,
+        fog: Object.freeze([0.06, 0.10, 0.19]),
+    }),
+    'night-moonlit': Object.freeze({
+        base: Object.freeze([0.58, 0.68, 0.85]),
+        edge: Object.freeze([0.37, 0.48, 0.66]),
+        edgeAlpha: 0.42,
+        fog: Object.freeze([0.11, 0.16, 0.27]),
     }),
     dusk: Object.freeze({
         base: Object.freeze([0.93, 0.75, 0.62]),
@@ -112,6 +191,25 @@ export const WORLD_PHASE_GRADES = Object.freeze({
         fog: Object.freeze([0.44, 0.46, 0.58]),
     }),
 });
+
+// 3.4 — reviewed night courses keyed by `lighting.moonFill`. Two thresholds,
+// no interpolation: a full moon reads one course brighter and a new moon one
+// course darker than the shipped night, and every backend selects with this
+// function so resident, hybrid, and Canvas agree.
+export const NIGHT_MOON_COURSE_THRESHOLDS = Object.freeze({ dark: 0.14, bright: 0.5 });
+
+export function nightMoonCourse(moonFill = 0) {
+    const fill = Math.max(0, Math.min(1, finite(moonFill, 0)));
+    if (fill < NIGHT_MOON_COURSE_THRESHOLDS.dark) return 'night-new-moon';
+    if (fill >= NIGHT_MOON_COURSE_THRESHOLDS.bright) return 'night-moonlit';
+    return 'night';
+}
+
+/** The authored grade for a phase, including the night moon course. */
+export function worldPhaseGrade(phase = 'day', moonFill = 0) {
+    if (phase === 'night') return WORLD_PHASE_GRADES[nightMoonCourse(moonFill)];
+    return WORLD_PHASE_GRADES[phase] || WORLD_PHASE_GRADES.day;
+}
 
 // Ambient sources currently use the registry default (0). Keeping attention
 // in an explicit high band makes the operator signal stable if ambient source
@@ -372,7 +470,9 @@ export function estimateGpuWorldTextureBytes({
     return { targets, textures, total: targets + textures };
 }
 
-function isAttentionLight(light) {
+// 3.1 — action-needed overlays are outside the exposure budget: the renderer
+// asks this before applying the envelope's spill share to a light.
+export function isAttentionLight(light) {
     return Boolean(light?.attention) || String(light?.id || '').startsWith('attention:');
 }
 
@@ -433,15 +533,11 @@ export function clampGpuLights(lights = [], limit = 16, hardLimit = limit, cache
     return admitted;
 }
 
-export function emissivePhaseForAmbientLight(ambientLight = 1) {
-    const ambient = Math.max(0, Math.min(1, finite(ambientLight, 1)));
-    return 0.12 + 0.88 * (1 - ambient);
-}
-
 /**
- * Local point lights are a darkness response, not a second daytime sun.
- * Beacon intensity already folds in dusk warmth and weather dimming, while
- * inverse ambient light is the stable fallback for older atmosphere feeds.
+ * Local point lights are a darkness response, not a second daytime sun. This
+ * stays the *admission gate* only: 3.1's source-energy envelope owns how much
+ * energy an admitted light, its core, and its bloom may spend, so nothing
+ * multiplies this scalar into brightness any more.
  */
 export function localLightPhaseForLighting(lighting = {}) {
     const ambient = Math.max(0, Math.min(1, finite(lighting?.ambientLight, 1)));

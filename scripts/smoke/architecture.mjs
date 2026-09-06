@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Adapter helper allowlist (derived from adapters/index.js and adapters/):
-// dialogue.js, gitEvents.js, hooks.js, sessionPresentation.js, shared.js, turnState.js.
+// dialogue.js, gitEvents.js, hooks.js, sessionPresentation.js, shared.js, toolResults.js, turnState.js.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -16,6 +16,7 @@ const ADAPTER_HELPERS = new Set([
   'hooks.js',
   'sessionPresentation.js',
   'shared.js',
+  'toolResults.js',
   'turnState.js',
 ]);
 const REQUIRED_DIRECTORIES = [

@@ -89,6 +89,7 @@ export class Agent {
         signalStale,
         freshness,
         workingSet,
+        lastResults,
         collisions,
         resident,
         departedAt,
@@ -153,6 +154,10 @@ export class Agent {
         this.signalStale = signalStale === true;
         this.freshness = freshness || null;
         this.workingSet = Array.isArray(workingSet) ? workingSet.slice(0, 16) : [];
+        // Provider-reported outcomes of calls that already finished, newest
+        // first and capped by the adapter contract. Absent for providers that
+        // report no result record; never inferred from a tool disappearing.
+        this.lastResults = Array.isArray(lastResults) ? lastResults.slice(0, 5) : [];
         this.collisions = Array.isArray(collisions) ? collisions : [];
         this.resident = resident === true;
         // A departed agent is no longer present in the live server roster, but

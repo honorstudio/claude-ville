@@ -5,10 +5,10 @@ import { modelBehaviorProfile, moodBehaviorMultiplier } from '../../domain/value
 import { bucketForStatus } from '../../domain/services/SignalLedger.js';
 import { BUILDING_DEFS, normalizeBuildingType } from '../../config/buildings.js';
 import { THEME, STATUS_VISUALS, MOOD_ACCENTS, MODEL_TIER_COLORS, PROVIDER_HUES, WORLD_BODY_FONT } from '../../config/theme.js';
-import { getModelVisualIdentity, providerPaletteKey } from '../shared/ModelVisualIdentity.js';
+import { agentSignature, drawAgentSignature, getModelVisualIdentity, providerPaletteKey } from '../shared/ModelVisualIdentity.js';
 import { repoProfile } from '../shared/RepoColor.js';
 import { getTeamColor } from '../shared/TeamColor.js';
-import { SpriteSheet, dirFromVelocity, WALK_FRAMES, IDLE_FRAMES, DIRECTIONS } from './SpriteSheet.js';
+import { SpriteSheet, dirFromVelocity, resolveActionFrame, WALK_FRAMES, IDLE_FRAMES, DIRECTIONS, DEFAULT_CELL } from './SpriteSheet.js';
 import { getActiveMarkGovernor, MarkTier } from './MarkGovernor.js';
 import { RITUAL_GESTURE_PERIOD_MS, SCENIC_POINT_POSTURE } from './RitualConductor.js';
 import { pulseAlpha } from './PulsePolicy.js';
@@ -55,6 +55,45 @@ const FOOTFALL_FRAMES = new Set([0, Math.floor(WALK_FRAMES / 2)]);
 // finishes and setArrivalState flips pending → visible). Reduced motion skips
 // the ceremony entirely (instant appear).
 const ARRIVAL_CEREMONY_MS = 300;
+// 2.5 — how long the parent holds its static receive mark after a child's
+// return lands. Bounded to the lifecycle cue window; no pulse is allocated, so
+// reduced motion shows the identical held mark.
+const RECEIVE_BEAT_MS = 1400;
+// 2.2 — the authored read group's optional two-frame beat. `medium` band
+// (~600 ms): it replaces the working pulse on the same body, never stacks with
+// it, and reduced motion holds the group's declared static frame instead.
+const ACTION_BEAT_MS = 600;
+// 2.3 — how long the resolved command slip shows its wax seal. Static mark,
+// bounded to the lifecycle event that earned it.
+const SEALED_SLIP_MS = 1800;
+
+// Opaque content bounds of one cell inside a composed character sheet. Shared
+// by the per-sprite bounds cache and by miniature snapshots of foreign sheets.
+function measureCellContentBounds(source, cell) {
+    const scratch = document.createElement('canvas');
+    scratch.width = cell.sw;
+    scratch.height = cell.sh;
+    const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
+    scratchCtx.imageSmoothingEnabled = false;
+    scratchCtx.drawImage(source, cell.sx, cell.sy, cell.sw, cell.sh, 0, 0, cell.sw, cell.sh);
+    const data = scratchCtx.getImageData(0, 0, cell.sw, cell.sh).data;
+    let minX = cell.sw;
+    let minY = cell.sh;
+    let maxX = 0;
+    let maxY = 0;
+    for (let y = 0; y < cell.sh; y++) {
+        for (let x = 0; x < cell.sw; x++) {
+            if (data[(y * cell.sw + x) * 4 + 3] < 16) continue;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+    }
+    return maxX > minX && maxY > minY
+        ? { minX, minY, maxX, maxY }
+        : { minX: 24, minY: 12, maxX: cell.sw - 24, maxY: cell.sh - 18 };
+}
 
 function easeOutCubic(t) {
     const c = Math.max(0, Math.min(1, t));
@@ -793,6 +832,18 @@ export class AgentSprite {
         this._idlePhaseFrames = animSeed % IDLE_FRAMES;
         this._idlePhaseTimerMs = (animSeed >>> 2) % IDLE_FRAME_TICK_MS;
         this.statusAnim = ((animSeed >>> 3) % 628) / 100;
+        // 2.4 — the fidget stream is seeded from the same id hash, so an
+        // agent's small idle nudges repeat run to run instead of drawing from
+        // Math.random(). No bit from this stream ever becomes mood or rank.
+        this._fidgetSeed = (animSeed ^ 0x9e3779b9) >>> 0 || 1;
+        // 2.4 — bounded personal signature, resolved with the draw profile.
+        this._signature = null;
+        this._signatureFamily = '';
+        // 2.2 — the body cell drawn last frame, published read-only for
+        // consumers that mirror this body elsewhere (building aperture).
+        this._poseCell = null;
+        this._sealedSlipUntil = 0;
+        this._lastWaitReason = null;
         this.motionScale = (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) ? 0 : 1;
         // R2-06 — immutable profile resolved only when agent telemetry changes;
         // update/draw hot paths read scalars and never allocate tier state.
@@ -2457,21 +2508,32 @@ export class AgentSprite {
         }
         // Re-anchor 4-9 s nudges back to building facingPoint when dwelling.
         if (this._anchorReinforceMs == null) {
-            this._anchorReinforceMs = 4000 + Math.random() * 5000;
+            this._anchorReinforceMs = 4000 + this._fidgetRandom() * 5000;
         }
         this._anchorReinforceMs -= dt;
         if (this._anchorReinforceMs <= 0) {
             const building = this._buildingForType(this._lastBuildingType);
             if (building) this._faceBuilding(building, this._lastVisitFacingPoint);
-            this._anchorReinforceMs = 4000 + Math.random() * 5000;
+            this._anchorReinforceMs = 4000 + this._fidgetRandom() * 5000;
         }
         this._fidgetCooldownMs -= dt;
         if (this._fidgetCooldownMs <= 0) {
-            const sign = Math.random() > 0.5 ? 1 : -1;
+            const sign = this._fidgetRandom() > 0.5 ? 1 : -1;
             this.direction = (this.direction + sign + 8) % 8;
-            this._fidgetActiveMs = 600 + Math.random() * 400;
+            this._fidgetActiveMs = 600 + this._fidgetRandom() * 400;
             this._fidgetCooldownMs = this._nextFidgetCooldownMs();
         }
+    }
+
+    // 2.4 — seeded fidget stream (xorshift on the id-derived seed). Repeatable
+    // per agent, allocation-free, and never consulted for mood or rank.
+    _fidgetRandom() {
+        let seed = this._fidgetSeed;
+        seed ^= seed << 13; seed >>>= 0;
+        seed ^= seed >>> 17;
+        seed ^= seed << 5; seed >>>= 0;
+        this._fidgetSeed = seed || 1;
+        return this._fidgetSeed / 4294967296;
     }
 
     // Pulse band: `intrinsic` (slow). The band only detunes when a discrete
@@ -2479,7 +2541,7 @@ export class AgentSprite {
     _nextFidgetCooldownMs() {
         const bandScale = pulseAlpha('intrinsic', this.statusAnim, this.motionScale, 0.9, 1.1);
         const moodScale = moodBehaviorMultiplier(this.agent?.mood, 'fidgetInterval');
-        const base = FIDGET_COOLDOWN_MIN_MS + Math.random() * FIDGET_COOLDOWN_RANGE_MS;
+        const base = FIDGET_COOLDOWN_MIN_MS + this._fidgetRandom() * FIDGET_COOLDOWN_RANGE_MS;
         return base * this._modelBehavior.fidgetInterval * moodScale * bandScale;
     }
 
@@ -2660,8 +2722,15 @@ export class AgentSprite {
         const currentStatus = this.agent?.status || null;
         if (currentStatus !== this._lastStatus) {
             if (currentStatus === AgentStatus.COMPLETED) this._completedAtMs = Date.now();
+            // 2.3 — the command slip is sealed only here, on the observed
+            // lifecycle transition out of the wait. A pending approval, however
+            // old, never earns the seal.
+            if (this._lastStatus === AgentStatus.WAITING_ON_USER && this._lastWaitReason === 'approval') {
+                this._sealedSlipUntil = Date.now() + SEALED_SLIP_MS;
+            }
             this._lastStatus = currentStatus;
         }
+        if (currentStatus === AgentStatus.WAITING_ON_USER) this._lastWaitReason = this.agent?.waitReason || null;
 
         const budgetMode = renderMode !== 'full' && !this.selected && !this.hovered
             && ![AgentStatus.WAITING_ON_USER, AgentStatus.ERRORED, AgentStatus.RATE_LIMITED].includes(this.agent?.status);
@@ -2684,6 +2753,8 @@ export class AgentSprite {
         const provider = this._providerKey();
         const variant = this._hashVariant();
         const spriteId = identity.spriteId || `agent.${provider}.base`;
+        // 2.4 — the signature belongs to (agent id, canonical sprite family).
+        this.signature(spriteId);
         const paletteKey = identity.paletteKey || provider;
         const accessory = this._runtimeHeadAccessory(identity, this.agent);
         const equipmentKey = this._runtimeCodexEquipment(identity) || '_';
@@ -2832,6 +2903,22 @@ export class AgentSprite {
             ? posture.idleFrame
             : this.frame;
         const cell = this.spriteSheet.cell(this.animState, this.direction, renderFrame);
+        // 2.2 — an authored action pose replaces the idle body for this frame.
+        // Geometry stays the base cell's (same 92 px cell, same feet anchor), so
+        // only the source image and source rect change and the body never jumps.
+        const pose = this._actionStripPose(identity, spriteId);
+        const bodyCell = pose ? pose.cell : cell;
+        const bodySource = pose ? pose.source : this.spriteCanvas;
+        const poseSource = pose ? pose.source : null;
+        this._poseCell = {
+            sx: bodyCell.sx,
+            sy: bodyCell.sy,
+            sw: bodyCell.sw,
+            sh: bodyCell.sh,
+            source: pose ? 'strip' : 'sheet',
+            group: pose ? pose.group : null,
+            canvas: bodySource,
+        };
         const cellSize = this.spriteSheet?.cellSize || 92;
         const bounds = this._getCellContentBounds(cell);
         // Scale the body from accessory-free bounds so a hat's extra height does
@@ -2917,6 +3004,9 @@ export class AgentSprite {
             contentTopY,
             identity,
             frameGeometry,
+            // 2.2 — the resident renderer samples the same authored cell the
+            // Canvas body blits, so both backends show one pose.
+            pose,
         });
         const departedBody = this.agent?.isDeparted && !this.gpuWorldEnabled;
         if (departedBody) {
@@ -2924,23 +3014,34 @@ export class AgentSprite {
             ctx.filter = 'grayscale(0.9) saturate(0.25) brightness(0.72)';
             ctx.globalAlpha *= 0.72;
         }
-        this._drawCodexEquipment(ctx, identity, frameGeometry, 'back');
-        this._drawSpriteSilhouette(ctx, cell, dx, dy, drawScale);
+        // An authored pose owns its own hands: a strip that declares a sheathed
+        // grip parks the runtime weapon instead of painting it over the prop.
+        const sheathed = Boolean(pose && pose.strip?.meta?.grip?.sheathe);
+        if (!sheathed) this._drawCodexEquipment(ctx, identity, frameGeometry, 'back');
+        this._drawSpriteSilhouette(ctx, bodyCell, dx, dy, drawScale, poseSource);
         ctx.drawImage(
-            this.spriteCanvas,
-            cell.sx, cell.sy, cell.sw, cell.sh,
-            dx, dy, cell.sw * drawScale, cell.sh * drawScale
+            bodySource,
+            bodyCell.sx, bodyCell.sy, bodyCell.sw, bodyCell.sh,
+            dx, dy, bodyCell.sw * drawScale, bodyCell.sh * drawScale
         );
         // Frozen/darkened body tint while rate-limited — static overlay, so it
         // reads identically under reduced motion.
         if (this.agent?.status === AgentStatus.RATE_LIMITED) {
-            this._drawFrozenTint(ctx, cell, dx, dy, drawScale);
+            this._drawFrozenTint(ctx, bodyCell, dx, dy, drawScale, poseSource);
         }
-        this._drawCodexEquipment(ctx, identity, frameGeometry, 'front');
+        if (!sheathed) this._drawCodexEquipment(ctx, identity, frameGeometry, 'front');
         if (departedBody) ctx.restore();
         if (arrivalPushed) ctx.restore();
         if (arrivalProgress > 0) this._drawArrivalRuneRing(ctx, arrivalProgress);
-        if (!this.agent?.isDeparted) {
+        // These five marks belong to the body frame and have exactly one owner
+        // per backend: this Canvas pass, or the resident renderer's ungraded
+        // overlay (AgentGpuOverlayRenderer.draw), which replays the identical
+        // geometry from the frame record. Running both would strike every mark
+        // twice on the GPU path — compounded alpha on any frame where the
+        // Canvas layer shows through, and double the annotation work always.
+        if (!this.agent?.isDeparted && !this.gpuWorldEnabled) {
+            this._drawSignatureMark(ctx, { dx, dy, bounds, drawScale });
+            this._drawReceiveBeat(ctx, { dx, dy, bounds, drawScale });
             this._drawStanceOverlay(ctx, { dx, dy, bounds, drawScale });
             this._drawActionPoseOverlay(ctx, { dx, dy, bounds, drawScale });
             this._drawToolRitualOverlay(ctx, { dx, dy, bounds, drawScale });
@@ -3944,8 +4045,10 @@ export class AgentSprite {
         this._gpuEquippedOccluderSheet = entry.occluder;
     }
 
-    _drawSpriteSilhouette(ctx, cell, dx, dy, drawScale = 1) {
-        const silhouette = this._getSilhouetteCell(cell);
+    // `source` lets a C2 action-strip pose reuse the same outline treatment;
+    // the base sheet passes nothing.
+    _drawSpriteSilhouette(ctx, cell, dx, dy, drawScale = 1, source = null) {
+        const silhouette = this._getSilhouetteCell(cell, source);
         if (!silhouette) return;
         ctx.drawImage(
             silhouette,
@@ -3956,9 +4059,10 @@ export class AgentSprite {
         );
     }
 
-    _getSilhouetteCell(cell) {
-        if (!this.spriteCanvas) return null;
-        const key = `${cell.sx},${cell.sy},${cell.sw},${cell.sh}`;
+    _getSilhouetteCell(cell, source = null) {
+        const sheet = source || this.spriteCanvas;
+        if (!sheet) return null;
+        const key = `${source ? 'strip' : 'base'}:${cell.sx},${cell.sy},${cell.sw},${cell.sh}`;
         const cached = this._silhouetteCellCache.get(key);
         if (cached) return cached;
 
@@ -3968,7 +4072,7 @@ export class AgentSprite {
         black.height = cell.sh + pad * 2;
         const blackCtx = black.getContext('2d');
         blackCtx.imageSmoothingEnabled = false;
-        blackCtx.drawImage(this.spriteCanvas, cell.sx, cell.sy, cell.sw, cell.sh, pad, pad, cell.sw, cell.sh);
+        blackCtx.drawImage(sheet, cell.sx, cell.sy, cell.sw, cell.sh, pad, pad, cell.sw, cell.sh);
         blackCtx.globalCompositeOperation = 'source-in';
         blackCtx.fillStyle = 'black';
         blackCtx.fillRect(0, 0, black.width, black.height);
@@ -3991,8 +4095,8 @@ export class AgentSprite {
         return outline;
     }
 
-    _drawFrozenTint(ctx, cell, dx, dy, drawScale = 1) {
-        const tinted = this._getFrozenTintCell(cell);
+    _drawFrozenTint(ctx, cell, dx, dy, drawScale = 1, source = null) {
+        const tinted = this._getFrozenTintCell(cell, source);
         if (!tinted) return;
         ctx.save();
         ctx.globalAlpha *= 0.38;
@@ -4000,9 +4104,10 @@ export class AgentSprite {
         ctx.restore();
     }
 
-    _getFrozenTintCell(cell) {
-        if (!this.spriteCanvas) return null;
-        const key = `${cell.sx},${cell.sy},${cell.sw},${cell.sh}`;
+    _getFrozenTintCell(cell, source = null) {
+        const sheet = source || this.spriteCanvas;
+        if (!sheet) return null;
+        const key = `${source ? 'strip' : 'base'}:${cell.sx},${cell.sy},${cell.sw},${cell.sh}`;
         const cached = this._frozenTintCellCache.get(key);
         if (cached) return cached;
 
@@ -4011,7 +4116,7 @@ export class AgentSprite {
         canvas.height = cell.sh;
         const tintCtx = canvas.getContext('2d');
         tintCtx.imageSmoothingEnabled = false;
-        tintCtx.drawImage(this.spriteCanvas, cell.sx, cell.sy, cell.sw, cell.sh, 0, 0, cell.sw, cell.sh);
+        tintCtx.drawImage(sheet, cell.sx, cell.sy, cell.sw, cell.sh, 0, 0, cell.sw, cell.sh);
         tintCtx.globalCompositeOperation = 'source-in';
         tintCtx.fillStyle = '#2e4258';   // cold slate; drawn at low alpha over the body
         tintCtx.fillRect(0, 0, canvas.width, canvas.height);
@@ -4024,30 +4129,7 @@ export class AgentSprite {
         const key = `${cell.sx},${cell.sy},${cell.sw},${cell.sh}`;
         const cached = this._cellBoundsCache.get(key);
         if (cached) return cached;
-
-        const scratch = document.createElement('canvas');
-        scratch.width = cell.sw;
-        scratch.height = cell.sh;
-        const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
-        scratchCtx.imageSmoothingEnabled = false;
-        scratchCtx.drawImage(this.spriteCanvas, cell.sx, cell.sy, cell.sw, cell.sh, 0, 0, cell.sw, cell.sh);
-        const data = scratchCtx.getImageData(0, 0, cell.sw, cell.sh).data;
-        let minX = cell.sw;
-        let minY = cell.sh;
-        let maxX = 0;
-        let maxY = 0;
-        for (let y = 0; y < cell.sh; y++) {
-            for (let x = 0; x < cell.sw; x++) {
-                if (data[(y * cell.sw + x) * 4 + 3] < 16) continue;
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-            }
-        }
-        const bounds = maxX > minX && maxY > minY
-            ? { minX, minY, maxX, maxY }
-            : { minX: 24, minY: 12, maxX: cell.sw - 24, maxY: cell.sh - 18 };
+        const bounds = measureCellContentBounds(this.spriteCanvas, cell);
         this._cellBoundsCache.set(key, bounds);
         return bounds;
     }
@@ -5054,6 +5136,191 @@ export class AgentSprite {
         return hash % 4;
     }
 
+    // --- C2 action strips (plan 2.2 / 2.3) ---
+
+    // Resolves the authored pose for this frame, or null when the character has
+    // no strip, is travelling, or is doing something the strip does not author.
+    // Null is the contract's fallback: the procedural overlay stays in charge.
+    _actionStripPose(identity, spriteId) {
+        if (this.moving || this.chatting || this.agent?.isDeparted || this.animState !== 'idle') return null;
+        const group = this.actionStripGroup();
+        if (!group) return null;
+        const strip = this.assets?.getActionStrip?.(spriteId);
+        if (!strip?.image || !strip.meta) return null;
+        const cell = resolveActionFrame(strip.meta, group, this.direction, this._actionStripFrame(strip.meta, group));
+        if (!cell) return null;
+        const cellSize = Number(strip.meta.cell) || DEFAULT_CELL;
+        const source = this.compositor?.stripFor(`${spriteId}|${strip.path || 'actions'}`, strip.image, {
+            baseSpriteId: spriteId,
+            paletteKey: identity?.paletteKey || this._providerKey(),
+            paletteVariant: this._hashVariant(),
+            runtimeAccessory: this._runtimeHeadAccessory(identity, this.agent),
+            teamTrim: this._teamTrimAccent(),
+            cellSize,
+        }) || strip.image;
+        return { group, cell, source, strip };
+    }
+
+    // Which authored group the current truth asks for. The held wait row wins
+    // over the generic work/think vocabulary (2.3); reading is the only other
+    // authored group today. Never derived from elapsed time.
+    actionStripGroup() {
+        if (this.agent?.status === AgentStatus.WAITING_ON_USER) return 'wait';
+        return resolveAgentAction(this.agent, { chatting: this.chatting }) === AgentAction.READ ? 'read' : null;
+    }
+
+    _actionStripFrame(meta, group) {
+        // Static band for the held wait row, for a stale observation (C1), and
+        // for reduced motion. Otherwise one two-frame medium-band beat, which
+        // replaces the working pulse instead of stacking on it.
+        if (group === 'wait' || this.motionScale <= 0 || this.observation?.state === 'stale') return 'hold';
+        const rows = meta?.groups?.[group]?.rows;
+        const first = Number(rows?.[0]);
+        const span = Number(rows?.[1]) - first + 1;
+        if (!Number.isInteger(first) || !(span > 1)) return 'hold';
+        const hold = Number(meta.groups[group].hold);
+        const holdIndex = Number.isInteger(hold) ? Math.max(0, hold - first) : span - 1;
+        return (Math.floor(Date.now() / ACTION_BEAT_MS) % 2)
+            ? (holdIndex - 1 + span) % span
+            : holdIndex;
+    }
+
+    /**
+     * The body cell this sprite last drew: the authored strip cell when a pose
+     * resolved, otherwise the base sheet cell. `canvas` is the bitmap the cell
+     * belongs to. Null before the first draw.
+     */
+    currentPoseCell() {
+        return this._poseCell;
+    }
+
+    // 2.4 — the bounded personal signature. `family` is the canonical sprite
+    // family, so the mark stays subordinate to the model silhouette: the same
+    // index under a different body is a different signature. Resolved once per
+    // family change; the identity hash and the four palette variants above are
+    // untouched.
+    signature(family = null) {
+        // Impostor paths draw before the hero path has pinned a family, so the
+        // fallback resolves the same canonical sprite family rather than a
+        // provider default: one agent keeps one mark through every LOD.
+        const key = family ? String(family) : (this._signatureFamily || this._canonicalSpriteFamily());
+        if (!this._signature || this._signatureFamily !== key) {
+            this._signatureFamily = key;
+            this._signature = agentSignature(this.agent?.id, key);
+        }
+        return this._signature;
+    }
+
+    _canonicalSpriteFamily() {
+        const identity = getModelVisualIdentity(this.agent?.model, this.agent?.effort, this.agent?.provider);
+        return identity.spriteId || `agent.${this._providerKey()}.base`;
+    }
+
+    /** Accent tone for the signature clasp: team trim first, then provider trim. */
+    signatureAccent() {
+        return this._teamTrimAccent() || this._providerTrimColor();
+    }
+
+    // 2.4 — one stamp for every distance. Screen-fixed cell size (1 px at
+    // overview, 2 px from zoom 2) so the same mark reads on a hero body, on the
+    // 28 px compact GPU body, and beside the impostor diamond. Static band: no
+    // pulse, no timer, identical under reduced motion.
+    _drawSignatureMark(ctx, frameGeometry) {
+        const { dx, dy, bounds, drawScale } = frameGeometry || {};
+        if (!bounds || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+        const width = Math.max(1, bounds.maxX - bounds.minX);
+        const height = Math.max(1, bounds.maxY - bounds.minY);
+        const zoom = this._zoom || 1;
+        ctx.save();
+        ctx.translate(
+            Math.round(dx + (bounds.minX + width * 0.3) * drawScale),
+            Math.round(dy + (bounds.minY + height * 0.46) * drawScale),
+        );
+        ctx.scale(1 / zoom, 1 / zoom);
+        drawAgentSignature(ctx, this.signature(), {
+            x: 0,
+            y: 0,
+            pixel: zoom >= 2 ? 2 : 1,
+            accent: this.signatureAccent(),
+        });
+        ctx.restore();
+    }
+
+    // 2.5 — a snapshot miniature for lifecycle cues: the child's own idle row
+    // cropped to content and copied as pixels, so a dispatch or a return never
+    // holds a live reference to a sprite the renderer may dispose. Returns null
+    // until the character sheet is loaded; callers retry.
+    captureMiniature(size = 14) {
+        const source = this.spriteCanvas || this._composeBaseSheet();
+        if (!source) return null;
+        const sheet = source === this.spriteCanvas && this.spriteSheet ? this.spriteSheet : new SpriteSheet(source);
+        const cell = sheet.cell('idle', 0, 0);
+        const bounds = this._cellContentBoundsOf(source, cell);
+        const cropW = Math.max(1, bounds.maxX - bounds.minX + 1);
+        const cropH = Math.max(1, bounds.maxY - bounds.minY + 1);
+        const scale = Math.max(1, Math.round(size)) / cropH;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(cropW * scale));
+        canvas.height = Math.max(1, Math.round(cropH * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(source, cell.sx + bounds.minX, cell.sy + bounds.minY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+        return {
+            agentId: this.agent?.id || null,
+            canvas,
+            signature: this.signature(),
+            accent: this.signatureAccent(),
+        };
+    }
+
+    // The composed base sheet for this agent's profile, resolved through the
+    // shared Compositor cache. A child dispatched before its first draw has no
+    // spriteCanvas yet, and it must still leave as itself.
+    _composeBaseSheet() {
+        if (!this.compositor) return null;
+        const identity = getModelVisualIdentity(this.agent?.model, this.agent?.effort, this.agent?.provider);
+        const provider = this._providerKey();
+        return this.compositor.spriteFor(
+            identity.spriteId || `agent.${provider}.base`,
+            identity.paletteKey || provider,
+            this._hashVariant(),
+            this._runtimeHeadAccessory(identity, this.agent),
+            this._teamTrimAccent(),
+        );
+    }
+
+    // 2.5 — one static receive beat while a child's return lands here. Static
+    // band: a held mark for a bounded window, identical under reduced motion,
+    // and neutral — a child returned, which is not a claim that it succeeded.
+    setReceiveBeat(now = Date.now(), duration = RECEIVE_BEAT_MS) {
+        this._receiveBeatUntil = now + Math.max(0, duration);
+    }
+
+    _drawReceiveBeat(ctx, frameGeometry) {
+        if (!(this._receiveBeatUntil > Date.now())) return;
+        const { dx, dy, bounds, drawScale } = frameGeometry || {};
+        if (!bounds || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+        const width = Math.max(1, bounds.maxX - bounds.minX);
+        const height = Math.max(1, bounds.maxY - bounds.minY);
+        const zoom = this._zoom || 1;
+        ctx.save();
+        ctx.translate(
+            Math.round(dx + (bounds.minX + width * 0.5) * drawScale),
+            Math.round(dy + (bounds.minY + height * 0.34) * drawScale),
+        );
+        ctx.scale(1 / zoom, 1 / zoom);
+        drawEventShape(ctx, 'child-return', -8, -8, 1, '#e7d3a0');
+        ctx.restore();
+    }
+
+    // Content bounds of one cell inside an arbitrary composed sheet. The
+    // per-cell cache is keyed on the sprite's own sheet, so foreign sources
+    // (miniature snapshots) scan without polluting it.
+    _cellContentBoundsOf(source, cell) {
+        if (source === this.spriteCanvas) return this._getCellContentBounds(cell);
+        return measureCellContentBounds(source, cell);
+    }
+
     // --- Provider / model helpers ---
 
     _providerKey(agent = this.agent) {
@@ -5999,6 +6266,14 @@ export class AgentSprite {
         return null;
     }
 
+    // True when the authored held palm is carrying this wait's subtype, so the
+    // duplicate generic mark can stand down.
+    _waitSubtypeOnBody() {
+        return this._poseCell?.source === 'strip'
+            && this._poseCell.group === 'wait'
+            && ['question', 'approval', 'plan_review'].includes(this.agent?.waitReason);
+    }
+
     _drawStatusEmote(ctx, contentTopY) {
         if (!Number.isFinite(contentTopY)) return;
         const kind = this._statusEmoteKind();
@@ -6015,7 +6290,10 @@ export class AgentSprite {
         } else if (incident?.shapeId === 'alert') {
             drawAlertCircleGlyph(ctx, box, incident.color, '!');
         } else if (kind === 'waiting_on_user') {
-            drawAlertCircleGlyph(ctx, box, '#ffd13a', '?');
+            // 2.3 — an authored palm already holding the letter, the slip, or
+            // the plan says the same thing more truthfully; only an unknown
+            // wait reason keeps the generic mark.
+            if (!this._waitSubtypeOnBody()) drawAlertCircleGlyph(ctx, box, '#ffd13a', '?');
         } else if (kind === 'completed') {
             // 0.4 — the small-victory check wears the completed status's own
             // soft gold (STATUS_VISUALS.completed), not a foreign green.
@@ -6476,10 +6754,20 @@ export class AgentSprite {
     _drawActionPoseOverlay(ctx, frameGeometry) {
         this._drawObservationSeal(ctx);
         this._drawTurnSand(ctx);
+        const poseGroup = this._poseCell?.source === 'strip' ? this._poseCell.group : null;
+        // 2.3 — the authored palm holds the wait subtype; nothing else may
+        // occupy the prop slot while the village is waiting for its operator.
+        if (poseGroup === 'wait' || this._sealedSlipUntil > Date.now()) {
+            this._drawWaitReasonProp(ctx, frameGeometry);
+            return;
+        }
         const provider = this._providerKey();
         if (!['claude', 'codex'].includes(provider) || this.moving) return;
         const action = resolveAgentAction(this.agent, { chatting: this.chatting });
         if (!action) return;
+        // 2.2 — the authored body already holds the book: one instrument per
+        // fact, so the procedural read prop is removed for strip characters.
+        if (poseGroup === 'read' && action === AgentAction.READ) return;
         const { dx, dy, bounds, drawScale } = frameGeometry || {};
         if (!bounds || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
         const width = Math.max(1, bounds.maxX - bounds.minX);
@@ -6507,6 +6795,54 @@ export class AgentSprite {
             drawEventShape(ctx, 'message-scroll', -8, -8, 1, trim);
         } else if (action === AgentAction.CELEBRATE) {
             drawEventShape(ctx, 'release-crown', -8, -8, 1, THEME.text);
+        }
+        ctx.restore();
+    }
+
+    // 2.3 — what the held palm is holding, from `agent.waitReason` alone:
+    // an open letter (question), a closed command slip still awaiting its seal
+    // (approval), or an unrolled plan (plan_review). Never inferred from
+    // elapsed time, and an unknown reason draws nothing so the generic
+    // needs-you mark stays the only claim. Static band throughout.
+    _drawWaitReasonProp(ctx, frameGeometry) {
+        const sealed = this._sealedSlipUntil > Date.now();
+        const reason = sealed ? 'approval' : this.agent?.waitReason;
+        if (!['question', 'approval', 'plan_review'].includes(reason)) return;
+        const { dx, dy, bounds, drawScale } = frameGeometry || {};
+        if (!bounds || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+        const width = Math.max(1, bounds.maxX - bounds.minX);
+        const height = Math.max(1, bounds.maxY - bounds.minY);
+        const scale = Math.max(1, Number(drawScale) || 1);
+        ctx.save();
+        ctx.translate(
+            Math.round(dx + (bounds.minX + width * 0.74) * drawScale),
+            Math.round(dy + (bounds.minY + height * 0.5) * drawScale),
+        );
+        ctx.scale(scale, scale);
+        if (reason === 'question') {
+            // Open letter: an unfolded sheet, its fold still creased.
+            ctx.fillStyle = '#f4ead0'; ctx.fillRect(-5, -4, 10, 8);
+            ctx.fillStyle = '#3a2c1c'; ctx.fillRect(-5, -4, 10, 1);
+            ctx.fillRect(-4, -3, 3, 1); ctx.fillRect(1, -3, 3, 1);
+            ctx.fillRect(-3, 0, 6, 1); ctx.fillRect(-3, 2, 4, 1);
+        } else if (reason === 'approval') {
+            // Closed command slip. The wax ring stays open until a resolving
+            // lifecycle event is observed; a pending wait is never sealed.
+            ctx.fillStyle = '#e6d7ae'; ctx.fillRect(-5, -3, 10, 6);
+            ctx.fillStyle = '#3a2c1c'; ctx.fillRect(-5, -3, 10, 1); ctx.fillRect(-5, 2, 10, 1);
+            ctx.fillStyle = sealed ? '#c2413a' : '#8a5a52';
+            if (sealed) {
+                ctx.fillRect(1, -2, 4, 4);
+            } else {
+                ctx.fillRect(1, -2, 4, 1); ctx.fillRect(1, 1, 4, 1);
+                ctx.fillRect(1, -1, 1, 2); ctx.fillRect(4, -1, 1, 2);
+            }
+        } else {
+            // Unrolled plan: a wide sheet with ruled lines and curled ends.
+            ctx.fillStyle = '#f0e6c8'; ctx.fillRect(-7, -4, 14, 8);
+            ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-8, -4, 1, 8); ctx.fillRect(7, -4, 1, 8);
+            ctx.fillStyle = '#3a2c1c';
+            ctx.fillRect(-5, -2, 10, 1); ctx.fillRect(-5, 0, 8, 1); ctx.fillRect(-5, 2, 6, 1);
         }
         ctx.restore();
     }
@@ -6661,9 +6997,13 @@ export class AgentSprite {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        // 2.4 — the same signature plate the hero and compact bodies carry, so
+        // an agent stays recognisable after the body collapses to a kite. The
+        // status dot keeps the apex and stays the topmost mark.
+        drawAgentSignature(ctx, this.signature(), { x: 0, y: -1, pixel: 1, accent: this.signatureAccent() });
         ctx.fillStyle = visual?.color || trim;
         ctx.beginPath();
-        ctx.arc(0, -3, 3, 0, Math.PI * 2);
+        ctx.arc(0, -9, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
@@ -6693,9 +7033,10 @@ export class AgentSprite {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        drawAgentSignature(ctx, this.signature(), { x: 0, y: 0, pixel: 1, accent: this.signatureAccent() });
         ctx.fillStyle = visual?.color || trim;
         ctx.beginPath();
-        ctx.arc(0, -2, 3, 0, Math.PI * 2);
+        ctx.arc(0, -7, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }

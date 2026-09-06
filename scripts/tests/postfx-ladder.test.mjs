@@ -22,6 +22,8 @@ test('resident effects shed in declared order as the ladder steps down', () => {
     assert.deepEqual(shedEffectsForLevel(ladder.getLevel()), [
         { id: 'bloom', mode: 'reduced' },
         { id: 'weather-amplitude', mode: 'reduced' },
+        { id: 'moon-course', mode: 'ambient-course-only' },
+        { id: 'wet-reflection', mode: 'four-sources' },
     ]);
 
     ladder.setOverride(POST_FX_LEVELS.MINIMAL);
@@ -29,6 +31,9 @@ test('resident effects shed in declared order as the ladder steps down', () => {
         { id: 'bloom', mode: 'off' },
         { id: 'weather-amplitude', mode: 'off' },
         { id: 'occlusion', mode: 'off' },
+        { id: 'moon-course', mode: 'ambient-course-only' },
+        { id: 'wet-reflection', mode: 'static-wet-darkening' },
+        { id: 'palette-ramp', mode: 'off' },
     ]);
 
     // The minimal-resident probe level renders MINIMAL's composition.
@@ -40,15 +45,35 @@ test('resident effects shed in declared order as the ladder steps down', () => {
 });
 
 test('MINIMAL admits no optional GPU pass and no optional resident bytes', () => {
-    const passes = Object.values(EFFECT_BUDGET).filter((effect) => effect.cost.bytes > 0);
-    assert.deepEqual(passes.map((effect) => effect.id), ['bloom', 'occlusion']);
-    for (const effect of passes) {
-        assert.equal(effectBudgetMode(effect.id, POST_FX_LEVELS.MINIMAL), 'off');
+    const rows = Object.values(EFFECT_BUDGET);
+
+    // An effect that keeps bytes resident is a FULL-level luxury...
+    for (const effect of rows.filter((row) => row.cost.bytes > 0)) {
         assert.equal(effectBudgetMode(effect.id, POST_FX_LEVELS.FULL), 'on');
     }
-    for (const effect of Object.values(EFFECT_BUDGET)) {
-        const [low, high] = effect.cost.gpuMsBand;
-        assert.ok(low > 0 && high >= low, `${effect.id} needs a measured band`);
+    // ...and nothing still running at MINIMAL prices any.
+    const residentAtMinimal = rows
+        .filter((effect) => effectBudgetMode(effect.id, POST_FX_LEVELS.MINIMAL) !== 'off')
+        .reduce((bytes, effect) => bytes + effect.cost.bytes, 0);
+    assert.equal(residentAtMinimal, 0);
+
+    for (const effect of rows) {
+        const { gpuMsBand, gpuMsSavedBand, scope } = effect.cost;
+        assert.ok(
+            Boolean(gpuMsBand) !== Boolean(gpuMsSavedBand),
+            `${effect.id} prices either added time or removed time, never both`,
+        );
+        // Work that a substitution removes is not optional: it ships at every level.
+        if (gpuMsSavedBand) {
+            assert.ok(
+                Object.values(effect.levels).every((mode) => mode === effect.levels.FULL),
+                `${effect.id} saves time and can never be shed`,
+            );
+        }
+        // `[0, ceiling]` is an honest noise-floor upper bound; a zero-width band is not a measurement.
+        const [low, high] = gpuMsBand || gpuMsSavedBand;
+        assert.ok(low >= 0 && high > low, `${effect.id} needs a measured band`);
+        assert.ok(scope === 'own-pass' || scope === 'shared-scene-envelope', `${effect.id} needs a band scope`);
         assert.ok(effect.staticFallback && effect.canvas, `${effect.id} needs both fallbacks`);
     }
 });

@@ -26,8 +26,8 @@ function session(id, project, workingSet, extra = {}) {
     };
 }
 
-function file(pathname, op) {
-    return { path: pathname, op, at: 1, source: 'transcript' };
+function file(pathname, op, at = 1) {
+    return { path: pathname, op, at, source: 'transcript' };
 }
 
 test('two sessions writing the same canonical project path yield one loud collision', () => {
@@ -41,6 +41,11 @@ test('two sessions writing the same canonical project path yield one loud collis
         project: '/work/project',
         agents: ['alpha', 'beta'],
         kind: 'write-write',
+        overlapKind: 'concurrent',
+        observations: [
+            { agentId: 'alpha', op: 'write', at: 1 },
+            { agentId: 'beta', op: 'write', at: 1 },
+        ],
     }]);
 });
 
@@ -54,6 +59,54 @@ test('read/write overlap is advisory and read/read overlap is silent', () => {
         session('reader-a', project, [file('src/router.ts', 'read')]),
         session('reader-b', project, [file('src/router.ts', 'read')]),
     ]), []);
+});
+
+test('an overlap is concurrent only when every observation lands inside one minute', () => {
+    const project = '/work/project';
+    const overlapKind = (aAt, bAt) => detectCollisions([
+        session('alpha', project, [file('src/router.ts', 'write', aAt)]),
+        session('beta', project, [file('src/router.ts', 'write', bAt)]),
+    ])[0].overlapKind;
+
+    assert.equal(overlapKind(500_000, 500_000 + 59_999), 'concurrent');
+    assert.equal(overlapKind(500_000, 500_000 + 60_000), 'concurrent');
+    assert.equal(overlapKind(500_000, 500_000 + 60_001), 'recent');
+    // An undated observation cannot establish simultaneity.
+    assert.equal(overlapKind(500_000, null), 'recent');
+});
+
+test('each collision edge carries its own latest observation time and op', () => {
+    const project = '/work/project';
+    const [collision] = detectCollisions([
+        session('reader', project, [file('src/router.ts', 'read', 900_000)]),
+        session('writer', project, [
+            file('src/router.ts', 'write', 400_000),
+            file('src/router.ts', 'read', 950_000),
+        ]),
+    ]);
+
+    assert.equal(collision.kind, 'read-write');
+    assert.deepEqual(collision.observations, [
+        { agentId: 'reader', op: 'read', at: 900_000 },
+        // The writer's own read of a path it writes never downgrades the edge,
+        // and the write's real observation time is the one reported.
+        { agentId: 'writer', op: 'write', at: 400_000 },
+    ]);
+    assert.equal(collision.overlapKind, 'recent');
+});
+
+test('repeated observations of the same path keep the newest time', () => {
+    const project = '/work/project';
+    const [collision] = detectCollisions([
+        session('alpha', project, [
+            file('src/router.ts', 'write', 700_000),
+            file('src/router.ts', 'write', 100_000),
+        ]),
+        session('beta', project, [file('src/router.ts', 'write', 690_000)]),
+    ]);
+
+    assert.deepEqual(collision.observations.map(entry => entry.at), [700_000, 690_000]);
+    assert.equal(collision.overlapKind, 'concurrent');
 });
 
 test('a symlink canonicalised outside the project does not join a project-relative path', (t) => {

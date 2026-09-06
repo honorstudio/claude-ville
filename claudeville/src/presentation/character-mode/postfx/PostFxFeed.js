@@ -90,6 +90,9 @@ function emptyFeed(nowMs) {
         lights: [],
         water: { mask: null, flowX: 0, flowY: 0, maskRevision: 0 },
         haze: [],
+        // 3.2 — accumulated surface wetness (0..1) from real precipitation
+        // history, so the resident shader never re-derives rain history.
+        wetness: 0,
         pulse: null,
     };
 }
@@ -694,6 +697,7 @@ export function createPostFxFeed() {
                 waterObj.flowY = 0;
                 waterObj.maskRevision = maskRevision;
                 feed.water = waterObj;
+                feed.wetness = 0;
                 feed.pulse = null;
                 return feed;
             }
@@ -721,6 +725,7 @@ export function createPostFxFeed() {
             feed.lights = lightsOut;
             feed.water = waterObj;
             feed.haze = hazeOut;
+            feed.wetness = clamp01(renderer?._surfaceWetness);
             feed.pulse = fillPulse(villageSnapshot, nowMs);
             return feed;
         } catch {

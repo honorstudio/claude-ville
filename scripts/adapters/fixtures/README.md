@@ -12,6 +12,9 @@ These synthetic JSONL transcripts test parser contracts without reading real pro
 | Codex | `codex/full-auto-pending.jsonl` | Old pending command under full-auto remains working, not permission-blocked. |
 | Codex | `codex/item-completed.jsonl` | Ordered file changes and a failed command with duration, stderr, and exit status. |
 | Codex | `codex/long-running-turn.jsonl` | Old active turn with token events remains running rather than decaying idle. |
+| Codex | `codex/tool-results.jsonl` | Command completions with exit 0, exit 1, an unknown exit, and one invocation that never completes. |
+| Kimi Code | `kimi/tool-results.jsonl` | Wire loop events: a passing and a failing command result, plus a result carrying only output (no outcome). |
+| OpenCode | `opencode/tool-results.jsonl` | Normalized tool parts with `metadata.exit` 0 and 1, plus a part with no exit at all. |
 
 ## Redaction rule
 
@@ -25,5 +28,6 @@ Author fixtures synthetic-first. If derived from provider output, replace every 
 - `scripts/tests/claude-projection.test.mjs` uses broad and minimal Claude records (it resolves the fixture root without spelling the full search string).
 - `scripts/tests/turn-state.test.mjs` copies the Codex fixture directory into a synthetic provider home.
 - `scripts/tests/integration/session-payload-contract.test.mjs` replays the broad Claude fixture through an isolated server.
+- `scripts/tests/tool-results.test.mjs` materializes the Codex and Kimi Code result transcripts in a synthetic home, replays the OpenCode parts through `buildOpenCodeSession`, and uses the broad Claude record as the no-result control.
 
 `npm run check:adapter-fixtures` is a broad executable adapter contract. It creates synthetic ClaudeVille, Codex, Kimi, and OpenCode state and checks normalization, detail dispatch, discovery, and fixture-backed turn states. Unit fixtures are narrower named `node:test` cases run by `npm run test:unit`; the integration consumer runs only under `npm run test:integration`.

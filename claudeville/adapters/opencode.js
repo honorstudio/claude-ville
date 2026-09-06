@@ -22,6 +22,7 @@ const {
 } = require('./shared');
 const { emptyObservedSources, makeDialogue, pickDialogue } = require('./dialogue');
 const { deriveTurnState } = require('./turnState');
+const { TOOL_RESULT_LIMIT, toolResultId } = require('./toolResults');
 
 const OPENCODE_CONFIG_DIR = process.env.CLAUDEVILLE_OPENCODE_CONFIG_DIR
   || path.join(os.homedir(), '.config', 'opencode');
@@ -651,6 +652,36 @@ function getToolHistory(parts, maxItems = DETAIL_TOOL_LIMIT) {
   return tools.slice(-maxItems);
 }
 
+// OpenCode records a command's process exit in the tool part's own state. That
+// number is the only outcome evidence here: a part that merely finished, with
+// no `metadata.exit`, produces no result record.
+function getToolResults(parts, sessionId) {
+  const results = [];
+  for (const part of parts) {
+    if (part.type !== 'tool') continue;
+    const state = part.data.state || {};
+    const rawExit = state.metadata?.exit ?? state.exitCode ?? state.exit_code;
+    if (rawExit === null || rawExit === undefined || rawExit === '' || !Number.isFinite(Number(rawExit))) continue;
+    const completedAt = Number(state.time?.end || part.timeUpdated || part.timeCreated) || null;
+    if (!completedAt) continue;
+    const startedAt = Number(state.time?.start) || null;
+    const tool = normalizeToolName(part.data.tool);
+    if (!tool) continue;
+    const detail = summarizeToolInput(state.input || part.data.input || {}, { maxLength: 80 }) || '';
+    const callId = part.data.callID || part.data.callId || part.id || null;
+    results.push({
+      id: toolResultId({ provider: 'opencode', sessionId, callId, tool, detail, completedAt }),
+      tool,
+      detail,
+      exitCode: Math.trunc(Number(rawExit)),
+      durationMs: startedAt ? Math.max(0, completedAt - startedAt) : null,
+      completedAt,
+      source: 'transcript',
+    });
+  }
+  return results.slice(-TOOL_RESULT_LIMIT).reverse();
+}
+
 function getSessionRow(sessionId) {
   const rows = queryRows(`
     SELECT s.id, s.parent_id, s.directory, s.title, s.version, s.agent, s.model, s.cost,
@@ -737,6 +768,7 @@ function buildOpenCodeSession(row, parts, now = Date.now()) {
     ...(cost ? { cost } : {}),
     ...turn,
     signalSource: 'transcript',
+    lastResults: getToolResults(parts, sessionId),
     gitEvents: getGitEvents(parts, { provider: 'opencode', sessionId, project }),
   };
 }

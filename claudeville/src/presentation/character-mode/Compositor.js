@@ -100,6 +100,54 @@ export class Compositor {
         return canvas;
     }
 
+    // C2 action strips are authored in the character's base colours, so they
+    // must pass through the same palette swap and head accessory as the base
+    // sheet: an agent that starts reading keeps its robe, its team sash, and
+    // its effort crest. Cached beside the base sheets under the same limits.
+    stripFor(stripKey, stripImage, {
+        baseSpriteId,
+        paletteKey,
+        paletteVariant,
+        runtimeAccessory = null,
+        teamTrim = null,
+        cellSize = DEFAULT_CELL,
+    } = {}) {
+        if (!stripImage) return null;
+        const baseId = baseSpriteId?.startsWith('agent.') ? baseSpriteId : `agent.${baseSpriteId || 'claude'}.base`;
+        const palette = paletteKey || baseId.split('.')[1] || 'claude';
+        const teamHash = teamTrim ? String(teamTrim).toLowerCase() : '_';
+        const variantKey = this._resolvedVariantKey(palette, paletteVariant, teamTrim);
+        const key = `strip|${stripKey}|${palette}|${variantKey}|${runtimeAccessory ?? '_'}|${teamHash}`;
+        if (this.cache.has(key)) {
+            const cached = this.cache.get(key);
+            this.cache.delete(key);
+            this.cache.set(key, cached);
+            return cached;
+        }
+        const width = stripImage.naturalWidth || stripImage.width || 0;
+        const height = stripImage.naturalHeight || stripImage.height || 0;
+        if (!width || !height) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(stripImage, 0, 0);
+        const sheetSource = this.assets.getEntry?.(baseId)?.paletteSource || null;
+        this._applyPaletteSwap(ctx, width, height, palette, paletteVariant, teamTrim, sheetSource);
+        if (runtimeAccessory) {
+            this._compositeAccessory(ctx, baseId, runtimeAccessory, palette, {
+                dims: { w: width, h: height },
+                rows: Math.floor(height / (cellSize || DEFAULT_CELL)),
+                cellSize: cellSize || DEFAULT_CELL,
+            });
+        }
+        this.cache.set(key, canvas);
+        this.cachePixels += width * height;
+        this._trimCache();
+        return canvas;
+    }
+
     _resolvedVariantKey(paletteKey, variant, teamTrim) {
         const palette = this.assets.palettes?.[paletteKey];
         if (!palette) return String(variant);
@@ -192,17 +240,19 @@ export class Compositor {
         ctx.putImageData(img, 0, 0);
     }
 
-    _compositeAccessory(ctx, baseId, accessory, paletteKey) {
+    // `grid` lets an action strip reuse the same head-apex anchoring on its own
+    // row count; the base sheet passes nothing and keeps the 10-row layout.
+    _compositeAccessory(ctx, baseId, accessory, paletteKey, grid = null) {
         const overlayId = accessory.startsWith?.('overlay.')
             ? accessory
             : `overlay.accessory.${accessory}`;
         const overlayImg = this.assets.get(overlayId);
         if (!overlayImg) return;
-        const dims = this.assets.getDims(baseId);
-        const cellSize = dims.w / DIRECTIONS.length || DEFAULT_CELL;
-        const rows = WALK_FRAMES + IDLE_FRAMES;
+        const dims = grid?.dims || this.assets.getDims(baseId);
+        const cellSize = grid?.cellSize || (dims.w / DIRECTIONS.length || DEFAULT_CELL);
+        const rows = grid?.rows ?? (WALK_FRAMES + IDLE_FRAMES);
         const cols = DIRECTIONS.length;
-        if (!Number.isInteger(cellSize) || dims.h < rows * cellSize) return;
+        if (!Number.isInteger(cellSize) || !Number.isInteger(rows) || rows <= 0 || dims.h < rows * cellSize) return;
 
         const overlayDims = this.assets.getDims(overlayId);
         const [ax, ay] = this.assets.getAnchor(overlayId);
