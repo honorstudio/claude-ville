@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implement this plan item by item. Each item is one reviewable unit with owned paths, an acceptance statement, and named verification. Re-check every `file:line` anchor before editing; the anchors were read against `35ef417` and line numbers move. Every item cites the research note that proposed it; read that note's proposal section before starting the item.
 
-**Status:** `proposed — not started`
+**Status:** `implemented (Waves 0–5); 2.7 rollout and 3.3 pending measurement`
 
 **Baseline:** `main` at `35ef417` (`v0.44.0` *The Slatekeeper*), clean tree, 2026-09-05. Node v24.16.0. Maintained server on `http://localhost:4000`, resident WebGL2 on `ANGLE Metal Renderer: Apple M5 Pro`.
 
@@ -503,3 +503,52 @@ File ownership is the only real constraint in a shared checkout. Parallel groups
 - Ambient mode never takes the camera from an operator who touched it.
 - 120 Hz slack at FULL with 24 agents is not worse than baseline and 100 agents still reach MINIMAL within 5 s on the reference machine; resident texture bytes do not grow without an offset.
 - `README.md`, `claudeville/CLAUDE.md`, `character-mode/README.md`, `docs/material-channel-contract.md` (C2/C3), `agents/README.md`, and `open-followups.md` say what the code does.
+
+---
+
+## Execution record
+
+Waves 0–1 shipped in `e2bc046`, Waves 2–5 in `b072261`. Every item below names its commit; deviations from the item text are stated where they exist. The six cross-item contracts (C1–C6) all shipped with their producers; their resident summaries live in `claudeville/src/presentation/character-mode/README.md`.
+
+| Item | Result | Commit |
+| --- | --- | --- |
+| 0.1 Name every millisecond | Shipped. Per-pass `EXT_disjoint_timer_query_webgl2` sampling (`upload`, `occlusion`, `scene`, `bloom`, `present`), fixed-capacity rings, disjoint discards; Shift-D prints the block. | `e2bc046` |
+| 0.2 Effect budget receipts | Shipped. `EFFECT_BUDGET` in `gpu/GpuWorldPolicy.js` with measured bands and declared shedding order; Wave 3 rows re-measured at 1920×1080 landed with their effects. | `e2bc046`, `b072261` |
+| 0.3 Atlas admission priced by active channels | Shipped. Shift-D splits pinned/evictable/total bytes, prices channels by real texture dimensions, lists atlas pages and live body atlas. | `e2bc046` |
+| 0.4 Provenance ledger and PixelLab access | Shipped. Manifest `provenance`/`animationGroups`, validator support, live-balance production plan, `pixellab-reference.md` tier corrected; REST pipeline added for Wave 2 (`pixellab-rest.mjs`). | `e2bc046`, `b072261` |
+| 0.5 OMP working set and chrome defects | Shipped. OMP `workingSet` producer from real tool arguments (fixtures under `scripts/adapters/fixtures/omp/`); tip dismisses on `mode:changed`. Parade removed per D1's default (see deviation below). | `e2bc046` |
+| 1.1 Last-observed seal | Shipped. `ObservationCertainty.resolveObservation` (C1), stale seal shape, no fresh ritual motion, `Last observed Ns ago` copy. | `e2bc046` |
+| 1.2 Turn sand | Shipped. `turn-sand` glyph beside selected/hovered workers with 1 Hz age text; one static notch for ≥5 min turns elsewhere; `Last turn Ns` only when `lastTurnDurationMs` was reported; frozen at stale. | `e2bc046` |
+| 1.3 Hold to read | Shipped. `#worldRead` control + hold `B`; classifier-translated verbs (`WRITING · 8`); verbs shown only for non-primary agents; release restores without touching selection. | `e2bc046` |
+| 1.4 Quiet room | Shipped. Decision focus suppresses ordinary speech rectangles and duplicate routine names; emblems, counts, and primary marks stay; no dimming. | `e2bc046` |
+| 1.5 One event, one instrument | Shipped. `shared/EventShapes.js` (C5): one authored 8×8 silhouette per family, shared by Canvas stamps and DOM icons, districts sealed; `event-shapes.test.mjs` covers uniqueness. | `e2bc046` |
+| 1.6 Complete attention frame | Shipped. `AttentionFraming.fitAttentionFrame` ranks by real `awaitingSince`, tries zoom 3→2→1 with the one-third bias only on complete fits, reports exact excluded ids otherwise. | `e2bc046` |
+| 1.7 Witness clock + exception shelf | Shipped, one deviation: the shelf's header is `N NEED YOU · N ERROR · N QUOTA` — the third bucket was broadened from the item's `NEED YOU · ERROR` pair so rate-limited sessions are on the shelf too. Counts, oldest-two default, click-to-select, hidden at zero as written. | `e2bc046` |
+| 1.8 One building instrument | Shipped. `shared/BuildingInstrumentModel.js` splits presence/signal/queue/purpose; unknown payload keys are ignored rather than borrowed; the panel renders each fact once. | `e2bc046` |
+| 2.1 Action strip pilot | Shipped. C2 schema plus `read` groups on `agent.claude.sonnet` and `agent.codex.gpt6astra` (8 directions, 4 frames, authored prompts, per-direction review); `generate-action-strip.mjs` pipeline. | `b072261` |
+| 2.2 Hands that do the work | Shipped. Strip pose resolution in `AgentSprite` with GPU overlay parity; procedural book/wait marks removed for strip characters; stale observation selects the hold frame. | `b072261` |
+| 2.3 Three things a waiting hand holds | Shipped, one deviation: the props (open letter / unsealed command slip / unrolled plan from `waitReason`, sealed only on an observed resolving event) draw on the procedural held pose — the authored `wait` strip row was not part of the committed pilot; its generation is in progress alongside 2.7 (OF-009). Unknown reason keeps the generic mark; nothing derives from elapsed time. | `b072261` |
+| 2.4 Stable signatures | Shipped. `agentSignature` in `ModelVisualIdentity.js`, pure in id + family; `agent-signature.test.mjs`. | `b072261` |
+| 2.5 The child returns as itself | Shipped. Bounded idle-frame miniature crops (≤24 × 14 px) travel with dispatch/merge/return; bursts fold to one miniature with exact count; one static receive beat. | `b072261` |
+| 2.6 Portraits | Shipped, one deviation: crop-first exactly as the item's first step proposed — authored `portraitCrop` metadata on every character (zero generations); the 64 px PixelLab busts were not spent, though the manifest `portrait` path and loader support them. Full-body witness beside the name everywhere. | `b072261` |
+| 2.7 Roster rollout (D2) | Not shipped — pending. The maintainer decision and the generation budget remain open; tracked as OF-009 with the `wait` row. | — |
+| 3.1 Dusk exposure contract | Shipped. `SOURCE_ENERGY_ENVELOPE` buckets (core ≥ spill ≥ bloom, halo area capped with BuildingSprite's absolute cap); D4's reduced Lighthouse/Harbor halo accepted; `dusk-exposure-contract.test.mjs`. | `b072261` |
+| 3.2 Rain borrows the lantern's colour | Shipped. Source-coloured wet reflections under admitted lights on approved materials, contracting with `_surfaceWetness`; FULL eight sources / REDUCED four / MINIMAL static darkening; receipt in `EFFECT_BUDGET`. | `b072261` |
+| 3.3 Window light on the street | Not shipped — blocked. The 0.1 measurements on the reference machine found the per-pass noise floor too close to the item's `[0.4, 1.2]` ms admission band, so the receipt could not be honestly claimed; tracked as OF-010. | — |
+| 3.4 The moon changes the night | Shipped. `moonFillFor` from lunar illumination, moon visibility, and cloud transmission selects reviewed night courses; strictly night-only; cache key carries the course. | `b072261` |
+| 3.5 Light stays inside its palette | Shipped. Command pilot ramp LUT (`light-ramp.command.png`), nearest-sampled per base colour; receipt in `EFFECT_BUDGET`; absent table keeps today's response. | `b072261` |
+| 4.1 Open the workshop | Shipped. C4 aperture model; authored Command `aperture`/`interior`/`foreground` layers plus six `prop.interior.*` props; opens only on selection at zoom ≥ 2; exterior footprint and pathfinding unchanged. Forge second building deliberately not added (pilot judgement pending). | `b072261` |
+| 4.2 Occupied rooms | Shipped. `assignRoomSlots` keeps a working occupant's window stable; one lit room per working occupant on the selected building; waiting is not a failed bulb. | `b072261` |
+| 4.3 Mine assay bench | Shipped. 60 s rolling token-class ledger with exact counts and a provenance-aware cost window; resets show `insufficient coverage`; the percent cargo label is gone (one instrument per fact). | `b072261` |
+| 4.4 Forge workload + result shelf | Shipped. Billets scale with observed edit calls (`N edit calls · last 60s`), hearth banks after a long idle; `adapters/toolResults.js` bounded result records (Codex, Kimi Code, OpenCode), `tool:result` event family, intact/cracked/blank shelf tiles with exact coalesced overflow. | `b072261` |
+| 4.5 Shared-file knot | Shipped. Per-edge observation times in `services/workingSet.js`, `RelationshipState` overlap reduction, `SharedFileKnot.js` ground thread + knot + one overlay plate; panel working-set bench (four tiles, named overlaps, exact overflow). Depends on 0.5's OMP producer, which shipped. | `b072261` |
+| 4.6 Sleeping town | Shipped. `READY_EMPTY` only: banked Forge mouth (`banked.png` mask), work rooms dark, watchtower/harbor safety lights stay; `DEGRADED`/`READY_NO_PROVIDERS` keep the shipped treatment. | `b072261` |
+| 4.7 Task tabs and readable masonry | Shipped. Project-coloured plan tabs with `2/7` and `+N plans`; selected monument ledger with last three real milestones and `+N recorded`. | `b072261` |
+| 5.1 Ambient mode | Shipped. C6 ownership (`camera:owner`), explicit `#worldAmbient` control, wide → cohort → chapter → wide with factual captions and 20–30 s holds; any input revokes until asked again; Auto untouched. | `b072261` |
+| 5.2 Truthful incident chapter | Shipped. Ambient-only incident chapter with held caption and return to the saved wide when the input epoch is unchanged; coalesced to one chapter with exact count. | `b072261` |
+| 5.3 Shared cue score + working section | Shipped. `audio/CueScore.js` publishes admitted cues' real note times; accents land on the notes (`cueNoteDue`/`scheduleAccent`), muted villages get the monotonic-clock score; BGM working section with `Working N · Waiting M` beside the control. | `b072261` |
+| 5.4 Work as a spatial score | Shipped. `WorkWaterfallModel.js` extracted and shared; `SpatialWorkScore.js` places ≤24 nodes at semantic anchors with brackets and gaps; SCORE control, scrub cursor, one 24 s playback pass (never under reduced motion); scrubbing is presentation-only. | `b072261` |
+
+**Maintainer decisions, resolved or open:** D1 resolved (parade removed; real release events still parade). D2 open (roster rollout, OF-009). D3 resolved (Command). D4 resolved (capped halos accepted with 3.1). D5 resolved (Ambient is a separate explicit mode; Auto untouched).
+
+**Verification landed with the waves:** unit tests `attention-framing`, `building-instrument-model`, `event-shapes`, `observation-certainty`, `postfx-ladder`, `w1-i.panel-lifecycle`, `working-set`, `action-strip`, `agent-signature`, `building-aperture`, `cue-score`, `dusk-exposure-contract`, `r3-01.sprite-split`, `tool-results`, and the extended `w11-cache-ore-ratio`/`gpu-world-policy`/`working-set` suites, all under `scripts/tests/`.

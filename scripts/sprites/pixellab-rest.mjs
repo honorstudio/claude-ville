@@ -435,10 +435,13 @@ export function createCharacterAnimation(token, {
 }
 
 // A named group's frames, merged across every record carrying that name: a
-// repaired direction arrives as its own record, so one direction's frames can
-// live in a later record than the rest. Later records win per direction.
+// repaired or regenerated direction arrives as its own record, so one
+// direction's frames can live in a later record than the rest. Later records
+// win per direction, and `byDirectionGroup` records which record won — a
+// forced regeneration waits for that winner to change.
 export function characterAnimationFrames(character, animationName, { frameCount = 1 } = {}) {
     const byDirection = new Map();
+    const byDirectionGroup = new Map();
     const groupIds = [];
     for (const animation of character?.animations || []) {
         if (animation.display_name !== animationName && animation.animation_type !== animationName) continue;
@@ -446,19 +449,24 @@ export function characterAnimationFrames(character, animationName, { frameCount 
         for (const entry of animation.directions || []) {
             if ((entry.frames?.length || 0) < frameCount) continue;
             byDirection.set(entry.direction, entry.frames);
+            byDirectionGroup.set(entry.direction, animation.animation_group_id || null);
         }
     }
-    return { byDirection, groupIds };
+    return { byDirection, byDirectionGroup, groupIds };
 }
 
 // Resolves once every requested direction of `animationName` carries
-// `frameCount` frames. Throws after `maxWaitMs`, or after `stallMs` without a
-// single new direction — a failed background job never completes, so the caller
-// repairs the missing directions instead of waiting out the whole deadline.
+// `frameCount` frames. `excludeGroupIds` marks records that predate a
+// regeneration request: a direction is only ready once its winning record is
+// newer than that request. Throws after `maxWaitMs`, or after `stallMs`
+// without a single new direction — a failed background job never completes,
+// so the caller repairs the missing directions instead of waiting out the
+// whole deadline.
 export async function waitForCharacterAnimation(token, characterId, {
     animationName,
     directions,
     frameCount,
+    excludeGroupIds = null,
     pollIntervalMs = 20_000,
     maxWaitMs = 25 * 60 * 1000,
     stallMs = 6 * 60 * 1000,
@@ -469,22 +477,24 @@ export async function waitForCharacterAnimation(token, characterId, {
     let lastProgress = Date.now();
     for (;;) {
         const character = await getCharacter(token, characterId);
-        const { byDirection, groupIds } = characterAnimationFrames(character, animationName, { frameCount });
-        const ready = directions.filter((direction) => byDirection.has(direction));
-        if (ready.length === directions.length) return { character, byDirection, groupIds };
+        const { byDirection, byDirectionGroup, groupIds } = characterAnimationFrames(character, animationName, { frameCount });
+        const ready = directions.filter((direction) => byDirection.has(direction)
+            && (!excludeGroupIds || !byDirectionGroup.get(direction) || !excludeGroupIds.has(byDirectionGroup.get(direction))));
+        if (ready.length === directions.length) return { character, byDirection, byDirectionGroup, groupIds };
         if (ready.length > best) {
             best = ready.length;
             lastProgress = Date.now();
         }
         const stalled = Date.now() - lastProgress > stallMs;
         if (stalled || Date.now() > deadline) {
-            const missing = directions.filter((direction) => !byDirection.has(direction));
+            const missing = directions.filter((direction) => !ready.includes(direction));
             throw new Error(`PixelLab animation ${label} ${stalled ? 'stalled' : 'timed out'} with ${ready.length}/${directions.length} directions complete (missing ${missing.join(', ')})`);
         }
         console.log(`[pixellab] ${label}: ${ready.length}/${directions.length} directions complete`);
         await sleep(pollIntervalMs);
     }
 }
+
 
 export async function fetchPng(url, { retries = 2, label = 'frame' } = {}) {
     let lastError = null;

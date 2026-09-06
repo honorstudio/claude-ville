@@ -28,6 +28,7 @@ import {
     channelContractMatchesRegistry,
     channelsForManifest,
     companionChannels,
+    companionPathForChannel,
     sidecarFieldFor,
 } from './channel-registry.mjs';
 
@@ -44,6 +45,16 @@ export function materialExpectedPngPaths(manifest) {
     for (const entry of collectSpriteEntries(manifest)) {
         for (const frame of frameSpecsForEntry(entry, channels)) {
             for (const path of Object.values(frame.sidecars || {})) {
+                if (path) expected.add(relativeSpritePath(path));
+            }
+        }
+        // An optional C2 action strip carries its own companions against the
+        // strip path under the same sidecar declarations; they are semantic
+        // data like every other companion, not albedo art.
+        const stripPath = entry.id?.startsWith('agent.') ? entry.actionStrip?.path : null;
+        if (stripPath) {
+            for (const channel of channels.slice(1)) {
+                const path = companionPathForChannel(entry, channel, stripPath);
                 if (path) expected.add(relativeSpritePath(path));
             }
         }

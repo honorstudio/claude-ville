@@ -186,3 +186,43 @@ The application, audio, and shared presentation layers communicate through strin
 - `attention:digest` is emitted after an unattended return when Chronicle has a non-empty summary. Its top-level payload is `{ kind: 'unattended-digest', message, type, since, until, awayMs, summary }` (`claudeville/src/application/AttentionService.js:333-360`). `Toast` consumes it as a longer-lived summary so return-time cue traffic does not erase the account of what happened while the operator was away (`shared/Toast.js:100-125`).
 
 The contracts keep the subsystems independently replaceable: attention detection does not know how sound or captions are rendered, CueKit does not know which UI presents a caption, and the digest producer does not depend on one Toast implementation. If a field is renamed, omitted, or changes meaning, update every emitter and consumer together, the event-focused unit tests, and this entry.
+
+## The Mine states counts, never percentages
+
+The token mine's cargo and assay bench report exact quantities — `8,192 input · 32,768 cache read · observed last 60s` — and never a share. The transient `NN% CACHE` label is gone (`LandmarkActivity.formatExactCount`, the assay-bench label builders, and `tokenItemTooltip` in `claudeville/src/presentation/character-mode/LandmarkActivity.js`; regression `scripts/tests/w11-cache-ore-ratio.test.mjs`). Spend on the bench is only ever a difference between two consecutive fresh, same-provenance observations of the same session; a counter reset or a provenance flip restarts coverage and the bench says so instead of computing across the gap.
+
+A percentage hides both denominators this surface needs: a 90% cache share of 400 tokens and of 4,000,000 tokens are different facts, and provider-reported versus estimated cost are different provenance. The plan's guardrail ("counts, never percentages, in attention surfaces") became load-bearing here first; any new attention surface inherits it.
+
+If you change this, update: `LandmarkActivity.js`, the mine cargo/assay drawing in `BuildingSprite.js`, `scripts/tests/w11-cache-ore-ratio.test.mjs`, and `docs/world-visual-qa-checklist.md`.
+
+## A dashboard update is not a village release
+
+The Harbor release parade answers only real release events. `VillageDirector.triggerReleaseParade` runs from `harbor:release-burst` and `chronicle:milestone` of kind `release` (`claudeville/src/presentation/character-mode/VillageDirector.js`); the former synthesized once-per-stored-version parade (`triggerReleaseParadeOnceForVersion`, which read the dashboard's own version string) was removed. Version discovery stays in the in-app changelog affordance; simulator release metadata and genuine tag-push milestones still parade.
+
+The removed parade fired on every fresh headless context (`PARADE v0.44` on an empty island): a ClaudeVille update is shipped by the maintainer, not released by the operator's agents, and celebrating the former as the latter told a false story at the village's most visible landmark.
+
+If you change this, update: `VillageDirector.js`, `docs/design-decisions.md` (this entry), and the `release-parade` QA scenario in `docs/world-visual-qa-checklist.md`.
+
+## One instrument per fact
+
+A signal gets exactly one visual encoding per surface: one on the body, one on the building, one in the DOM. When the frontier visual work replaced an existing cue it removed the old one in the same change — the authored `read` strip replaces the procedural book and wait question mark for characters that carry a strip (`AgentSprite._actionStripPose`), the C4 aperture is the only interior presentation (its identities and counts equal `BuildingInstrumentModel`'s, which renders each building fact once in the panel), and the exact-count mine trays replaced the percentage cargo label. `shared/BuildingInstrumentModel.js` is the canonical split: presence (visit test), signal (assigned WORKING sessions), queue, purpose — an unknown key on the payload is ignored rather than borrowed as a count or denominator.
+
+Two encodings of one fact on one surface always drift apart, and the operator cannot tell which one is the truth when they disagree. The pure model files (`BuildingInstrumentModel.js`, `BuildingApertureModel.js`, `WorkWaterfallModel.js`, `ObservationCertainty.js`) exist so each fact has one derivable presentation instead of several re-derivations.
+
+If you change this, update: the pure model, its consumers in `ActivityPanel.js`/`BuildingSprite.js`/`AgentSprite.js`, and the contract summaries in `claudeville/src/presentation/character-mode/README.md`.
+
+## Ambient camera never re-arms on a timer
+
+Ambient camera ownership is entered only through the explicit AMBIENT CAM control and, once revoked, is never re-acquired automatically (`CameraDirector.setAmbient` and the `_ambient` scheduler state in `claudeville/src/presentation/character-mode/CameraDirector.js`; the control's resume state in `App.js._initAmbientControl`). Any genuine input — pointer-down, wheel, navigation key, selection — releases the claim; the button then waits to be asked again. The pre-existing automatic (`auto`) timers are unchanged and never run while an Ambient claim stands.
+
+Timed re-takeover after manual input is the one behaviour that makes a broadcast feel like camera theft: the operator pans away, the village pulls the frame back. Ambient is a mode the operator knowingly lends the frame to, and lending ends when they touch it.
+
+If you change this, update: `CameraDirector.js`, `App.js` (`#worldAmbient` wiring), the C6 summary in `claudeville/src/presentation/character-mode/README.md`, and the Ambient checks in `docs/world-visual-qa-checklist.md`.
+
+## One dusk exposure contract, halos capped
+
+Every consumer of motivated light reads one reviewed source-energy envelope — `SOURCE_ENERGY_ENVELOPE` in `claudeville/src/presentation/character-mode/AtmosphereState.js` with buckets `daylight → settling → lamplight → deep-night`, each allocating `core >= spill >= bloom` and a `halo` area cap enforced with the absolute cap in `BuildingSprite`. Before the contract, `lightBoost`, `emissivePhase`, `beaconIntensity`, and `buildingGlowScale` each applied their own continuous boost and the products stacked, so dusk brightened four times over and the Lighthouse/Harbor halos outgrew the work they were lighting. Feeds authored without an envelope keep the neutral response (`NEUTRAL_SOURCE_ENERGY`), and action-needed overlays are outside this budget. The maintainer decision to accept a reduced Lighthouse/Harbor halo radius (D4) is recorded in the plan's execution record.
+
+Bloom energy that outranks the work it decorates inverts the scene's meaning: the busiest night looks like the emptiest one. One reviewed table with cores first is cheaper to reason about than four multiplied boosts, and it gives every Wave 3 effect a shared energy budget to substitute within rather than add to.
+
+If you change this, update: `AtmosphereState.js` (`SOURCE_ENERGY_ENVELOPE`, `sourceEnergyFor`), the halo caps in `BuildingSprite.js`, `gpu/GpuWorldPolicy.js` (the `exposure-envelope` receipt prices saved time), `scripts/tests/dusk-exposure-contract.test.mjs`, and `docs/world-visual-qa-checklist.md`.

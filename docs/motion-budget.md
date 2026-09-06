@@ -25,10 +25,10 @@ Existing local pulse math can migrate gradually as nearby features are touched. 
 
 | Band | Cadence | Canonical owner | Permitted claimants | Forbidden |
 | --- | --- | --- | --- | --- |
-| `slow` | More than 1 second | Selection ring | Observatory sweep, lighthouse beam, directional chat flow | Competing pulse claimants when selection is active on the same agent |
-| `medium` | Around 600 ms | Working-status glow | Forge burst, archive page flip, mine pickaxe, portal rune boost, mote orbit, carrier-bird flight | A second medium pulse on an entity already showing working glow |
+| `slow` | More than 1 second | Selection ring | Observatory sweep, lighthouse beam, directional chat flow, ambient camera lateral glides (one-shot moves, never while a competing claimant is active), work-score playback cursor (one 24 s pass over the kept span) | Competing pulse claimants when selection is active on the same agent |
+| `medium` | Around 600 ms | Working-status glow | Forge burst, archive page flip, mine pickaxe, portal rune boost, mote orbit, carrier-bird flight, action-strip read beat (a two-frame beat that replaces the working-status glow on that body instead of stacking on it) | A second medium pulse on an entity already showing working glow |
 | `fast` | Less than 300 ms | Recent-event flash | Spark ring, taskboard pin, re-merge sparkle, wisp landing pulse | Continuous use |
-| `static` | No pulse | Idle agents, building lights, hearth glow | Command flag, harbor crate, mine seam tint, council ring, council gather notches and team mark, recovery bracket and relief diamond, departure sigil, monument freshness, manifest plank weathering | Replacing these static cues with repeating motion |
+| `static` | No pulse | Idle agents, building lights, hearth glow | Command flag, harbor crate, mine seam tint, council ring, council gather notches and team mark, recovery bracket and relief diamond, departure sigil, monument freshness, manifest plank weathering, parent receive beat, shared-file knot thread and plate, work-score glyph nodes and interval brackets, held-wait hand props, child-return miniature | Replacing these static cues with repeating motion |
 
 ## Priority Iteration
 

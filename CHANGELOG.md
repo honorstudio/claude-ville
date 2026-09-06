@@ -2,6 +2,55 @@
 
 ---
 
+## v0.45.0 — *The Open Door* · Sep 06, 2026
+
+The village becomes more extraordinary by becoming more truthful: bodies whose hands do the work, buildings that open to show who is inside, light that belongs to the architecture, and a frame that steps back until the operator asks for an instrument. Plan and evidence: `agents/plans/claudeville-frontier-visual-plan.md`.
+
+**Instruments**
+- Shift-D names every millisecond and every effect: opt-in per-pass GPU timings for `upload`, `occlusion`, `scene`, `bloom`, `present` (one pass per 12 frames in rotation, disjoint samples discarded), atlas accounting split into pinned and evictable bytes, and a measured budget receipt for each optional effect — the shed list prints what was dropped, in which mode, and why. Key order in `EFFECT_BUDGET` is the shedding order; an effect without a measured band is not admitted.
+- The sprite manifest gains named animation groups and provenance (`characterId`, `animationGroupId`, `generationSize`) across the roster, a production plan against the live PixelLab balance, and a REST pipeline (`scripts/sprites/pixellab-rest.mjs`, `scripts/sprites/generate-action-strip.mjs`) that works where the MCP mount cannot authenticate.
+- OMP sessions now produce a working set (newest canonical paths with read/write and observation time) from real tool arguments; the first-run World Controls tip dismisses on mode switch; the dashboard version no longer synthesizes a Harbor release parade — the parade answers only real release events.
+
+**Read the village**
+- A stale worker keeps identity and every primary mark but stops fresh ritual motion and carries a cut-corner last-observed seal; selected copy reads `Last observed 25s ago`, never `Idle 25s`.
+- Turn sand replaces progress bars: a three-notch timer beside the selected worker states observed turn age (`2m 18s`), unusually long turns elsewhere get one static notch, and a completed turn briefly states `Last turn 38s` only when the provider reported the duration.
+- Hold `B`/READ and routine nameplates yield to short work verbs from the canonical tool classifier (`FORGE` reads `WRITING · 8`); release restores names without touching selection.
+- The `A` attention frame is built from the complete action-needed set ranked by real wait age and states the exact excluded count when geometry cannot include everyone; entering focus quiets speech rectangles and duplicate routine names while every primary mark stays.
+- One event family, one authored silhouette: edit strike, read page, shell slate, message scroll, incident bracket, child return, release crown, stale seal, turn sand, and per-district seals are shared by Canvas stamps and DOM icons — no family distinguished by colour alone.
+- The top bar carries the witness clock (`22:14 NIGHT`, stepped weather glyph, `SIM`/`FIXED` when overridden) and the Sidebar a brass exception shelf (`2 NEED YOU · 1 ERROR · 1 QUOTA`, two oldest names, click to select, hidden at zero).
+- The selected building panel renders each fact once — presence, work signal, queue, purpose — through one pure model whose numbers the interior aperture reuses.
+
+**Bodies**
+- Two pilot characters (Sonnet and Astra) carry authored four-frame `read` action strips — the book opens between both hands — with procedural fallback everywhere else; GPU and Canvas resolve the same frames.
+- A waiting agent's held palm carries its reason from `waitReason`: an open letter (question), a closed command slip awaiting its seal (approval), or an unrolled plan (plan review); the slip seals only on an observed resolving event, never while the wait is pending, and never from elapsed time.
+- Every agent carries a stable signature (pure function of id and family) that survives hero body, compact body, and impostor diamond, so one individual stays followable through zoom.
+- Subagent dispatch and return wisps carry a crop of the child's own idle frame plus its signature; bursts fold onto the parent as one miniature with an exact child count and one static receive beat — returned, not succeeded.
+- Every character sheet gained an authored portrait crop for the head-and-shoulders view, with the full-body witness (weapons, effort crowns) always beside the name.
+
+**Light**
+- One dusk exposure contract allocates motivated light cores-first (window cores, then spill and wet reflection, bloom last) from a small reviewed bucket table; the Lighthouse and Harbor halos stop outranking the work they light.
+- The moon changes the night: one `moonFill` scalar from real lunar illumination and cloud transmission selects reviewed night ambient courses, identical in resident, hybrid, and Canvas.
+- Rain borrows the lantern's colour: broken source-coloured reflections lie under admitted lights on approved wet materials and contract as rain stops; every effect carries its measured receipt.
+- Command's pilot palette ramp quantizes admitted local light to an authored dark/mid/high LUT instead of multiplying toward white — slate stays slate, gold reaches an authored highlight.
+
+**Open door**
+- Selecting Command at zoom 2 or closer swaps its front wall for an authored sectional interior: real assigned sessions as identity tokens with their current tool, at most the seat count plus an exact `+N more`, exterior footprint and pathfinding unchanged.
+- At night the selected building lights one stable room per real working occupant; leaving work extinguishes only that room, and a waiting agent is not a failed bulb.
+- Beside the Mine, an assay bench keeps the last 60 seconds as exact dark-ore and pale-crystal counts with a provenance-aware cost window — counts, never percentages; the transient percent cargo label is gone.
+- The Forge stacks workload billets by observed edit calls and keeps a result shelf that stamps only provider-reported command outcomes: intact `exit 0`, cracked `exit 1`, blank while unknown. Codex, Kimi Code, and OpenCode report bounded results; providers without such records carry none, and nothing synthesizes them.
+- Selecting a writer reveals one angular ground thread and a double-pencil knot with exact writer counts; the panel's working set becomes four READ/WRITE file tiles with named overlaps behind one exact overflow.
+- The task board gains project-coloured plan tabs (`2/7`, `+9 plans`) and a selected chronicle monument a low stone ledger of its last three real milestones; on a confirmed-empty village the Forge banks to an ember and the safety lights stay.
+
+**Broadcast**
+- AMBIENT CAM: an explicit, patient broadcast — wide of the active districts, lateral glides to the busiest real work cohort, an earned incident chapter, back to the wide — with factual captions and 20–30 s holds. Any input revokes it until asked for again; nothing re-arms on a timer; reduced motion holds one static overview.
+- A rejected push in Ambient earns exactly one Harbor/Watchtower chapter with a held caption and a return to the saved wide; outside Ambient the camera never moves for it.
+- Visual accents land on the cue score's real note times — the recovery bracket closes on the first bell, its diamond on the octave, one council notch per gathered member on successive bells — and a muted village gets the same score on the monotonic clock, so nothing waits for sound. BGM thins at the next four-bar boundary when the village rests and states `Working N · Waiting M` beside the music control.
+- On request (SCORE), the selected run's last 20 minutes become a badged spatial score over the village: tool glyphs at their semantic buildings, scrubbable cursor, approvals as long brackets, children beside their real parent, unknown time as gaps — one shared pure waterfall with the panel, never a claim that the agent walked there.
+
+**Not shipped:** the 2.7 roster rollout of action strips and the authored `wait` strip row are in progress (pilot `read` groups shipped for two characters); 3.3 window light reaching the street remains conditional on its measured receipt ([OF-009](agents/plans/open-followups.md), [OF-010](agents/plans/open-followups.md)).
+
+---
+
 ## v0.44.0 — *The Slatekeeper* · Sep 05, 2026
 
 The task board becomes a readable record of live work, from the village overview down to individual checklist items. This release includes all local work since v0.42.0, including the additions documented under v0.43.0 that were not published separately.

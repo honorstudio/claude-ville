@@ -59,6 +59,7 @@ Each capture records:
 - full-frame Canvas upload, water-mask upload, setup CPU, shader CPU, and GPU timings;
 - adaptive PostFX level, score, driver, last degradation reason, and source-frame override;
 - named GPU textures/attachments and total bytes;
+- resident-GPU quality level and reason, the C3 effect-budget shed list with named modes and the shed reason, per-pass GPU/CPU timings for `upload`, `occlusion`, `scene`, `bloom`, `present` (opt-in per-pass sampling via `EXT_disjoint_timer_query_webgl2`, one pass per 12 frames in rotation, disjoint samples discarded), and pinned versus evictable texture bytes with the live body-atlas size;
 - visible and cached Canvas pixels, terrain strategy, and frame failures;
 - trail policy, cache space, repaint totals, high-water pixels, and per-camera-mode timing;
 - a versioned approximate overlay census for requested normal/dense frames.

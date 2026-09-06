@@ -9,7 +9,7 @@ Desktop-only constraint: validate at browser widths of 1280px or wider. Do not a
 | File | Responsibility |
 | --- | --- |
 | `DashboardRenderer.js` | Project grouping, card creation/reuse, active-mode detail polling, card click selection, and tool-history rendering. |
-| `AvatarCanvas.js` | Small per-agent canvas avatar used inside dashboard cards. |
+| `AvatarCanvas.js` | Small per-agent canvas avatar used inside dashboard cards, plus the Activity Panel's larger hero niche. Characters whose manifest entry carries `portraitCrop` (an authored head-and-shoulders crop of the composed south idle frame) or a generated `portrait` bust render as that portrait; every character without portrait metadata keeps the full-body avatar, and a 26×32 full-body witness stays beside the name whenever a portrait is shown so held weapons and effort crowns are not erased by the crop. Avatars can request the exact composited bitmap the World draws from `character-mode/Compositor.shared()` instead of re-loading raw sheet frames. |
 
 ## Lifecycle
 

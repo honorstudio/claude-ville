@@ -1,5 +1,5 @@
 style:
-  assetVersion: "2026-09-06-action-strip-pilot"
+  assetVersion: "2026-09-06-action-strip-roster"
   anchor: "epic high-fantasy pixel art, dramatic lighting, painterly palette, crisp pixel edges, no anti-aliasing, heroic silhouettes, faint magical glow on landmarks"
 
 # Optional semantic channels. Canvas mode keeps loading the original albedo
@@ -175,6 +175,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt55/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 2d64b6cc-f4e4-4f71-ac1a-dc025a5e8650, animationGroupId: 3e3da200-19e1-4c35-9f7b-349b70c5b2f0, generationSize: 116 }
     portraitCrop: { x: 28, y: 15, w: 36, h: 30 }
     provenance: { characterId: 2d64b6cc-f4e4-4f71-ac1a-dc025a5e8650 }
     palette_layer: codex
@@ -229,6 +235,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt55.xhigh/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c591af5b-a4e7-494b-a289-e5f9f7f6caf6, animationGroupId: 79807e50-1d42-4c2a-b54b-042d51db52de, generationSize: 140 }
     portraitCrop: { x: 28, y: 13, w: 38, h: 32 }
     provenance: { characterId: c591af5b-a4e7-494b-a289-e5f9f7f6caf6 }
     palette_layer: codex
@@ -283,6 +295,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56sol/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c3424b1d-2a37-47db-bc9a-dfb88bf53885, animationGroupId: b9ee8a17-e595-4302-b0a2-a721331d163b, generationSize: 128 }
     portraitCrop: { x: 26, y: 13, w: 40, h: 34 }
     provenance: { characterId: c3424b1d-2a37-47db-bc9a-dfb88bf53885 }
     palette_layer: codex
@@ -308,6 +326,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56terra/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: c4799a67-269a-42e3-bd30-030d5c01bc3f, animationGroupId: c693a6b6-9f16-47a8-8378-a33c14585b63, generationSize: 116 }
     portraitCrop: { x: 28, y: 14, w: 36, h: 32 }
     provenance: { characterId: c4799a67-269a-42e3-bd30-030d5c01bc3f }
     palette_layer: codex
@@ -335,6 +359,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt56luna/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 4c14cc02-74fc-48bc-8968-d4594c2ae150, animationGroupId: c4039946-9cc6-47e0-9f09-393c0c33572c, generationSize: 120 }
     portraitCrop: { x: 29, y: 14, w: 34, h: 36 }
     provenance: { characterId: 4c14cc02-74fc-48bc-8968-d4594c2ae150 }
     palette_layer: codex
@@ -359,6 +389,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt54/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: a3960653-9e68-42f3-9569-82b7974477b3, animationGroupId: d22e1092-ad71-497d-8fa5-d2df4f1b08ec, generationSize: 116 }
     portraitCrop: { x: 30, y: 16, w: 34, h: 30 }
     provenance: { characterId: a3960653-9e68-42f3-9569-82b7974477b3 }
     palette_layer: codex
@@ -383,6 +419,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.gpt53spark/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: fbc5f021-cf8a-45de-8fc0-bf2b3497c134, animationGroupId: baaa42f9-f2a6-4b14-a294-5840dacf0060, generationSize: 108 }
     portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
     provenance: { characterId: fbc5f021-cf8a-45de-8fc0-bf2b3497c134 }
     palette_layer: codex
@@ -407,6 +449,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.claude.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f38d99a1-4cf7-4cca-aaaf-120737e6fdee, animationGroupId: f67f8ca1-def9-4f36-b0ed-81792870ad21, generationSize: 112 }
     portraitCrop: { x: 30, y: 13, w: 34, h: 34 }
     provenance: { characterId: f38d99a1-4cf7-4cca-aaaf-120737e6fdee }
     palette_layer: claude
@@ -428,6 +476,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.codex.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 5791ece8-3708-4431-86a4-31c5d5314777, animationGroupId: 73e38688-610a-47c5-b4bc-d7d1f04b0588, generationSize: 104 }
     portraitCrop: { x: 30, y: 19, w: 32, h: 32 }
     provenance: { characterId: 5791ece8-3708-4431-86a4-31c5d5314777 }
     palette_layer: codex
@@ -482,6 +536,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.kimi.base/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: d52fcc0a-ff5d-4435-9b53-271fb3d72ff1, animationGroupId: fe969744-d2e6-43a5-bc4d-da3ae48a7c1a, generationSize: 108 }
     portraitCrop: { x: 31, y: 17, w: 32, h: 32 }
     provenance: { characterId: d52fcc0a-ff5d-4435-9b53-271fb3d72ff1 }
     palette_layer: kimi
@@ -508,6 +568,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.reasoner/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 52c6aee3-fdf6-42a4-b5f5-8851b0145094, animationGroupId: 08784557-f6ca-4c25-bbd3-34dd605b4ad1, generationSize: 140 }
     portraitCrop: { x: 30, y: 12, w: 34, h: 30 }
     provenance: { characterId: 52c6aee3-fdf6-42a4-b5f5-8851b0145094 }
     palette_layer: deepseek
@@ -535,6 +601,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.pro/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: b43a2e2e-8e6e-40a0-ba6c-b9d4514ffb57, animationGroupId: 0157e4c7-afb9-45df-a655-dcde185657c0, generationSize: 136 }
     portraitCrop: { x: 29, y: 12, w: 34, h: 32 }
     provenance: { characterId: b43a2e2e-8e6e-40a0-ba6c-b9d4514ffb57 }
     palette_layer: deepseek
@@ -562,6 +634,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.deepseek.flash/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: 8bc97f0f-9d7f-4801-92a3-2191cd60fc4b, animationGroupId: b930b023-8b4e-4c4a-88b9-282d5e0ed671, generationSize: 112 }
     portraitCrop: { x: 31, y: 15, w: 32, h: 32 }
     provenance: { characterId: 8bc97f0f-9d7f-4801-92a3-2191cd60fc4b }
     palette_layer: deepseek
@@ -622,6 +700,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.grok.composer/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, animationGroupId: 9f508b8c-456c-428f-a931-f64cfb3a213a, generationSize: 116 }
     portraitCrop: { x: 30, y: 15, w: 32, h: 30 }
     provenance: { characterId: f70b6f4c-b250-40bd-b1ad-fcb1a16a17a2, generationSize: 76, generationMode: pro }
     palette_layer: grok
@@ -655,6 +739,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.zai.glm/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, animationGroupId: c470a518-e4fd-4ec0-92f9-af78e82a53cf, generationSize: 76 }
     portraitCrop: { x: 30, y: 17, w: 32, h: 32 }
     provenance: { characterId: f64e33dc-6476-4c03-aac3-722e32a82088, generationSize: 76, generationMode: pro }
     palette_layer: zai
@@ -682,6 +772,12 @@ characters:
     generationMode: pro
     animations: [walk, breathing-idle]
     animationGroups: { walk: { rows: [0, 5] }, breathingIdle: { rows: [6, 9] } }
+    actionStrip:
+      path: characters/agent.zai.flash/actions.png
+      cell: 92
+      groups: { read: { rows: [0, 3], hold: 3 } }
+      grip: { hand: both, sheathe: true }
+      provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, animationGroupId: 3d89ced6-3563-47c8-863a-45f4777376eb, generationSize: 76 }
     portraitCrop: { x: 31, y: 16, w: 32, h: 32 }
     provenance: { characterId: f2b37456-ed34-4c67-84bf-f1ab93cf6f68, generationSize: 76, generationMode: pro }
     palette_layer: zai

@@ -11,17 +11,18 @@ The directory is named `character-mode/` for historical reasons. In prose, the u
 | `IsometricRenderer.js` | Render loop (`requestAnimationFrame`), terrain/water/road generation, hit testing, click and hover handlers, event-bus subscriptions, and selection plumbing. |
 | `Camera.js` | Pan, zoom, `centerOnMap`, `followAgent` / `stopFollow`, `screenToWorld` / `worldToScreen` projections. |
 | `CanvasBudget.js` | Effective DPR selection and backing-store guardrails for large desktop canvases. |
-| `AgentSprite.js` | Per-agent sprite state: tile position, smoothed motion, selection ring, chat animation toward a target sprite, hit testing in world coordinates. |
+| `AgentSprite.js` | Per-agent sprite state: tile position, smoothed motion, selection ring, chat animation toward a target sprite, hit testing in world coordinates, the turn-sand age text, wait-reason hand props, and C2 action-strip pose resolution with procedural-overlay fallback for characters without a strip. |
 | `AgentBehaviorState.js` | Per-agent behavior and destination state used by movement/visit systems. |
 | `VisitIntentManager.js`, `VisitTileAllocator.js` | Building capacity, visit reservations, and destination assignment. |
-| `BuildingSprite.js` | Current building visuals, sprite blits, hover state, building-specific decoration/effects, occlusion split for hero buildings, and `hitTest` in world coordinates. |
-| `TaskboardBoardModel.js` | Pure selected/pinned agent resolution plus phase-aware TodoWrite grouping, truthful full-list progress layouts for the inset slate chalk face at every zoom level. |
-| `BuildingVisualRegistry.js` | Data-driven building visual profiles for labels, sprites, lights, emitter anchors, overlays, and split-pass rules. |
+| `BuildingSprite.js` | Current building visuals, sprite blits, hover state, building-specific decoration/effects, occlusion split for hero buildings, and `hitTest` in world coordinates. Also draws the C4 inspection aperture (Command's authored sectional interior with identity tokens and exact overflow), the occupied-room window slots, the Forge workload billets and result shelf, the Mine assay bench, and the `READY_EMPTY` banked rest state. |
+| `TaskboardBoardModel.js` | Pure selected/pinned agent resolution plus phase-aware TodoWrite grouping, truthful full-list progress layouts for the inset slate chalk face at every zoom level, and project-coloured plan tabs with `done/total` and an exact `+N plans` overflow. |
+| `BuildingVisualRegistry.js` | Data-driven building visual profiles for labels, sprites, lights, emitter anchors, overlays, split-pass rules, interior/aperture layer sets, and optional workload benches. |
+| `BuildingApertureModel.js` | Pure C4 aperture model and stable room-slot allocator. Presents assigned/visiting sessions as seats with tool labels and an exact overflow count — never the sprite's physical position — and only for selection at zoom ≥ `APERTURE_MIN_ZOOM` (2). |
 | `NightOccupancyGate.js` | Pure night-window phase, live working-status, and reduced-motion-aware transition policy shared by Canvas and GPU building light paths. |
-| `AssetManager.js` | Loads `manifest.yaml` and `palettes.yaml`, maps manifest IDs to PNG paths, cache-busts with `style.assetVersion`, and supplies placeholder/checker fallbacks. Material companions and deterministic atlases are opt-in and never use the checker fallback. |
+| `AssetManager.js` | Loads `manifest.yaml` and `palettes.yaml`, maps manifest IDs to PNG paths, cache-busts with `style.assetVersion`, and supplies placeholder/checker fallbacks. Material companions and deterministic atlases are opt-in and never use the checker fallback. Optional C2 action strips load lazily per resident model through the character demand path and never widen the base sheet. |
 | `MaterialRegistry.js` | Stable material classes, authored upper-left key-light convention, safe channel defaults, companion-path rules, and semantic material normalization. |
 | `SpriteRenderer.js` | Single entry point for PNG sprite blits; keeps pixel-art draws snapped and smoothing disabled. Also builds additive sprite-quad records and can draw optional companion channels for debugging. |
-| `SpriteSheet.js` | Character sheet frame lookup and 8-direction velocity mapping. Character sheets are 8 columns × 10 rows of 92px cells. |
+| `SpriteSheet.js` | Character sheet frame lookup and 8-direction velocity mapping. Character sheets are 8 columns × 10 rows of 92px cells. Optional per-character action strips resolve named groups (`read`) to strip cells via `resolveActionFrame` or return `null` so the procedural overlay stays in charge. |
 | `Compositor.js` | Palette-swap and accessory overlay composition. |
 | `TerrainTileset.js` | Wang-tile neighbor masks and isometric tile transforms. |
 | `SceneryEngine.js` | Water, shore, bridges, vegetation, boulders, and walkability data. |
@@ -30,14 +31,17 @@ The directory is named `character-mode/` for historical reasons. In prose, the u
 | `LightSourceRegistry.js` | Shared light-source records consumed by world grading and effects. |
 | `HarborTraffic.js` | Harbor/ship motion and git-event-aware harbor activity. |
 | `BridgeLanterns.js` | Age-ordered pending-branch lantern plan, plank drawables, hover copy, and night light sources. |
-| `LandmarkActivity.js` | Harbor/landmark event extraction and activity state updates tied to git-event streams. |
-| `AgentEventStream.js` | Shared observer that derives tool, subagent, team, and chat semantic events from `agent:*` updates. |
-| `RelationshipState.js` | Debounced relationship snapshot for parent/child, team, arrival/departure, and chat-pair consumers. |
-| `ArrivalDeparture.js`, `TrailRenderer.js` | Relationship arrival/departure cues and movement trails. |
-| `Chronicler.js`, `ChronicleEvents.js`, `ChronicleMonuments.js` | Chronicle event capture and monument rendering. |
+| `LandmarkActivity.js` | Harbor/landmark event extraction and activity state updates tied to git-event streams. Owns the Mine assay bench's rolling 60 s token-class ledger (exact counts, provenance-aware cost window, `insufficient coverage` on resets) and the Forge workload state (`N edit calls · last 60s`, banked after a long idle). |
+| `AgentEventStream.js` | Shared observer that derives tool, subagent, team, and chat semantic events from `agent:*` updates, and emits one `tool:result` per newly observed provider result record (the adapters' bounded `lastResults`). |
+| `RelationshipState.js` | Debounced relationship snapshot for parent/child, team, arrival/departure, and chat-pair consumers. Reduces server-detected working-set overlaps (`agent.collisions`) to one peer edge plus exact per-building counts for the shared-file knot. |
+| `ArrivalDeparture.js`, `TrailRenderer.js` | Relationship arrival/departure cues and movement trails. Dispatch and merge wisps carry a bounded crop of the child's own idle frame plus its stable signature; completions fold onto the parent as one miniature with an exact child count and one static receive beat. |
+| `Chronicler.js`, `ChronicleEvents.js`, `ChronicleMonuments.js` | Chronicle event capture and monument rendering, plus a selected monument's low stone ledger (last three real milestones, exact `+N recorded`). |
 | `CouncilRing.js` | Team/council ring visuals around related agents, plus the gather roll call: on a real `team:gather` one notch lands at each gathered member's feet on the council cue's successive bells (`shared/audio/CueScore`), and a static `team · N` mark states the whole membership on the final one. One ceremony at a time, held 8s, drawn in the upper overlay; reduced motion and a silent village draw every mark at once. |
 | `PulsePolicy.js` | Shared pulse-priority parser and defaults. |
 | `ObservationCertainty.js` | Pure resolver turning provider freshness/`signalStale`/residency into `{ state, observedAt, ageMs }`. Stale observation suppresses new ritual motion and earns the last-observed seal; it never becomes an execution status. |
+| `AttentionFraming.js` | Pure world-space fit for the `A` attention frame: ranks the complete action-needed set by real `awaitingSince` (unknown ages sort last), tries centered zooms 3→2→1 with a one-third bias only when nothing is excluded, and returns the exact excluded ids when no complete fit exists. |
+| `SharedFileKnot.js` | The shared-file knot: at most one angular ground thread (suppressed under annotation pressure; dense load keeps the counts and drops the lines), a double-pencil knot for two writers, and one upper-overlay plate with exact counts. Static band; copy says `recent shared file` unless concurrency was actually observed. |
+| `SpatialWorkScore.js` | The spatial work score: reduces the shared causal waterfall to at most 24 nodes placed at semantic building anchors (physical positions only where real replay samples exist), long-interval brackets for approvals, and gaps for unknown time. Publishes `work-score:request`/`work-score:state`; scrubbing reads a frozen row copy and never mutates domain state. |
 | `DebugOverlay.js` | Shift-D debug overlay for renderer diagnostics; Shift-P pathfinding overlay (planned-path breadcrumbs and glowing destination tiles). Both off by default. |
 | `RitualConductor.js` | Capped, reduced-motion-aware scheduler for tool ritual visuals: building rituals plus per-agent reading/typing/thinking pose records consumed by `AgentSprite`. |
 | `ParticleSystem.js` | Particle emitters and ambient effects. Honors `prefers-reduced-motion`. |
@@ -162,6 +166,17 @@ Selection events (`agent:selected`, `agent:deselected`) are bridged in `App.js`,
 
 Deterministic QA scenarios for these states are available at `?sim=1&scenario=<id>`; the most relevant Director fixtures are `waiting-on-user`, `quota-rate-limit`, `failed-push`, `release-parade`, and `building-inspection-replay`.
 
+## Operator controls and cross-surface contracts
+
+Four explicit controls own the frontier instruments. None is on a timer, and each leaves the default frame exactly as it found it:
+
+- **READ (hold `B` or the top-bar button)** — while held, occupied-building plaques show work verbs translated from the canonical tool classifier (`FORGE` reads `WRITING · 8`), non-primary agents show their verb instead of routine names, and releasing restores names without changing selection (`IsometricRenderer.setReadMode`, `BuildingSprite.READ_VERBS`).
+- **`A` attention frame** — frames the complete action-needed set ranked by real `awaitingSince` through `AttentionFraming.fitAttentionFrame`; when geometry cannot include everyone, the overlay states the exact excluded count instead of silently omitting agents. Entering focus also quiets the room: ordinary speech rectangles and duplicate routine names yield while the chosen agent's body, name, reason, and every unresolved primary mark stay.
+- **AMBIENT CAM** — the only way into Ambient ownership (C6): a wide shot of the active districts, patient lateral glides to the busiest real work cohort, an earned incident chapter, and a return to the wide, with factual captions (`Forge · 4 working`) and 20–30 s holds. Any genuine input revokes the claim, the control enters its distinct resume state and waits to be asked again, and nothing re-arms on a timer; Auto's timers are untouched. Reduced motion holds one static overview with the same counts.
+- **SCORE (Activity Panel)** — draws the selected run's last 20 minutes as the spatial work score with a scrub cursor and one playback pass over the kept span; reduced motion keeps the static diagram and never allocates the playback timer.
+
+The frontier plan's cross-item contracts live at these owners: **C1** observation certainty (`ObservationCertainty.js`, consumed by `AgentSprite`, the C4 aperture, and panel copy), **C2** action strips (manifest `actionStrip` entries, resolved by `SpriteSheet`/`AgentSprite` with procedural fallback), **C3** effect budget receipts (`gpu/GpuWorldPolicy.js` `EFFECT_BUDGET`; key order is the shedding order and Shift-D prints what was shed), **C4** the inspection aperture (`BuildingApertureModel.js` + `BuildingSprite`), **C5** the shape grammar (`shared/EventShapes.js`), and **C6** Ambient camera ownership (`CameraDirector.setAmbient` plus `camera:owner` events).
+
 ## Adding a building
 
 1. Add an entry to `BUILDING_DEFS` in `claudeville/src/config/buildings.js`. Copy a neighboring entry for the validated field shape:
@@ -203,7 +218,7 @@ Renderer comparisons use the manifest and runbook in [`../../../../docs/renderin
 
 Persisted movement history is retained for diagnostics and replay but routine historical trails are not painted over the village. The selected agent and action-needed agents may draw only a short, bounded recent route. `TrailRenderer.getDiagnostics()` reports the active policy, confirms zero ambient cache ownership, and retains stationary/manual-pan/follow/director-glide timing buckets. Run `npm run world:benchmark-trails` after changing trails or camera invalidation.
 
-Shift-D reports PostFX source upload, mask upload, setup CPU, shader CPU/GPU, ladder decision/degradation reason, named GPU resource bytes, mask rebuild causes, and trail camera-mode timing.
+Shift-D reports PostFX source upload, mask upload, setup CPU, shader CPU/GPU, ladder decision/degradation reason, named GPU resource bytes, mask rebuild causes, and trail camera-mode timing. On the resident GPU world it additionally prints the active quality level and reason, the C3 shed list (`shed (reason): id mode, …` from `EFFECT_BUDGET`, whose key order is the shedding order), per-pass GPU/CPU timings for `upload`, `occlusion`, `scene`, `bloom`, and `present` once `renderer.gpuWorld.setPassSamplingEnabled(true)` starts the one-pass-every-12-frames rotation (`EXT_disjoint_timer_query_webgl2`; disjoint samples discarded, unavailable never printed as zero), and pinned versus evictable texture bytes with the live body-atlas size. Only one backend's block is printed at a time so the inactive pipeline's zeroes cannot sit beside the active one's timings.
 
 For World presentation changes, run `npm run verify:render` to capture deterministic screenshots and console evidence, then review the changed behavior on the operator-maintained server. Browser judgment remains manual; evidence capture does not.
 

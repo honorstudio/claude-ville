@@ -124,11 +124,15 @@ contract is in [`docs/material-channel-contract.md`](../../docs/material-channel
    re-assembles and re-reviews without spending anything.
 4. Review every direction at 1×/2×/3×: `--contact-sheet=/tmp/strip-{id}.png`.
    Regenerate one group with `--groups=<name> --force` when hands, hats, or
-   props clip the cell; leave a character strip-less rather than shipping a bad
-   pose — the fallback is byte-identical.
+   props clip the cell, optionally narrowed with
+   `--directions=north,west` to only the failing columns; leave a character
+   strip-less rather than shipping a bad pose — the fallback is
+   byte-identical. A `wait` group (one held open-palm row) was piloted twice
+   on 2026-09-06 and rejected both times: the rigs re-drew the held staff or
+   spear into a hand on most directions. Shipped strips carry `read` only.
 5. Author strip companions with `node scripts/sprites/author-roster-channels.mjs`
-   (it covers sheet and strip from one profile), then
-   `npm run sprites:audit-refresh`.
+   (it covers sheet and strip from one profile) when the entry declares
+   sidecars, then `npm run sprites:audit-refresh`.
 6. Bump `style.assetVersion` once after the strip PNGs land.
 
 ## Manifest-Driven Bulk Bake + Contact Sheets

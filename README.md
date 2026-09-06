@@ -134,6 +134,7 @@ claude-ville/
 |   |   |-- omp.js
 |   |   |-- gitEvents.js            # Git commit/push extraction from tool commands
 |   |   |-- turnState.js            # Transcript-derived turn state and pending-tool classification
+|   |   |-- toolResults.js          # Bounded provider-reported command results (exit codes) for result shelves
 |   |   `-- index.js               # Adapter registry
 |   |-- assets/sprites/            # Pixel-art manifest and generated PNG assets
 |   |-- services/
@@ -225,6 +226,8 @@ World mode is the current RPG visual direction. It renders an isometric pixel vi
 - Harbor Master: commit ships and push departures.
 
 Agents can be selected on the canvas. Selection opens the activity panel and makes the camera follow the selected sprite until the selection clears or the user drags the camera. Agents using `SendMessage` can move toward a matched recipient and show chat animation state.
+
+The village also carries explicit operator instruments: hold **B** (or the READ button) to swap routine nameplates for work verbs; press **A** to frame every agent needing attention (with an exact count when some fall outside the frame); AMBIENT CAM hands the frame to a patient, factual broadcast that any input revokes until asked for again; and selecting a building at close zoom opens its interior as a truthful seat list whose identities and counts match the panel. Beside the Mine, an assay bench states exact input and cache-read token counts for the last minute — counts, never percentages — and the Forge keeps workload billets and a result shelf that stamps only provider-reported command outcomes.
 
 Rendering is sprite-first. `IsometricRenderer.js` orchestrates the draw loop and data flow; `SceneryEngine.js`, `TerrainTileset.js`, `BuildingSprite.js`, `HarborTraffic.js`, `AgentSprite.js`, `SpriteRenderer.js`, `Compositor.js`, `SpriteSheet.js`, and `AssetManager.js` do the specialized work.
 

@@ -2,7 +2,7 @@
 
 **Status:** `live checklist`
 
-**As of:** 2026-09-05, release `v0.42.0` — The Astral Lens
+**As of:** 2026-09-06, after the frontier visual plan (Waves 0–5) landed in `e2bc046` and `b072261`
 
 This is the active ledger for deferred work extracted from completed plans. A
 source plan can remain `implemented` or `release-verified`; an item belongs
@@ -112,6 +112,23 @@ implementation checklist is not otherwise treated as open work.
   - **Source:** [semantic diorama rendering plan — Package 9](claudeville-semantic-diorama-rendering-plan.md#package-9--conditional-modernization-and-polish).
   - **Reopen when:** WebGL2 batching, attachment limits, or material passes remain a measured blocker.
   - **Current status:** Open — conditional and not implemented. Current source contains the WebGL2 GPU path but no `navigator.gpu`/`GPUDevice` implementation, and no measured WebGL2 blocker is recorded.
+
+- [ ] **Roster action-strip rollout and the authored wait row**
+
+  - **ID:** `OF-009`
+  - **Added:** 2026-09-06
+  - **Trigger:** The maintainer approves decision D2 (roll the `read` group to the full roster), or any roster character needs an authored `wait` held pose.
+  - **Source:** [frontier visual plan — 2.7 roster rollout decision](claudeville-frontier-visual-plan.md#27-roster-rollout-decision) and items 2.1–2.3.
+  - **Current status:** Open — pilot only. Authored `read` strips shipped for `agent.claude.sonnet` and `agent.codex.gpt6astra` (`b072261`); every other character keeps the procedural overlay. The `wait` row's generation for the two pilots was in progress (uncommitted) at the time of this entry, and 2.3's hand props draw on the procedural held pose until it lands.
+
+- [ ] **Window light that reaches the street (3.3 receipt)**
+
+  - **ID:** `OF-010`
+  - **Added:** 2026-09-06
+  - **Trigger:** Per-pass measurements on the reference machine can honestly resolve a `[0.4, 1.2]` ms GPU band for one additional effect at 1920×1080 (lower noise floor, or a longer sampling run).
+  - **Source:** [frontier visual plan — 3.3 window light that reaches the street](claudeville-frontier-visual-plan.md#33-window-light-that-reaches-the-street-pilot-conditional).
+  - **Reopen when:** the C3 admission band becomes measurable; the bounded one-hop receiver-field design and the receipt row pattern (`EFFECT_BUDGET`) are already in place, and the item stays cut until its receipt can be claimed.
+  - **Current status:** Open — blocked by the measurement noise floor. The 0.1 per-pass sampler found the reference machine's run-to-run variance too close to the item's declared band, so shipping would have meant an unmeasured receipt, which the plan forbids.
 
 ## Already landed; do not carry forward as open
 

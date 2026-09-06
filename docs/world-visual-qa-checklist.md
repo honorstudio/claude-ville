@@ -65,6 +65,22 @@ World scenarios are deterministic fixtures for `?sim=1&scenario=<id>`.
 - Fog/rain/storm: weather communicates state while preserving selected-agent, harbor, and building readability.
 - `storm-night-reduced-motion`: reduced-motion metadata disables or freezes nonessential motion while keeping semantic state visible.
 
+## Frontier Instruments
+
+- Hold `B` (or the READ button): occupied-building plaques show work verbs from the canonical classifier (`FORGE` reads `WRITING · 8`); the verb counts must equal the working count in the top bar; release restores names without moving the camera or changing selection.
+- Press `A`: every action-needed agent is framed or the overlay states the exact excluded count (`N waiting outside view`); no waiting agent is silently omitted. In `waiting-on-user` after `A`, speech rectangles for non-selected agents are absent and every primary mark is present.
+- AMBIENT CAM: in `dense-24-agents` it produces at most one move per 20–30 s hold and returns to the same wide; a wheel event stops it and the control enters its resume state; Auto behaviour is unchanged. Reduced motion holds one static overview with the same counts.
+- SCORE (Activity Panel, selected agent with recorded rows): nodes land at semantic building anchors, long approvals read as brackets, unknown time reads as gaps; scrubbing changes no domain state; at most 24 nodes with an exact overflow count; reduced motion offers no PLAY.
+- Select Command at zoom 2 and 3: the interior aperture opens with the same identities and counts as the building panel; at zoom 1 it does not; closing restores the exterior immediately; `dense-100-agents` shows at most the seat count plus an exact overflow.
+- Night (`midnight-oil`): the selected building lights exactly one room per working occupant and leaving work extinguishes only that room; `2 working · 1 waiting` states both facts.
+- Mine (`cache-ore`): the assay bench states exact input and cache-read counts for the last 60 s — no percentage anywhere; a provenance flip resets coverage visibly.
+- Forge (`mixed-tools`): billets scale with fixture edit calls (`N edit calls · last 60s`); the result shelf stamps intact `exit 0`, cracked non-zero exits, and nothing without a provider-reported outcome; a Codex fixture with `toolExitCode: 1` cracks, a Claude fixture (no exit data) shows none.
+- Shared-file knot: two fixture agents writing one path show one thread, the double-pencil knot, and panel bench tiles naming the overlap; 100 agents draw no pairwise lines.
+- Empty village (`no-agents` at noon): canonical `READY_EMPTY` shows the banked Forge ember and no work effects; degraded-provider fixtures keep the degraded treatment, not rest.
+- Atmosphere: dusk/night frames must read cores-first (window cores before spill, halo never outgrowing the work); at hour 1, a full-moon and a new-moon date differ by one reviewed night course and both keep the waiting beacon as the brightest pool; rain shows source-coloured wet reflections under admitted lights only, contracting as rain stops.
+- Shift-D on the resident GPU world: the shed list names each effect and mode, pass timings report for `upload`, `occlusion`, `scene`, `bloom`, `present` after `renderer.gpuWorld.setPassSamplingEnabled(true)`, and texture bytes split pinned/evictable.
+- Top bar witness clock matches the forced hour and shows `FIXED`/`SIM` when overridden; the Sidebar exception shelf shows exact `N NEED YOU · N ERROR · N QUOTA` counts, the two oldest names, and hides at zero.
+
 ## Terrain Cache Scalability
 
 - Run `npm run world:validate-terrain` and confirm the terrain cache plan reports chunk coverage for the current `MAP_SIZE`.

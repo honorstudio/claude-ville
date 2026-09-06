@@ -36,9 +36,11 @@ Adapters are read-only inputs registered by `adapters/index.js`. Availability is
 
 The World canvas is pixel-art Canvas 2D. `Camera.js` uses integer zoom steps `{1,2,3}`; `SpriteRenderer.js` is the only sprite-blit entry point and disables smoothing. Motion-bearing changes must follow [`docs/motion-budget.md`](../docs/motion-budget.md).
 
+The World's explicit operator instruments — READ (hold `B`), the `A` attention frame, AMBIENT CAM, and the panel's SCORE control — plus the frontier contracts (observation certainty, action strips, effect receipts, the inspection aperture, the shape grammar, Ambient ownership) are documented in [the World mode README](src/presentation/character-mode/README.md). Their pure models (`ObservationCertainty`, `BuildingApertureModel`, `BuildingInstrumentModel`, `WorkWaterfallModel`, `AttentionFraming`) are the single derivation of each fact; do not re-derive those fields inside components.
+
 ## Sprite Generation
 
-`assets/sprites/manifest.yaml` is the sprite source of truth: every runtime sprite must have a manifest entry, every PNG must live at its manifest-implied path, character `generationSize` is distinct from the 92px engine cell, palette mirrors must remain identical, and `style.assetVersion` changes only when PNG bytes change. Follow [`scripts/sprites/generate.md`](../scripts/sprites/generate.md), including its canonical “Add One Character” procedure and validation commands.
+`assets/sprites/manifest.yaml` is the sprite source of truth: every runtime sprite must have a manifest entry, every PNG must live at its manifest-implied path, character `generationSize` is distinct from the 92px engine cell, palette mirrors must remain identical, and `style.assetVersion` changes only when PNG bytes change. Optional per-character action strips are separate PNGs beside the sheet with named groups (`read`), generated through `scripts/sprites/generate-action-strip.mjs`; the base sheet is never widened and characters without a strip keep the procedural overlay. Follow [`scripts/sprites/generate.md`](../scripts/sprites/generate.md), including its canonical “Add One Character” procedure and validation commands.
 
 ## Event Bus
 

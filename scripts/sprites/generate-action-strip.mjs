@@ -58,12 +58,18 @@ const GROUPS = Object.freeze({
         rows: [4, 4],
         hold: 4,
         frameCount: 4,
-        keep: [3],
         // v1 kept the source rotation's prop in the working hand and produced
-        // detached objects on the back views; v2 states the hand transfer
-        // explicitly and names the empty palm as the subject of the frame.
-        animationName: 'claudeville-wait-v2',
-        action: 'moves any held staff, tool or weapon into the far hand and lets it rest upright against the shoulder, then lifts the near hand up to chest height and opens it — bare empty palm turned toward the viewer, fingers spread, nothing in that hand and nothing floating beside the body; feet planted, shoulders square, head level, eyes open, standing perfectly still and waiting for an answer; not sleeping, not bowing, not afraid, not casting, not celebrating, no walking',
+        // detached objects on the back views; v2's "rest against the shoulder"
+        // still left the staff gripped; v3 planted it but the rig re-drew the
+        // staff into a hand on most directions and added an orb to the off
+        // hand; v4 (2026-09-06, both pilots) still gripped the staff on 7/8
+        // directions on the mage rig and held a spear on one direction on the
+        // knight rig. `wait` was rejected after its one regeneration and is
+        // not shipped; strips carry `read` only. v3 animation cannot be
+        // requested at 1–2 frames (API floor is an even 4–16), so a retry
+        // keeps the settled last frame as the held row.
+        animationName: 'claudeville-wait-v4',
+        action: 'both hands empty and open: the right hand is raised forward to chest height with the palm turned outward, an empty open hand clearly holding nothing, and the left hand hangs empty and relaxed at the side; no staff, tool or weapon in either hand — the staff or weapon stands planted on the ground beside the feet like a resting banner spear, and both hands stay completely off it; no glowing orb, no sparkle, no magic effect, no object floating beside or behind the body; feet planted in the same standing stance as the idle pose, body upright and square, head level, standing perfectly still and waiting for an answer; not sleeping, not bowing, not afraid, not casting, not celebrating, no walking',
     },
 });
 const REPAIR_ROUNDS = 2;
@@ -87,11 +93,15 @@ const contactSheetPath = option('contact-sheet');
 const directionsOption = (option('directions') || '')
     .split(',').map((name) => name.trim()).filter(Boolean);
 const characterIdOverride = option('character-id');
+// PixelLab deduplicates an identical full-group request on a rig that already
+// carries complete records for that animation name (billed, no new frames).
+// `--animation-name` re-requests a group under a fresh name for that repair.
+const animationNameOverride = option('animation-name');
 const cacheRoot = join(spritesRoot, '..', '..', '..', 'output', 'action-strip-cache');
 
 if (!ids.length) {
     console.error('Usage: --ids=<sprite-id>[,<sprite-id>] [--groups=read,wait] [--directions=north,west]'
-        + ' [--plan] [--force] [--assemble-only] [--contact-sheet=<path>]');
+        + ' [--plan] [--force] [--assemble-only] [--animation-name=<name>] [--contact-sheet=<path>]');
     process.exit(1);
 }
 for (const name of groupNames) {
@@ -160,13 +170,22 @@ async function runCharacter(id) {
     // background job dies never completes, so a stalled group is repaired by
     // re-requesting exactly the missing directions.
     const groupFrames = new Map();
+    // `--directions` narrows a fresh request (and a `--force` regeneration)
+    // to the named columns; a group otherwise always covers all eight.
+    const targets = directionsOption.length ? directionsOption : DIRECTIONS;
     for (const name of groupNames) {
         const group = GROUPS[name];
-        let known = characterAnimationFrames(character, group.animationName, { frameCount: group.frameCount });
+        const animationName = animationNameOverride || group.animationName;
+        let known = characterAnimationFrames(character, animationName, { frameCount: group.frameCount });
+        // A `--force` regeneration replaces its targets, so readiness means
+        // those directions' winning record is newer than this run: records
+        // present before the request are stale for the targets.
+        const staleGroups = force ? new Set(known.groupIds) : null;
         for (let round = 0; ; round++) {
-            const missing = force && round === 0
-                ? DIRECTIONS
-                : DIRECTIONS.filter((direction) => !known.byDirection.has(direction));
+            const missing = staleGroups
+                ? targets.filter((direction) => !known.byDirection.has(direction)
+                    || staleGroups.has(known.byDirectionGroup.get(direction)))
+                : targets.filter((direction) => !known.byDirection.has(direction));
             if (!missing.length) {
                 console.log(`[action-strip] ${id}/${name}: ${DIRECTIONS.length}/${DIRECTIONS.length} directions ready (${known.groupIds.join(', ')})`);
                 break;
@@ -184,7 +203,7 @@ async function runCharacter(id) {
                     + ` (${perDirection(group.frameCount) * missing.length} generations)`);
                 await requestWithJobSlotBackoff(() => createCharacterAnimation(token, {
                     characterId,
-                    animationName: group.animationName,
+                    animationName,
                     actionDescription: group.action,
                     frameCount: group.frameCount,
                     directions: missing,
@@ -193,17 +212,18 @@ async function runCharacter(id) {
             }
             try {
                 const settled = await waitForCharacterAnimation(token, characterId, {
-                    animationName: group.animationName,
-                    directions: DIRECTIONS,
+                    animationName,
+                    directions: missing,
                     frameCount: group.frameCount,
                     label: `${id}/${name}`,
+                    excludeGroupIds: staleGroups,
                 });
                 character = settled.character;
-                known = { byDirection: settled.byDirection, groupIds: settled.groupIds };
+                known = { byDirection: settled.byDirection, byDirectionGroup: settled.byDirectionGroup, groupIds: settled.groupIds };
             } catch (err) {
                 console.log(`[action-strip] ${id}/${name}: ${err.message}; repairing`);
                 character = await getCharacter(token, characterId);
-                known = characterAnimationFrames(character, group.animationName, { frameCount: group.frameCount });
+                known = characterAnimationFrames(character, animationName, { frameCount: group.frameCount });
             }
         }
         groupFrames.set(name, known);
