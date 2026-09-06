@@ -21,7 +21,7 @@ The village becomes more extraordinary by becoming more truthful: bodies whose h
 - The selected building panel renders each fact once — presence, work signal, queue, purpose — through one pure model whose numbers the interior aperture reuses.
 
 **Bodies**
-- Two pilot characters (Sonnet and Astra) carry authored four-frame `read` action strips — the book opens between both hands — with procedural fallback everywhere else; GPU and Canvas resolve the same frames.
+- Sixteen of twenty-four characters carry an authored four-frame `read` action strip — the book opens between both hands, head down, the last frame the legible hold that reduced motion and a stale observation select; the six whose rigs could not land the frames within ±2 px of their feet keep the procedural book, byte-identically; GPU and Canvas resolve the same frames.
 - A waiting agent's held palm carries its reason from `waitReason`: an open letter (question), a closed command slip awaiting its seal (approval), or an unrolled plan (plan review); the slip seals only on an observed resolving event, never while the wait is pending, and never from elapsed time.
 - Every agent carries a stable signature (pure function of id and family) that survives hero body, compact body, and impostor diamond, so one individual stays followable through zoom.
 - Subagent dispatch and return wisps carry a crop of the child's own idle frame plus its signature; bursts fold onto the parent as one miniature with an exact child count and one static receive beat — returned, not succeeded.
@@ -47,7 +47,7 @@ The village becomes more extraordinary by becoming more truthful: bodies whose h
 - Visual accents land on the cue score's real note times — the recovery bracket closes on the first bell, its diamond on the octave, one council notch per gathered member on successive bells — and a muted village gets the same score on the monotonic clock, so nothing waits for sound. BGM thins at the next four-bar boundary when the village rests and states `Working N · Waiting M` beside the music control.
 - On request (SCORE), the selected run's last 20 minutes become a badged spatial score over the village: tool glyphs at their semantic buildings, scrubbable cursor, approvals as long brackets, children beside their real parent, unknown time as gaps — one shared pure waterfall with the panel, never a claim that the agent walked there.
 
-**Not shipped:** the 2.7 roster rollout of action strips and the authored `wait` strip row are in progress (pilot `read` groups shipped for two characters); 3.3 window light reaching the street remains conditional on its measured receipt ([OF-009](agents/plans/open-followups.md), [OF-010](agents/plans/open-followups.md)).
+**Not shipped:** the authored `wait` held-palm row — four generations across two pilot rigs kept re-drawing the staff into the hand, so waiting agents keep the procedural held pose; six characters are strip-less; 3.3 window light reaching the street was built and cut because its scene-pass apply produced no measurable output ([OF-009](agents/plans/open-followups.md), [OF-010](agents/plans/open-followups.md)).
 
 ---
 

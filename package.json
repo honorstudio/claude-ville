@@ -1,6 +1,6 @@
 {
   "name": "claude-ville",
-  "version": "0.44.0",
+  "version": "0.45.0",
   "description": "Local-first dashboard for watching Claude Code, Codex CLI, Gemini, Grok, Kimi, and OpenCode sessions as an isometric pixel village and monitoring dashboard.",
   "private": true,
   "license": "MIT",

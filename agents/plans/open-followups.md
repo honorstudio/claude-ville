@@ -2,7 +2,7 @@
 
 **Status:** `live checklist`
 
-**As of:** 2026-09-06, after the frontier visual plan (Waves 0–5) landed in `e2bc046` and `b072261`
+**As of:** 2026-09-06, release `v0.45.0` — The Open Door
 
 This is the active ledger for deferred work extracted from completed plans. A
 source plan can remain `implemented` or `release-verified`; an item belongs
@@ -113,22 +113,21 @@ implementation checklist is not otherwise treated as open work.
   - **Reopen when:** WebGL2 batching, attachment limits, or material passes remain a measured blocker.
   - **Current status:** Open — conditional and not implemented. Current source contains the WebGL2 GPU path but no `navigator.gpu`/`GPUDevice` implementation, and no measured WebGL2 blocker is recorded.
 
-- [ ] **Roster action-strip rollout and the authored wait row**
+- [ ] **Strip-less characters and the authored wait row**
 
   - **ID:** `OF-009`
   - **Added:** 2026-09-06
-  - **Trigger:** The maintainer approves decision D2 (roll the `read` group to the full roster), or any roster character needs an authored `wait` held pose.
+  - **Trigger:** A PixelLab rig (or a re-rigged character) can produce an empty-handed held pose, or a strip-less character's rig is regenerated so its read frames land within ±2 px of the base idle footprint.
   - **Source:** [frontier visual plan — 2.7 roster rollout decision](claudeville-frontier-visual-plan.md#27-roster-rollout-decision) and items 2.1–2.3.
-  - **Current status:** Open — pilot only. Authored `read` strips shipped for `agent.claude.sonnet` and `agent.codex.gpt6astra` (`b072261`); every other character keeps the procedural overlay. The `wait` row's generation for the two pilots was in progress (uncommitted) at the time of this entry, and 2.3's hand props draw on the procedural held pose until it lands.
+  - **Current status:** Open — partial. The authored `read` group shipped for **16 of 24** characters (`0fe37ee`): all `agent.codex.*` except `gpt55.high`, `claude.sonnet`, `claude.base`, `kimi.base`, all three `deepseek.*`, `grok.composer`, both `zai.*`. **Six are strip-less** after their one allowed regeneration still failed the ±2 px feet rule (`codex.gpt55.high` SW +3 px, `claude.fable` S +3 px, `claude.opus` NE +3 px, `claude.haiku` all directions ~12 px small/high, `gemini.base` NW −3 px, `grok.base` W −3 px); they render byte-identically to before with the procedural read prop. The `wait` held-palm row was generated four times across the two pilots (v3/v4 prompts: planted/sheathed weapon, both hands empty) and rejected every time because the rigs re-draw the staff or spear into a hand; no character carries `wait`, so 2.3's letter/slip/plan props draw on the procedural held pose. 324 generations spent; balance 1,013 / 2,000.
 
-- [ ] **Window light that reaches the street (3.3 receipt)**
+- [ ] **Window light that reaches the street (3.3)**
 
   - **ID:** `OF-010`
   - **Added:** 2026-09-06
-  - **Trigger:** Per-pass measurements on the reference machine can honestly resolve a `[0.4, 1.2]` ms GPU band for one additional effect at 1920×1080 (lower noise floor, or a longer sampling run).
+  - **Trigger:** The scene-shader apply path for the spill field produces a pixel-measurable warm gain on the Command doorstep; then the C3 protocol (3× 30 s on/off, forced FULL, `dense-24-agents` hour 23) resolves a band inside `[0.4, 1.2]` ms on a quiet host.
   - **Source:** [frontier visual plan — 3.3 window light that reaches the street](claudeville-frontier-visual-plan.md#33-window-light-that-reaches-the-street-pilot-conditional).
-  - **Reopen when:** the C3 admission band becomes measurable; the bounded one-hop receiver-field design and the receipt row pattern (`EFFECT_BUDGET`) are already in place, and the item stays cut until its receipt can be claimed.
-  - **Current status:** Open — blocked by the measurement noise floor. The 0.1 per-pass sampler found the reference machine's run-to-run variance too close to the item's declared band, so shipping would have meant an unmeasured receipt, which the plan forbids.
+  - **Current status:** Open — cut twice, for two different reasons, and the tree carries none of it. First attempt (Wave 3, shared host): seven concurrent capture agents put the per-pass noise floor at 0.35–1.5 ms, wider than the band, so nothing was landed. Second attempt (quiet host): the full pipeline was built and ran — `EFFECT_BUDGET` row, aperture descriptor in `LightSourceRegistry`, `spillSource` on the Command record, seed + one-hop shaders over a cached 256×144 RGBA8 ping-pong field, a `spill` pass in the Shift-D ring, a clipped stepped Canvas stamp — and the field read back a correct world-anchored shaft that rose and fell with the occupancy gate. But the **scene-pass apply produced no visible output**: an in-page on/off screenshot A/B over the expected patch rect measured mean warm gain −0.59 vs 8.39 for the control, so the receiver branch consumes the field and discards it. Root cause not isolated; the implementation was removed entirely because an effect without a measured receipt is not admitted. Retry hints from that run: check the terrain fragments' `materialNear` id at the patch (1/6/7) and the `smoothstep(0.22, 0.5, elevation)` gate — one of these is likely eating the contribution on the cobble apron; the hop pass must scatter alpha only (scattering colour saturated the aperture toward white); reseed keys on `records.length` (≈4 reseeds / 9 s with 4 agents). Only the `SPILL_FIELD_*` byte-offset constants remain in `GpuWorldRenderer.js`.
 
 ## Already landed; do not carry forward as open
 

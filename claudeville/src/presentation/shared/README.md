@@ -37,7 +37,7 @@ Desktop-only constraint: shared UI only needs to support browser widths of 1280p
 - `BUILDING_EVENTS.DESELECTED` clears building mode when the currently shown building is deselected.
 - `ActivityPanel.hide()` emits `agent:deselected`; `App.js` bridges that event back to World mode so camera follow stops.
 - Empty world clicks clear renderer selection/follow but do not close the panel. The panel remains open until its close button or selected-agent removal.
-- `usage:updated` feeds shared status surfaces such as `TopBar`. `TopBar` consumes App’s canonical `village:state`; it does not separately reduce WebSocket/watcher events. Simulator state reads `SIMULATED`. Null World FPS hides the renderer health value while genuine numeric zero remains visible as an error.
+- `usage:updated` feeds shared status surfaces such as `TopBar`. `TopBar` consumes App’s canonical `village:state`; it does not separately reduce WebSocket/watcher events. Simulator state reads `SIMULATED`. The top bar no longer shows FPS (the witness clock owns that slot); `TopBar.renderFps` keeps only the last honest sample for Settings > Health (`SettingsPanel.js`), where a null/suspended render loop reads `render loop idle` and a genuine numeric zero remains visible as `0 FPS`.
 
 ## Session Detail Fetching
 
