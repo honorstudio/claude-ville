@@ -31,6 +31,11 @@ Watch your AI agent teams come alive in an isometric pixel world
 
 </div>
 
+> **New from the same author: [Chammo](https://github.com/honorstudio/chammo)**
+> ClaudeVille lets you *watch* your agents. Chammo lets you *run* them.
+> One live Claude Code session acts as your chief of staff. It starts a session per project, hands out the work, reads the results, and comes back to you only for the calls that can't be undone. Each session is a pixel character in an office, too.
+> macOS app. [Download v0.1.0](https://github.com/honorstudio/chammo/releases/latest)
+
 ---
 
 ## What is ClaudeVille?
@@ -168,6 +173,14 @@ claude-ville/
 | `GET /api/usage` | Account info, subscription tier, daily activity |
 | `GET /api/history?lines=100` | Last N lines of Claude history |
 | `ws://localhost:4000` | Real-time updates (WebSocket) |
+
+## See Also
+
+**[Chammo](https://github.com/honorstudio/chammo)**: your AI chief of staff for Claude Code. If ClaudeVille is where you watch the team, Chammo is where you run it.
+
+<p align="center">
+  <a href="https://github.com/honorstudio/chammo"><img src="https://github.com/honorstudio/chammo/raw/main/docs/screenshots/demo.gif" alt="Chammo demo" width="640" /></a>
+</p>
 
 ## Contributing
 
