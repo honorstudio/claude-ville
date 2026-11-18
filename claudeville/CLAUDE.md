@@ -13,7 +13,7 @@ body (flex column, height 100vh)
 ```
 
 ### 주의사항
-- **절대 `position: fixed`로 UI 요소를 배치하지 말 것** (모달, 토스트 제외)
+- UI 요소는 위 flex 구조 안에 둔다. `position: fixed`는 모달·토스트에만 쓴다 — 고정 배치는 사이드바·활동 패널 폭 계산에서 빠진다.
 - 새 패널 추가 시 반드시 flex 레이아웃 안에서 배치해야 함
 - activityPanel(320px)이 열리면 content 영역이 줄어드므로 반응형 고려 필요
 - 대시보드 모드는 `overflow-y: auto`로 스크롤, 캐릭터 모드는 캔버스가 남은 영역을 채움
@@ -24,7 +24,7 @@ body (flex column, height 100vh)
 - Node.js 서버 (server.js) - HTTP + WebSocket (RFC 6455 직접 구현)
 - Canvas 2D API로 아이소메트릭 렌더링
 - 어댑터 패턴으로 멀티 프로바이더 지원 (adapters/ 디렉토리)
-- **서버 포트: 4000** (3000 아님! 변경하지 말 것)
+- 서버 포트는 4000이다(`server.js`, `PORT` 환경값으로만 바꾼다).
 
 ## 데이터 소스 (멀티 프로바이더)
 - **Claude Code**: `~/.claude/` (history.jsonl, projects/, teams/, tasks/)
